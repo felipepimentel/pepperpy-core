@@ -27,6 +27,7 @@ class ValidationContext:
     metadata: dict[str, Any] = field(default_factory=dict)
     parent: "ValidationContext | None" = None
     _children: list["ValidationContext"] = field(default_factory=list, init=False)
+    _cleanup_handlers: list[Callable[[], Any]] = field(default_factory=list, init=False)
     
     def __post_init__(self) -> None:
         """Validate context."""
@@ -35,6 +36,28 @@ class ValidationContext:
         if not isinstance(self.metadata, dict):
             raise ValidationError(f"metadata must be a dictionary, got {type(self.metadata).__name__}")
             
+    async def __aenter__(self) -> "ValidationContext":
+        """Enter async context."""
+        return self
+        
+    async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+        """Exit async context and run cleanup handlers."""
+        for handler in self._cleanup_handlers:
+            try:
+                result = handler()
+                if hasattr(result, "__await__"):
+                    await result
+            except Exception:
+                pass  # Ignore cleanup errors
+                
+    def add_cleanup(self, handler: Callable[[], Any]) -> None:
+        """Add cleanup handler to run when context exits.
+        
+        Args:
+            handler: Cleanup handler function
+        """
+        self._cleanup_handlers.append(handler)
+        
     def child(self, path: str, **metadata: Any) -> "ValidationContext":
         """Create child context.
         

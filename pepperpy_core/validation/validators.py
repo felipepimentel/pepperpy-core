@@ -1,17 +1,143 @@
 """Common validators implementation."""
 
 import re
-from dataclasses import is_dataclass
-from datetime import datetime, timezone
-from decimal import Decimal
-from enum import Enum
 from pathlib import Path
 from typing import Any, Callable, Pattern, TypeVar, get_args, get_origin
-from uuid import UUID
 
 from .base import ValidationContext, ValidationLevel, ValidationResult, Validator
 
 T = TypeVar("T")
+
+class CompositeValidator(Validator[T]):
+    """Validator that combines multiple validators with custom logic."""
+    
+    def __init__(
+        self,
+        validators: list[Validator[T]],
+        combine_func: Callable[[list[ValidationResult]], ValidationResult],
+        name: str = "",
+        enabled: bool = True,
+    ) -> None:
+        """Initialize validator.
+        
+        Args:
+            validators: List of validators to combine
+            combine_func: Function to combine validation results
+            name: Validator name
+            enabled: Whether validator is enabled
+        """
+        super().__init__(name=name, enabled=enabled)
+        self.validators = validators
+        self.combine_func = combine_func
+        
+    async def validate(
+        self,
+        value: T,
+        context: ValidationContext | None = None,
+    ) -> ValidationResult:
+        """Validate value with all validators and combine results.
+        
+        Args:
+            value: Value to validate
+            context: Optional validation context
+            
+        Returns:
+            Combined validation result
+        """
+        if not await self.should_validate(value):
+            return ValidationResult(valid=True)
+            
+        results: list[ValidationResult] = []
+        
+        for validator in self.validators:
+            if not await validator.should_validate(value):
+                continue
+                
+            try:
+                result = await validator.validate(value, context)
+                if isinstance(result, list):
+                    results.extend(result)
+                else:
+                    results.append(result)
+            except Exception as e:
+                results.append(ValidationResult(
+                    valid=False,
+                    level=ValidationLevel.ERROR,
+                    message=f"Validator {validator.name} failed: {e}",
+                    metadata={
+                        "error": str(e),
+                        "validator": validator.name,
+                    },
+                    context=context,
+                ))
+                
+        return self.combine_func(results)
+
+def any_valid(results: list[ValidationResult]) -> ValidationResult:
+    """Combine validation results with OR logic.
+    
+    Args:
+        results: List of validation results
+        
+    Returns:
+        Combined result that is valid if any result is valid
+    """
+    if not results:
+        return ValidationResult(valid=True)
+        
+    valid_results = [r for r in results if r.valid]
+    if valid_results:
+        return valid_results[0]
+        
+    # Combine invalid results
+    return ValidationResult(
+        valid=False,
+        level=max(r.level for r in results),
+        message="\n".join(r.message for r in results if r.message),
+        metadata={
+            k: v
+            for r in results
+            for k, v in r.metadata.items()
+        },
+        details=[
+            d
+            for r in results
+            for d in r.details
+        ],
+    )
+
+def all_valid(results: list[ValidationResult]) -> ValidationResult:
+    """Combine validation results with AND logic.
+    
+    Args:
+        results: List of validation results
+        
+    Returns:
+        Combined result that is valid only if all results are valid
+    """
+    if not results:
+        return ValidationResult(valid=True)
+        
+    invalid_results = [r for r in results if not r.valid]
+    if not invalid_results:
+        return results[0]
+        
+    # Combine invalid results
+    return ValidationResult(
+        valid=False,
+        level=max(r.level for r in invalid_results),
+        message="\n".join(r.message for r in invalid_results if r.message),
+        metadata={
+            k: v
+            for r in invalid_results
+            for k, v in r.metadata.items()
+        },
+        details=[
+            d
+            for r in invalid_results
+            for d in r.details
+        ],
+    )
 
 class RequiredValidator(Validator[Any]):
     """Validates that a value is not None."""
@@ -321,68 +447,6 @@ class PatternValidator(Validator[str]):
             context=context,
         )
 
-class DateTimeValidator(Validator[datetime]):
-    """Validates datetime values."""
-    
-    def __init__(
-        self,
-        min_value: datetime | None = None,
-        max_value: datetime | None = None,
-        name: str = "",
-        enabled: bool = True,
-    ) -> None:
-        """Initialize validator.
-        
-        Args:
-            min_value: Minimum allowed datetime
-            max_value: Maximum allowed datetime
-            name: Validator name
-            enabled: Whether validator is enabled
-        """
-        super().__init__(name=name, enabled=enabled)
-        self.min_value = min_value
-        self.max_value = max_value
-        
-    async def validate(
-        self,
-        value: datetime,
-        context: ValidationContext | None = None,
-    ) -> ValidationResult:
-        """Validate datetime value.
-        
-        Args:
-            value: Value to validate
-            context: Optional validation context
-            
-        Returns:
-            Validation result
-        """
-        if not isinstance(value, datetime):
-            return ValidationResult(
-                valid=False,
-                level=ValidationLevel.ERROR,
-                message=f"Expected datetime value, got {type(value).__name__}",
-                context=context,
-            )
-            
-        if self.min_value is not None and value < self.min_value:
-            return ValidationResult(
-                valid=False,
-                level=ValidationLevel.ERROR,
-                message=f"Value must be after {self.min_value}",
-                context=context,
-            )
-            
-        if self.max_value is not None and value > self.max_value:
-            return ValidationResult(
-                valid=False,
-                level=ValidationLevel.ERROR,
-                message=f"Value must be before {self.max_value}",
-                context=context,
-            )
-            
-        return ValidationResult(valid=True, context=context)
-
 class PathValidator(Validator[Path | str]):
     """Validates file system paths."""
     
@@ -450,299 +514,6 @@ class PathValidator(Validator[Path | str]):
             
         return ValidationResult(valid=True, context=context)
 
-class DataclassValidator(Validator[Any]):
-    """Validates dataclass instances."""
-    
-    def __init__(
-        self,
-        dataclass_type: type,
-        validate_fields: bool = True,
-        name: str = "",
-        enabled: bool = True,
-    ) -> None:
-        """Initialize validator.
-        
-        Args:
-            dataclass_type: Expected dataclass type
-            validate_fields: Whether to validate dataclass fields
-            name: Validator name
-            enabled: Whether validator is enabled
-        """
-        super().__init__(name=name, enabled=enabled)
-        if not is_dataclass(dataclass_type):
-            raise ValueError(f"Type {dataclass_type.__name__} is not a dataclass")
-        self.dataclass_type = dataclass_type
-        self.validate_fields = validate_fields
-        
-    async def validate(
-        self,
-        value: Any,
-        context: ValidationContext | None = None,
-    ) -> ValidationResult | list[ValidationResult]:
-        """Validate dataclass instance.
-        
-        Args:
-            value: Value to validate
-            context: Optional validation context
-            
-        Returns:
-            Validation result(s)
-        """
-        if not isinstance(value, self.dataclass_type):
-            return ValidationResult(
-                valid=False,
-                level=ValidationLevel.ERROR,
-                message=f"Expected {self.dataclass_type.__name__} instance, got {type(value).__name__}",
-                context=context,
-            )
-            
-        if not self.validate_fields:
-            return ValidationResult(valid=True, context=context)
-            
-        results: list[ValidationResult] = []
-        
-        for field in value.__dataclass_fields__.values():
-            field_value = getattr(value, field.name)
-            field_context = context.child(field.name) if context else ValidationContext(path=field.name)
-            
-            # Validate field type
-            type_validator = TypeValidator(field.type)
-            result = await type_validator.validate(field_value, field_context)
-            if not result.valid:
-                results.append(result)
-                
-            # Validate nested dataclass
-            if is_dataclass(field.type):
-                nested_validator = DataclassValidator(field.type)
-                result = await nested_validator.validate(field_value, field_context)
-                if isinstance(result, list):
-                    results.extend(result)
-                elif not result.valid:
-                    results.append(result)
-                    
-        return results if results else ValidationResult(valid=True, context=context)
-
-class EnumValidator(Validator[Any]):
-    """Validates that a value is a valid enum member."""
-    
-    def __init__(
-        self,
-        enum_type: type[Enum],
-        allow_names: bool = True,
-        allow_values: bool = True,
-        name: str = "",
-        enabled: bool = True,
-    ) -> None:
-        """Initialize validator.
-        
-        Args:
-            enum_type: Expected enum type
-            allow_names: Whether to allow enum member names
-            allow_values: Whether to allow enum member values
-            name: Validator name
-            enabled: Whether validator is enabled
-        """
-        super().__init__(name=name, enabled=enabled)
-        if not issubclass(enum_type, Enum):
-            raise ValueError(f"Type {enum_type.__name__} is not an Enum")
-        self.enum_type = enum_type
-        self.allow_names = allow_names
-        self.allow_values = allow_values
-        
-    async def validate(
-        self,
-        value: Any,
-        context: ValidationContext | None = None,
-    ) -> ValidationResult:
-        """Validate enum value.
-        
-        Args:
-            value: Value to validate
-            context: Optional validation context
-            
-        Returns:
-            Validation result
-        """
-        if isinstance(value, self.enum_type):
-            return ValidationResult(valid=True, context=context)
-            
-        if self.allow_names and isinstance(value, str):
-            try:
-                self.enum_type[value]
-                return ValidationResult(valid=True, context=context)
-            except KeyError:
-                pass
-                
-        if self.allow_values:
-            try:
-                self.enum_type(value)
-                return ValidationResult(valid=True, context=context)
-            except ValueError:
-                pass
-                
-        valid_values = []
-        if self.allow_names:
-            valid_values.extend([m.name for m in self.enum_type])
-        if self.allow_values:
-            valid_values.extend([m.value for m in self.enum_type])
-            
-        return ValidationResult(
-            valid=False,
-            level=ValidationLevel.ERROR,
-            message=f"Value must be one of: {', '.join(map(str, valid_values))}",
-            context=context,
-        )
-
-class DecimalValidator(Validator[Decimal | str | float | int]):
-    """Validates decimal values."""
-    
-    def __init__(
-        self,
-        min_value: Decimal | None = None,
-        max_value: Decimal | None = None,
-        max_digits: int | None = None,
-        decimal_places: int | None = None,
-        name: str = "",
-        enabled: bool = True,
-    ) -> None:
-        """Initialize validator.
-        
-        Args:
-            min_value: Minimum allowed value
-            max_value: Maximum allowed value
-            max_digits: Maximum total digits
-            decimal_places: Maximum decimal places
-            name: Validator name
-            enabled: Whether validator is enabled
-        """
-        super().__init__(name=name, enabled=enabled)
-        self.min_value = Decimal(str(min_value)) if min_value is not None else None
-        self.max_value = Decimal(str(max_value)) if max_value is not None else None
-        self.max_digits = max_digits
-        self.decimal_places = decimal_places
-        
-    async def validate(
-        self,
-        value: Decimal | str | float | int,
-        context: ValidationContext | None = None,
-    ) -> ValidationResult:
-        """Validate decimal value.
-        
-        Args:
-            value: Value to validate
-            context: Optional validation context
-            
-        Returns:
-            Validation result
-        """
-        try:
-            decimal_value = Decimal(str(value))
-        except (TypeError, ValueError, decimal.InvalidOperation):
-            return ValidationResult(
-                valid=False,
-                level=ValidationLevel.ERROR,
-                message=f"Value must be a valid decimal number",
-                context=context,
-            )
-            
-        if self.min_value is not None and decimal_value < self.min_value:
-            return ValidationResult(
-                valid=False,
-                level=ValidationLevel.ERROR,
-                message=f"Value must be greater than or equal to {self.min_value}",
-                context=context,
-            )
-            
-        if self.max_value is not None and decimal_value > self.max_value:
-            return ValidationResult(
-                valid=False,
-                level=ValidationLevel.ERROR,
-                message=f"Value must be less than or equal to {self.max_value}",
-                context=context,
-            )
-            
-        if self.max_digits is not None or self.decimal_places is not None:
-            str_value = str(decimal_value)
-            if "." in str_value:
-                integer_part, decimal_part = str_value.split(".")
-            else:
-                integer_part, decimal_part = str_value, ""
-                
-            if self.max_digits is not None:
-                total_digits = len(integer_part.lstrip("-")) + len(decimal_part)
-                if total_digits > self.max_digits:
-                    return ValidationResult(
-                        valid=False,
-                        level=ValidationLevel.ERROR,
-                        message=f"Value must have at most {self.max_digits} digits in total",
-                        context=context,
-                    )
-                    
-            if self.decimal_places is not None and len(decimal_part) > self.decimal_places:
-                return ValidationResult(
-                    valid=False,
-                    level=ValidationLevel.ERROR,
-                    message=f"Value must have at most {self.decimal_places} decimal places",
-                    context=context,
-                )
-                
-        return ValidationResult(valid=True, context=context)
-
-class UUIDValidator(Validator[UUID | str]):
-    """Validates UUID values."""
-    
-    def __init__(
-        self,
-        version: int | None = None,
-        name: str = "",
-        enabled: bool = True,
-    ) -> None:
-        """Initialize validator.
-        
-        Args:
-            version: Required UUID version (1-5)
-            name: Validator name
-            enabled: Whether validator is enabled
-        """
-        super().__init__(name=name, enabled=enabled)
-        if version is not None and version not in range(1, 6):
-            raise ValueError("UUID version must be between 1 and 5")
-        self.version = version
-        
-    async def validate(
-        self,
-        value: UUID | str,
-        context: ValidationContext | None = None,
-    ) -> ValidationResult:
-        """Validate UUID value.
-        
-        Args:
-            value: Value to validate
-            context: Optional validation context
-            
-        Returns:
-            Validation result
-        """
-        try:
-            uuid_value = value if isinstance(value, UUID) else UUID(value)
-        except (TypeError, ValueError, AttributeError):
-            return ValidationResult(
-                valid=False,
-                level=ValidationLevel.ERROR,
-                message="Value must be a valid UUID",
-                context=context,
-            )
-            
-        if self.version is not None and uuid_value.version != self.version:
-            return ValidationResult(
-                valid=False,
-                level=ValidationLevel.ERROR,
-                message=f"UUID must be version {self.version}",
-                context=context,
-            )
-            
-        return ValidationResult(valid=True, context=context)
-
 class CallableValidator(Validator[Any]):
     """Validates values using a custom function."""
     
@@ -799,68 +570,6 @@ class CallableValidator(Validator[Any]):
             context=context,
         )
 
-class TimezoneValidator(Validator[datetime]):
-    """Validates datetime timezone."""
-    
-    def __init__(
-        self,
-        require_tzinfo: bool = True,
-        allowed_timezones: list[timezone] | None = None,
-        name: str = "",
-        enabled: bool = True,
-    ) -> None:
-        """Initialize validator.
-        
-        Args:
-            require_tzinfo: Whether to require timezone info
-            allowed_timezones: List of allowed timezones
-            name: Validator name
-            enabled: Whether validator is enabled
-        """
-        super().__init__(name=name, enabled=enabled)
-        self.require_tzinfo = require_tzinfo
-        self.allowed_timezones = allowed_timezones
-        
-    async def validate(
-        self,
-        value: datetime,
-        context: ValidationContext | None = None,
-    ) -> ValidationResult:
-        """Validate datetime timezone.
-        
-        Args:
-            value: Value to validate
-            context: Optional validation context
-            
-        Returns:
-            Validation result
-        """
-        if not isinstance(value, datetime):
-            return ValidationResult(
-                valid=False,
-                level=ValidationLevel.ERROR,
-                message=f"Expected datetime value, got {type(value).__name__}",
-                context=context,
-            )
-            
-        if self.require_tzinfo and value.tzinfo is None:
-            return ValidationResult(
-                valid=False,
-                level=ValidationLevel.ERROR,
-                message="Datetime must have timezone information",
-                context=context,
-            )
-            
-        if self.allowed_timezones and value.tzinfo not in self.allowed_timezones:
-            return ValidationResult(
-                valid=False,
-                level=ValidationLevel.ERROR,
-                message=f"Timezone must be one of: {', '.join(tz.tzname(None) for tz in self.allowed_timezones)}",
-                context=context,
-            )
-            
-        return ValidationResult(valid=True, context=context)
-
 # Common validator instances
 required = RequiredValidator()
 is_string = TypeValidator(str)
@@ -869,10 +578,7 @@ is_float = TypeValidator((int, float))
 is_bool = TypeValidator(bool)
 is_list = TypeValidator(list)
 is_dict = TypeValidator(dict)
-is_datetime = TypeValidator(datetime)
 is_path = TypeValidator((str, Path))
-is_decimal = TypeValidator((Decimal, str, float, int))
-is_uuid = TypeValidator((UUID, str))
 
 __all__ = [
     "RequiredValidator",
@@ -880,14 +586,8 @@ __all__ = [
     "RangeValidator",
     "LengthValidator",
     "PatternValidator",
-    "DateTimeValidator",
     "PathValidator",
-    "DataclassValidator",
-    "EnumValidator",
-    "DecimalValidator",
-    "UUIDValidator",
     "CallableValidator",
-    "TimezoneValidator",
     "required",
     "is_string",
     "is_int",
@@ -895,8 +595,5 @@ __all__ = [
     "is_bool",
     "is_list",
     "is_dict",
-    "is_datetime",
     "is_path",
-    "is_decimal",
-    "is_uuid",
 ] 

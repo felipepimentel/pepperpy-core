@@ -3,7 +3,6 @@
 from typing import Any, TypeVar
 
 from .json import JsonDict, JsonValue
-from .validation import ValidationResult
 
 # Type variable for generic types
 T = TypeVar("T")
@@ -18,5 +17,4 @@ __all__ = [
     "JsonValue",
     "T",
     "U",
-    "ValidationResult",
 ]

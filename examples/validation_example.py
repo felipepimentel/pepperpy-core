@@ -1,25 +1,36 @@
 """Validation example."""
 
-from dataclasses import dataclass, field
 from typing import Any
 
 from pepperpy_core.types import JsonDict
-from pepperpy_core.validation import Validator as BaseValidator
-from pepperpy_core.validation.base import ValidationResult
-from pepperpy_core.validation.types import ValidationData
+from pepperpy_core.validation.base import ValidationResult, Validator
 
 
-@dataclass
-class ValidatorConfig(ValidationData):
+class ValidatorConfig:
     """Validator configuration."""
 
-    name: str = ""
-    enabled: bool = True
-    stop_on_error: bool = False
-    metadata: JsonDict = field(default_factory=dict)
+    def __init__(
+        self,
+        name: str = "",
+        enabled: bool = True,
+        stop_on_error: bool = False,
+        metadata: JsonDict | None = None,
+    ) -> None:
+        """Initialize configuration.
+        
+        Args:
+            name: Validator name
+            enabled: Whether validator is enabled
+            stop_on_error: Whether to stop on first error
+            metadata: Additional metadata
+        """
+        self.name = name
+        self.enabled = enabled
+        self.stop_on_error = stop_on_error
+        self.metadata = metadata or {}
 
 
-class DataValidator(BaseValidator):
+class DataValidator(Validator[Any]):
     """Example data validator."""
 
     def __init__(self) -> None:
@@ -83,5 +94,4 @@ class DataValidator(BaseValidator):
             "enabled": self.config.enabled,
             "validations": self._validations,
             "errors": self._errors,
-            "max_errors": self.config.max_errors,
         }

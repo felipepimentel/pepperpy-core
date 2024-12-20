@@ -1,12 +1,14 @@
-"""Base configuration types."""
+"""Configuration system implementation."""
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, field, fields
+from dataclasses import dataclass, field
+from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any, ClassVar, Generic, TypeVar
+from typing import Any, Callable, Generic, TypeVar
 
 from ..exceptions.base import ConfigError
+from ..module import BaseModule, ModuleConfig
 from ..validation.base import ValidationLevel, ValidationResult, Validator
 
 class ConfigSource(Enum):
@@ -24,16 +26,23 @@ class ConfigValue:
     value: Any
     source: ConfigSource = ConfigSource.DEFAULT
     path: str = ""
+    timestamp: datetime = field(default_factory=datetime.now)
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+class ConfigValidator(Validator[Any]):
+    """Configuration validator interface."""
     
-    def __post_init__(self) -> None:
-        """Validate config value."""
-        if not isinstance(self.source, ConfigSource):
-            raise ConfigError(f"source must be a ConfigSource, got {type(self.source).__name__}")
-        if not isinstance(self.path, str):
-            raise ConfigError(f"path must be a string, got {type(self.path).__name__}")
+    def __init__(self, field_name: str) -> None:
+        """Initialize validator.
+        
+        Args:
+            field_name: Configuration field name
+        """
+        super().__init__(name=f"config_{field_name}")
+        self.field_name = field_name
 
 class ConfigLoader(ABC):
-    """Base configuration loader interface."""
+    """Configuration loader interface."""
     
     @abstractmethod
     async def load(self, path: str | Path) -> dict[str, ConfigValue]:
@@ -49,62 +58,95 @@ class ConfigLoader(ABC):
             ConfigError: If loading fails
         """
         pass
+    
+    @abstractmethod
+    async def supports_reload(self) -> bool:
+        """Check if loader supports reloading.
+        
+        Returns:
+            True if reloading is supported
+        """
+        pass
 
-class BaseConfig:
-    """Base configuration class for all configurations in the system."""
+ConfigChangeHandler = Callable[["Config", str, Any, Any], None]
+
+@dataclass
+class Config(ModuleConfig):
+    """Base configuration class."""
     
-    # Required fields
     name: str
-    
-    # Optional fields with defaults
     enabled: bool = True
     metadata: dict[str, Any] = field(default_factory=dict)
+    _values: dict[str, ConfigValue] = field(default_factory=dict, init=False)
+    _parent: "Config | None" = field(default=None, init=False)
+    _validators: dict[str, ConfigValidator] = field(default_factory=dict, init=False)
+    _change_handlers: list[ConfigChangeHandler] = field(default_factory=list, init=False)
+    _nested_configs: dict[str, "Config"] = field(default_factory=dict, init=False)
+    _loader: ConfigLoader | None = field(default=None, init=False)
+    _path: str | Path | None = field(default=None, init=False)
     
-    # Class-level validators
-    _validators: ClassVar[dict[str, list[Validator[Any]]]] = {}
-    
-    # Configuration values with metadata
-    _values: dict[str, ConfigValue] = field(default_factory=dict)
-    
-    # Parent configuration
-    _parent: "BaseConfig | None" = None
-
-    def __init_subclass__(cls) -> None:
-        """Initialize subclass with empty validator list."""
-        super().__init_subclass__()
-        cls._validators[cls.__name__] = []
-
     def __post_init__(self) -> None:
-        """Validate configuration after initialization."""
-        if not isinstance(self.name, str):
-            raise ConfigError(f"name must be a string, got {type(self.name).__name__}")
-        if not self.name:
-            raise ConfigError("name cannot be empty")
-        if not isinstance(self.enabled, bool):
-            raise ConfigError(f"enabled must be a boolean, got {type(self.enabled).__name__}")
-        if not isinstance(self.metadata, dict):
-            raise ConfigError(f"metadata must be a dictionary, got {type(self.metadata).__name__}")
-            
+        """Initialize configuration."""
+        super().__post_init__()
+        
         # Initialize values
-        for field_info in fields(self):
+        for field_info in field(self.__class__):
             if not field_info.name.startswith("_"):
                 self._values[field_info.name] = ConfigValue(
                     value=getattr(self, field_info.name),
                 )
-
-    def set_parent(self, parent: "BaseConfig") -> None:
+    
+    def set_parent(self, parent: "Config") -> None:
         """Set parent configuration.
         
         Args:
             parent: Parent configuration
+        """
+        self._parent = parent
+    
+    def add_validator(self, field_name: str, validator: ConfigValidator) -> None:
+        """Add field validator.
+        
+        Args:
+            field_name: Field name
+            validator: Field validator
+        """
+        self._validators[field_name] = validator
+    
+    def add_change_handler(self, handler: ConfigChangeHandler) -> None:
+        """Add change handler.
+        
+        Args:
+            handler: Change handler function
+        """
+        self._change_handlers.append(handler)
+    
+    def add_nested_config(self, name: str, config: "Config") -> None:
+        """Add nested configuration.
+        
+        Args:
+            name: Configuration name
+            config: Nested configuration
+        """
+        config.set_parent(self)
+        self._nested_configs[name] = config
+    
+    def get_nested_config(self, name: str) -> "Config":
+        """Get nested configuration.
+        
+        Args:
+            name: Configuration name
+            
+        Returns:
+            Nested configuration
             
         Raises:
-            ConfigError: If parent is invalid
+            ConfigError: If configuration not found
         """
-        if not isinstance(parent, BaseConfig):
-            raise ConfigError(f"parent must be a BaseConfig instance, got {type(parent).__name__}")
-        self._parent = parent
-
+        if name not in self._nested_configs:
+            raise ConfigError(f"Nested configuration {name} not found")
+        return self._nested_configs[name]
+    
     def get_value(self, name: str) -> Any:
         """Get configuration value.
         
@@ -117,6 +159,11 @@ class BaseConfig:
         Raises:
             ConfigError: If value not found
         """
+        # Check for nested config path
+        if "." in name:
+            config_name, field_name = name.split(".", 1)
+            return self.get_nested_config(config_name).get_value(field_name)
+            
         if name in self._values:
             return self._values[name].value
             
@@ -124,7 +171,21 @@ class BaseConfig:
             return self._parent.get_value(name)
             
         raise ConfigError(f"Configuration value {name} not found")
-
+    
+    async def validate_value(self, name: str, value: Any) -> ValidationResult:
+        """Validate configuration value.
+        
+        Args:
+            name: Value name
+            value: Value to validate
+            
+        Returns:
+            Validation result
+        """
+        if name in self._validators:
+            return await self._validators[name].validate(value)
+        return ValidationResult(valid=True)
+    
     def set_value(
         self,
         name: str,
@@ -143,6 +204,13 @@ class BaseConfig:
         Raises:
             ConfigError: If value is invalid
         """
+        # Check for nested config path
+        if "." in name:
+            config_name, field_name = name.split(".", 1)
+            return self.get_nested_config(config_name).set_value(
+                field_name, value, source, path
+            )
+            
         if not hasattr(self, name):
             raise ConfigError(f"Configuration value {name} not found")
             
@@ -151,10 +219,25 @@ class BaseConfig:
         if not isinstance(value, field_type):
             raise ConfigError(f"Value must be of type {field_type.__name__}, got {type(value).__name__}")
             
+        # Get old value for change notification
+        old_value = getattr(self, name)
+            
         # Update value
         setattr(self, name, value)
-        self._values[name] = ConfigValue(value=value, source=source, path=path)
-
+        self._values[name] = ConfigValue(
+            value=value,
+            source=source,
+            path=path,
+            timestamp=datetime.now(),
+        )
+        
+        # Notify change handlers
+        for handler in self._change_handlers:
+            try:
+                handler(self, name, old_value, value)
+            except Exception:
+                pass  # Ignore handler errors
+    
     async def load(self, loader: ConfigLoader, path: str | Path) -> None:
         """Load configuration from source.
         
@@ -166,174 +249,87 @@ class BaseConfig:
             ConfigError: If loading fails
         """
         try:
+            self._loader = loader
+            self._path = path
+            
             values = await loader.load(path)
             
             for name, value in values.items():
-                if hasattr(self, name):
+                if "." in name:
+                    # Handle nested config
+                    config_name, field_name = name.split(".", 1)
+                    if config_name in self._nested_configs:
+                        self._nested_configs[config_name].set_value(
+                            field_name,
+                            value.value,
+                            value.source,
+                            value.path,
+                        )
+                elif hasattr(self, name):
+                    # Validate value
+                    validation = await self.validate_value(name, value.value)
+                    if not validation.valid:
+                        raise ConfigError(
+                            f"Invalid configuration value for {name}: {validation.message}"
+                        )
+                        
                     self.set_value(name, value.value, value.source, value.path)
                     
         except Exception as e:
             raise ConfigError("Failed to load configuration", cause=e)
-
-    async def validate(self) -> list[ValidationResult]:
-        """Validate configuration data.
+    
+    async def reload(self) -> None:
+        """Reload configuration from source.
         
-        Returns:
-            List of validation results
-            
         Raises:
-            ConfigError: If validation fails with critical errors
+            ConfigError: If reloading fails or is not supported
         """
-        results = []
-        
-        # Run all validators for this class and its parent classes
-        cls = self.__class__
-        while cls is not object:
-            if cls.__name__ in self._validators:
-                for validator in self._validators[cls.__name__]:
-                    try:
-                        result = await validator.validate(self)
-                        if isinstance(result, ValidationResult):
-                            results.append(result)
-                        else:
-                            results.extend(result)
-                    except Exception as e:
-                        results.append(ValidationResult(
-                            valid=False,
-                            level=ValidationLevel.ERROR,
-                            message=f"Validator {validator.__class__.__name__} failed: {e}",
-                            metadata={
-                                "error": str(e),
-                                "validator": validator.__class__.__name__,
-                                "config_class": cls.__name__,
-                            },
-                        ))
-            cls = cls.__base__
-        
-        # Check for critical errors
-        critical_errors = [
-            r for r in results 
-            if not r.valid and r.level == ValidationLevel.CRITICAL
-        ]
-        
-        if critical_errors:
-            messages = [r.message for r in critical_errors if r.message]
-            raise ConfigError(
-                f"Configuration validation failed for {self.name}: {'; '.join(messages)}",
-                config_name=self.name,
-            )
+        if not self._loader or not self._path:
+            raise ConfigError("Configuration not loaded from source")
             
-        return results
-
+        if not await self._loader.supports_reload():
+            raise ConfigError("Configuration loader does not support reloading")
+            
+        await self.load(self._loader, self._path)
+        
+        # Reload nested configs
+        for config in self._nested_configs.values():
+            await config.reload()
+    
     def get_stats(self) -> dict[str, Any]:
         """Get configuration statistics."""
-        cls = self.__class__
-        validator_count = sum(
-            len(validators)
-            for class_name, validators in self._validators.items()
-            if class_name == cls.__name__ or issubclass(cls, globals().get(class_name, object))
-        )
-        
         stats = {
             "name": self.name,
             "enabled": self.enabled,
             "metadata": self.metadata,
-            "validator_count": validator_count,
-            "config_class": cls.__name__,
+            "config_class": self.__class__.__name__,
             "values": {
                 name: {
                     "value": value.value,
                     "source": str(value.source),
                     "path": value.path,
+                    "timestamp": value.timestamp.isoformat(),
+                    "metadata": value.metadata,
                 }
                 for name, value in self._values.items()
             },
+            "validators": list(self._validators.keys()),
+            "change_handlers": len(self._change_handlers),
         }
         
-        if self._parent:
-            stats["parent"] = self._parent.name
+        if self._nested_configs:
+            stats["nested_configs"] = {
+                name: config.get_stats()
+                for name, config in self._nested_configs.items()
+            }
             
         return stats
-
-    @classmethod
-    def add_validator(cls, validator: Validator[Any]) -> None:
-        """Add validator to configuration class.
-        
-        Args:
-            validator: Validator instance
-            
-        Raises:
-            ConfigError: If validator is invalid
-        """
-        if not isinstance(validator, Validator):
-            raise ConfigError(f"validator must be a Validator instance, got {type(validator).__name__}")
-        cls._validators[cls.__name__].append(validator)
-
-    @classmethod
-    def clear_validators(cls) -> None:
-        """Clear all validators for this configuration class."""
-        if cls.__name__ in cls._validators:
-            cls._validators[cls.__name__].clear()
-
-@dataclass
-class ModuleConfig(BaseConfig):
-    """Base configuration for modules with additional module-specific fields."""
-    
-    # Optional module-specific fields
-    version: str = "0.1.0"
-    description: str = ""
-    
-    def __post_init__(self) -> None:
-        """Validate module configuration after initialization."""
-        super().__post_init__()
-        if not isinstance(self.version, str):
-            raise ConfigError(f"version must be a string, got {type(self.version).__name__}")
-        if not isinstance(self.description, str):
-            raise ConfigError(f"description must be a string, got {type(self.description).__name__}")
-    
-    def get_stats(self) -> dict[str, Any]:
-        """Get module configuration statistics."""
-        stats = super().get_stats()
-        stats.update({
-            "version": self.version,
-            "description": self.description,
-        })
-        return stats
-
-class GenericConfig(BaseConfig, Generic[T]):
-    """Base configuration class with generic type support."""
-    
-    # Generic value field
-    value: T
-    
-    def __post_init__(self) -> None:
-        """Validate configuration after initialization."""
-        super().__post_init__()
-        # Validate generic type if possible
-        type_hints = self.__class__.__orig_bases__[0].__args__  # type: ignore
-        if type_hints and not isinstance(self.value, type_hints[0]):
-            raise ConfigError(
-                f"value must be of type {type_hints[0].__name__}, got {type(self.value).__name__}",
-                config_name=self.name,
-            )
-
-    def get_stats(self) -> dict[str, Any]:
-        """Get configuration statistics."""
-        stats = super().get_stats()
-        stats.update({
-            "value_type": type(self.value).__name__,
-        })
-        return stats
-
-# Type variable for generic configuration types
-ConfigT = TypeVar("ConfigT", bound=BaseConfig)
 
 __all__ = [
-    "BaseConfig",
-    "ModuleConfig",
-    "GenericConfig",
-    "ConfigT",
+    "Config",
     "ConfigSource",
     "ConfigValue",
+    "ConfigValidator",
     "ConfigLoader",
+    "ConfigChangeHandler",
 ]

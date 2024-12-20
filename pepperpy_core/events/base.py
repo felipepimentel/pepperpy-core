@@ -1,18 +1,23 @@
 """Base event system types and interfaces."""
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 from enum import Enum
-from typing import Any, Callable, Generic, TypeVar
+from typing import Any, Callable, Generic, Protocol, TypeVar
 from uuid import UUID, uuid4
 
 from ..config.base import BaseConfig
-from ..exceptions.base import PepperpyError
+from ..exceptions.base import EventError
 from ..validation.base import ValidationResult, Validator
 
-class EventError(PepperpyError):
-    """Event system error."""
-    pass
+class EventStatus(Enum):
+    """Event status types."""
+    
+    PENDING = "pending"
+    PROCESSING = "processing"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    RETRYING = "retrying"
 
 class EventPriority(Enum):
     """Event priority levels."""
@@ -47,6 +52,11 @@ class EventMetadata:
     retry_count: int = 0
     max_retries: int = 3
     retry_delay: float = 1.0  # seconds
+    status: EventStatus = EventStatus.PENDING
+    processing_time: timedelta | None = None
+    error_count: int = 0
+    last_error: str | None = None
+    tags: list[str] = field(default_factory=list)
     
     def __post_init__(self) -> None:
         """Validate metadata."""
@@ -74,6 +84,18 @@ class EventMetadata:
             raise EventError(f"retry_delay must be a number, got {type(self.retry_delay).__name__}")
         if self.retry_delay < 0:
             raise EventError(f"retry_delay must be non-negative, got {self.retry_delay}")
+        if not isinstance(self.status, EventStatus):
+            raise EventError(f"status must be an EventStatus, got {type(self.status).__name__}")
+        if self.processing_time is not None and not isinstance(self.processing_time, timedelta):
+            raise EventError(f"processing_time must be a timedelta, got {type(self.processing_time).__name__}")
+        if not isinstance(self.error_count, int):
+            raise EventError(f"error_count must be an integer, got {type(self.error_count).__name__}")
+        if self.error_count < 0:
+            raise EventError(f"error_count must be non-negative, got {self.error_count}")
+        if self.last_error is not None and not isinstance(self.last_error, str):
+            raise EventError(f"last_error must be a string, got {type(self.last_error).__name__}")
+        if not isinstance(self.tags, list):
+            raise EventError(f"tags must be a list, got {type(self.tags).__name__}")
 
     def can_retry(self) -> bool:
         """Check if event can be retried."""
@@ -82,6 +104,55 @@ class EventMetadata:
     def increment_retry(self) -> None:
         """Increment retry count."""
         self.retry_count += 1
+        self.status = EventStatus.RETRYING
+
+    def start_processing(self) -> None:
+        """Mark event as processing."""
+        self.status = EventStatus.PROCESSING
+
+    def complete_processing(self, processing_time: timedelta) -> None:
+        """Mark event as completed.
+        
+        Args:
+            processing_time: Time taken to process event
+        """
+        self.status = EventStatus.COMPLETED
+        self.processing_time = processing_time
+
+    def fail_processing(self, error: str) -> None:
+        """Mark event as failed.
+        
+        Args:
+            error: Error message
+        """
+        self.status = EventStatus.FAILED
+        self.error_count += 1
+        self.last_error = error
+
+P = TypeVar("P", covariant=True)
+
+class EventPayload(Protocol[P]):
+    """Event payload protocol."""
+    
+    def to_dict(self) -> dict[str, Any]:
+        """Convert payload to dictionary.
+        
+        Returns:
+            Dictionary representation
+        """
+        ...
+        
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "EventPayload[P]":
+        """Create payload from dictionary.
+        
+        Args:
+            data: Dictionary data
+            
+        Returns:
+            Event payload
+        """
+        ...
 
 T = TypeVar("T")
 
@@ -127,6 +198,29 @@ class Event(Generic[T]):
             priority=priority or self.metadata.priority,
             max_retries=max_retries,
             retry_delay=retry_delay,
+            tags=self.metadata.tags.copy(),
+        )
+        return Event(self.name, self.payload, metadata)
+
+    def with_tags(self, *tags: str) -> "Event[T]":
+        """Create new event with tags.
+        
+        Args:
+            *tags: Tags to add
+            
+        Returns:
+            New event with tags
+        """
+        metadata = EventMetadata(
+            timestamp=self.metadata.timestamp,
+            source=self.metadata.source,
+            correlation_id=self.metadata.correlation_id,
+            causation_id=self.metadata.causation_id,
+            metadata=self.metadata.metadata.copy(),
+            priority=self.metadata.priority,
+            max_retries=self.metadata.max_retries,
+            retry_delay=self.metadata.retry_delay,
+            tags=[*self.metadata.tags, *tags],
         )
         return Event(self.name, self.payload, metadata)
 

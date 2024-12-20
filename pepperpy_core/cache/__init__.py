@@ -1,11 +1,8 @@
-"""Cache module exports."""
+"""Cache module."""
 
-from .base import BaseCache
-from .config import CacheConfig
-from .types import CacheEntry
+from .base import Cache, CacheConfig
 
 __all__ = [
-    "BaseCache",
+    "Cache",
     "CacheConfig",
-    "CacheEntry",
 ]

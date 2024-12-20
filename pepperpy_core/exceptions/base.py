@@ -6,26 +6,68 @@ from typing import Any
 class PepperpyError(Exception):
     """Base exception for all pepperpy errors."""
 
-    def __init__(self, message: str, cause: Exception | None = None, details: dict[str, Any] | None = None) -> None:
+    def __init__(
+        self,
+        message: str,
+        cause: Exception | None = None,
+        details: dict[str, Any] | None = None,
+        error_code: str | None = None,
+    ) -> None:
         """Initialize exception.
 
         Args:
             message: Error message
             cause: Original exception that caused this error
             details: Additional error details
+            error_code: Unique error code for this error
         """
         super().__init__(message)
         self.cause = cause
         self.details = details or {}
+        self.error_code = error_code
 
     def __str__(self) -> str:
         """Return string representation."""
-        result = self.args[0]
+        parts = [self.args[0]]
+        
+        if self.error_code:
+            parts.insert(0, f"[{self.error_code}]")
+            
         if self.cause:
-            result = f"{result} (caused by: {self.cause})"
+            parts.append(f"(caused by: {self.cause})")
+            
         if self.details:
-            result = f"{result} - details: {self.details}"
-        return result
+            parts.append(f"details: {self.details}")
+            
+        return " - ".join(parts)
+        
+    def get_full_details(self) -> dict[str, Any]:
+        """Get full error details including cause chain.
+        
+        Returns:
+            Dictionary with all error details
+        """
+        details = {
+            "message": str(self.args[0]),
+            "type": self.__class__.__name__,
+        }
+        
+        if self.error_code:
+            details["error_code"] = self.error_code
+            
+        if self.details:
+            details["details"] = self.details
+            
+        if self.cause:
+            if isinstance(self.cause, PepperpyError):
+                details["cause"] = self.cause.get_full_details()
+            else:
+                details["cause"] = {
+                    "message": str(self.cause),
+                    "type": self.cause.__class__.__name__,
+                }
+                
+        return details
 
 
 class ConfigError(PepperpyError):
@@ -168,6 +210,91 @@ class TaskError(PepperpyError):
         self.task_id = task_id
 
 
+class EventError(PepperpyError):
+    """Event-related errors."""
+    
+    def __init__(
+        self,
+        message: str,
+        cause: Exception | None = None,
+        event_type: str | None = None,
+        event_id: str | None = None,
+    ) -> None:
+        """Initialize event error.
+        
+        Args:
+            message: Error message
+            cause: Original exception that caused this error
+            event_type: Type of event that caused the error
+            event_id: ID of event that caused the error
+        """
+        details = {}
+        if event_type:
+            details["event_type"] = event_type
+        if event_id:
+            details["event_id"] = event_id
+        super().__init__(message, cause, details or None)
+        self.event_type = event_type
+        self.event_id = event_id
+
+
+class EventHandlerError(EventError):
+    """Event handler-related errors."""
+    
+    def __init__(
+        self,
+        message: str,
+        cause: Exception | None = None,
+        event_type: str | None = None,
+        event_id: str | None = None,
+        handler_name: str | None = None,
+    ) -> None:
+        """Initialize event handler error.
+        
+        Args:
+            message: Error message
+            cause: Original exception that caused this error
+            event_type: Type of event that caused the error
+            event_id: ID of event that caused the error
+            handler_name: Name of handler that failed
+        """
+        super().__init__(message, cause, event_type, event_id)
+        if handler_name:
+            self.details["handler_name"] = handler_name
+        self.handler_name = handler_name
+
+
+class EventMiddlewareError(EventError):
+    """Event middleware-related errors."""
+    
+    def __init__(
+        self,
+        message: str,
+        cause: Exception | None = None,
+        event_type: str | None = None,
+        event_id: str | None = None,
+        middleware_name: str | None = None,
+        stage: str | None = None,
+    ) -> None:
+        """Initialize event middleware error.
+        
+        Args:
+            message: Error message
+            cause: Original exception that caused this error
+            event_type: Type of event that caused the error
+            event_id: ID of event that caused the error
+            middleware_name: Name of middleware that failed
+            stage: Stage where middleware failed (before/after)
+        """
+        super().__init__(message, cause, event_type, event_id)
+        if middleware_name:
+            self.details["middleware_name"] = middleware_name
+        if stage:
+            self.details["stage"] = stage
+        self.middleware_name = middleware_name
+        self.stage = stage
+
+
 __all__ = [
     "PepperpyError",
     "ConfigError",
@@ -179,4 +306,7 @@ __all__ = [
     "CacheError",
     "SecurityError",
     "TaskError",
+    "EventError",
+    "EventHandlerError",
+    "EventMiddlewareError",
 ]

@@ -1,6 +1,15 @@
-"""Configuration management package."""
+"""Configuration module."""
 
-from .types import ConfigManagerConfig
-from .manager import ConfigManager
+from .base import Config, ConfigLoader, ConfigSource, ConfigValue
+from .loaders import ChainedConfigLoader, EnvConfigLoader, JsonConfigLoader, YamlConfigLoader
 
-__all__ = ["ConfigManager", "ConfigManagerConfig"]
+__all__ = [
+    "Config",
+    "ConfigLoader",
+    "ConfigSource",
+    "ConfigValue",
+    "ChainedConfigLoader",
+    "EnvConfigLoader",
+    "JsonConfigLoader",
+    "YamlConfigLoader",
+]
