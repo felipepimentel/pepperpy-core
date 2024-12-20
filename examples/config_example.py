@@ -1,48 +1,38 @@
-"""Example of using the configuration system."""
+"""Configuration example."""
 
-import asyncio
-from pathlib import Path
+from typing import Any
 
-from pepperpy_core.config import ConfigManager, ConfigManagerConfig
-from pydantic import BaseModel
+from pepperpy_core.config import (
+    Config,
+    ConfigLoader,
+    JsonConfigLoader,
+    YamlConfigLoader,
+)
 
 
-class ExampleConfig(BaseModel):
+class ExampleConfig(Config):
     """Example configuration."""
 
-    name: str = "example"
-    value: str = "default"
+    def __init__(self, name: str = "example") -> None:
+        """Initialize configuration."""
+        super().__init__(name=name)
+        self._loader: ConfigLoader | None = None
 
+    async def load_from_json(self, path: str) -> None:
+        """Load configuration from JSON file."""
+        loader = JsonConfigLoader()
+        await self.load(loader, path)
 
-async def main() -> None:
-    """Run the example."""
-    # Create config directory
-    config_dir = Path("/tmp/example_config")
-    config_dir.mkdir(exist_ok=True)
+    async def load_from_yaml(self, path: str) -> None:
+        """Load configuration from YAML file."""
+        loader = YamlConfigLoader()
+        await self.load(loader, path)
 
-    # Create config file
-    config_file = config_dir / "example.json"
-    config_file.write_text('{"name": "test", "value": "custom"}')
-
-    # Initialize config manager
-    config = ConfigManagerConfig(
-        name="example",
-        config_path=str(config_dir),
-        enabled=True,
-    )
-    manager = ConfigManager(config=config)
-    await manager.initialize()
-
-    try:
-        # Load configuration
-        example_config = await manager.get_config("example", ExampleConfig)
-        print(f"Loaded config: {example_config}")
-    finally:
-        # Cleanup
-        await manager.cleanup()
-        config_file.unlink(missing_ok=True)
-        config_dir.rmdir()
-
-
-if __name__ == "__main__":
-    asyncio.run(main())
+    async def get_stats(self) -> dict[str, Any]:
+        """Get configuration statistics."""
+        return {
+            "name": self.name,
+            "enabled": self.enabled,
+            "metadata": self.metadata,
+            "loader": self._loader.__class__.__name__ if self._loader else None,
+        }

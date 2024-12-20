@@ -3,7 +3,7 @@
 from typing import Any
 
 from pepperpy_core.types import JsonDict
-from pepperpy_core.validation.base import ValidationResult, Validator
+from pepperpy_core.validation import ValidationResult, Validator
 
 
 class ValidatorConfig:

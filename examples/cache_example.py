@@ -2,21 +2,21 @@
 
 from typing import Any
 
-from pepperpy_core.cache import BaseCache, CacheConfig, CacheEntry
+from pepperpy_core.cache import Cache, CacheConfig
 
 
-class ExampleCache(BaseCache[CacheConfig]):
+class ExampleCache(Cache):
     """Example cache implementation."""
 
     def __init__(self) -> None:
         """Initialize cache."""
         config = CacheConfig(name="example-cache")
         super().__init__(config)
-        self._data: dict[str, CacheEntry] = {}
+        self._data: dict[str, Any] = {}
 
     async def _setup(self) -> None:
         """Setup cache resources."""
-        # Exemplo simples usando dicionário em memória
+        # Simple example using in-memory dictionary
         self._data = {}
 
     async def _teardown(self) -> None:
@@ -25,19 +25,11 @@ class ExampleCache(BaseCache[CacheConfig]):
 
     async def get(self, key: str) -> Any:
         """Get value from cache."""
-        entry = self._data.get(key)
-        if entry is None:
-            return None
-        return entry.value
+        return self._data.get(key)
 
     async def set(self, key: str, value: Any) -> None:
         """Set value in cache."""
-        import time
-
-        entry = CacheEntry(
-            key=key, value=value, expires_at=time.time() + self.config.ttl
-        )
-        self._data[key] = entry
+        self._data[key] = value
 
     async def delete(self, key: str) -> None:
         """Delete value from cache."""
