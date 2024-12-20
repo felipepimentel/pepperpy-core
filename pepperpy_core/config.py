@@ -1,15 +1,15 @@
 """Configuration system implementation."""
 
-import json
 import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any, Callable, Generic, Protocol, TypeVar
+from typing import Any, Callable, Protocol
 
 from .exceptions import ConfigError
+from .io import FileIO
 from .module import BaseModule, ModuleConfig
 from .validation import ValidationLevel, ValidationResult, Validator
 
@@ -119,96 +119,67 @@ class ConfigLoader(ABC):
         pass
 
 
-class JsonConfigLoader(ConfigLoader):
+class FileConfigLoader(ConfigLoader):
+    """Base file configuration loader."""
+    
+    def __init__(self) -> None:
+        """Initialize loader."""
+        self._file_io = FileIO()
+    
+    async def initialize(self) -> None:
+        """Initialize file I/O."""
+        await self._file_io.initialize()
+    
+    async def cleanup(self) -> None:
+        """Cleanup file I/O."""
+        await self._file_io.cleanup()
+    
+    async def load(self, path: str | Path) -> dict[str, ConfigValue]:
+        """Load configuration from file.
+        
+        Args:
+            path: File path
+            
+        Returns:
+            Dictionary of configuration values
+            
+        Raises:
+            ConfigError: If loading fails
+        """
+        try:
+            await self.initialize()
+            try:
+                data = self._file_io.read(path)
+                return {
+                    key: ConfigValue(
+                        value=value,
+                        source=ConfigSource.FILE,
+                        path=str(path),
+                    )
+                    for key, value in data.items()
+                }
+            finally:
+                await self.cleanup()
+        except Exception as e:
+            raise ConfigError(f"Failed to load config file {path}: {e}")
+    
+    async def supports_reload(self) -> bool:
+        """Check if loader supports reloading.
+        
+        Returns:
+            True if reloading is supported
+        """
+        return True
+
+
+class JsonConfigLoader(FileConfigLoader):
     """JSON configuration loader."""
-    
-    async def load(self, path: str | Path) -> dict[str, ConfigValue]:
-        """Load configuration from JSON file.
-        
-        Args:
-            path: JSON file path
-            
-        Returns:
-            Dictionary of configuration values
-            
-        Raises:
-            ConfigError: If loading fails
-        """
-        try:
-            path = Path(path)
-            if not path.exists():
-                raise ConfigError(f"Config file not found: {path}")
-                
-            with path.open() as f:
-                data = json.load(f)
-                
-            return {
-                key: ConfigValue(
-                    value=value,
-                    source=ConfigSource.FILE,
-                    path=str(path),
-                )
-                for key, value in data.items()
-            }
-        except json.JSONDecodeError as e:
-            raise ConfigError(f"Invalid JSON in config file {path}: {e}")
-        except Exception as e:
-            raise ConfigError(f"Failed to load config file {path}: {e}")
-    
-    async def supports_reload(self) -> bool:
-        """Check if loader supports reloading.
-        
-        Returns:
-            True if reloading is supported
-        """
-        return True
+    pass
 
 
-class YamlConfigLoader(ConfigLoader):
+class YamlConfigLoader(FileConfigLoader):
     """YAML configuration loader."""
-    
-    async def load(self, path: str | Path) -> dict[str, ConfigValue]:
-        """Load configuration from YAML file.
-        
-        Args:
-            path: YAML file path
-            
-        Returns:
-            Dictionary of configuration values
-            
-        Raises:
-            ConfigError: If loading fails
-        """
-        try:
-            import yaml
-            
-            path = Path(path)
-            if not path.exists():
-                raise ConfigError(f"Config file not found: {path}")
-                
-            with path.open() as f:
-                data = yaml.safe_load(f)
-                
-            return {
-                key: ConfigValue(
-                    value=value,
-                    source=ConfigSource.FILE,
-                    path=str(path),
-                )
-                for key, value in data.items()
-            }
-        except yaml.YAMLError as e:
-            raise ConfigError(f"Invalid YAML in config file {path}: {e}")
-        except Exception as e:
-            raise ConfigError(f"Failed to load config file {path}: {e}")
-    
-    async def supports_reload(self) -> bool:
-        """Check if loader supports reloading.
-        
-        Returns:
-            True if reloading is supported
-        """
-        return True
+    pass
 
 
 class EnvConfigLoader(ConfigLoader):

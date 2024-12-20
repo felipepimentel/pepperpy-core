@@ -1,7 +1,7 @@
 """Core package exports."""
 
-from .base.module import InitializableModule
+from .module import BaseModule
 
 __all__ = [
-    "InitializableModule",
+    "BaseModule",
 ]
