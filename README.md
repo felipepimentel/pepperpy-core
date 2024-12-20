@@ -1,2 +1,3 @@
-# pepperpy-core
-Core package for PepperPy framework
+# PepperPy Core
+
+Core package for PepperPy framework.

@@ -1,0 +1,6 @@
+[virtualenvs]
+in-project = true
+path = ".venv"
+
+[installer]
+parallel = true
