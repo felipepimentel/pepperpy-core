@@ -1,8 +1,10 @@
 """Core types and type definitions."""
 
-from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any, Protocol, TypeVar
+
+# Add generic type T definition
+T = TypeVar("T")
 
 # JSON types
 JsonPrimitive = str | int | float | bool | None
@@ -31,6 +33,11 @@ class BaseConfigData(BaseData):
     """Base configuration data class."""
 
     name: str = field(default="")
+    enabled: bool = True
+
+    def __post_init__(self) -> None:
+        """Post initialization hook."""
+        self.validate()
 
     def validate(self) -> None:
         """Validate configuration data.
@@ -170,4 +177,4 @@ __all__ = [
     "BaseFormatter",
     "BaseParser",
     "BaseSerializer",
-] 
+]

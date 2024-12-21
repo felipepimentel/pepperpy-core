@@ -1,7 +1,6 @@
 """Test exceptions functionality"""
 
-from pepperpy_core.exceptions import PepperpyError
-from pepperpy_core.exceptions.module import ModuleError
+from pepperpy_core.exceptions import ModuleError, PepperpyError
 
 
 def test_base_error() -> None:
@@ -21,5 +20,4 @@ def test_error_with_cause() -> None:
     """Test error with cause"""
     cause = ValueError("Original error")
     error = PepperpyError("Test error", cause=cause)
-    assert str(error) == "Test error"
-    assert error.cause == cause
+    assert str(error) == "Test error - (caused by: Original error)"

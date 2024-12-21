@@ -3,7 +3,8 @@
 from typing import Any
 
 import pytest
-from pepperpy_core.tasks import Task
+
+from pepperpy_core.task import Task
 
 
 class MockTask(Task):

@@ -4,7 +4,8 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import pytest
-from pepperpy_core.security.config import SecurityConfig
+
+from pepperpy_core.security import SecurityConfig
 
 
 @dataclass

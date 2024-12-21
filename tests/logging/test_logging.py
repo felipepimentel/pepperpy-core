@@ -2,10 +2,23 @@
 
 from collections.abc import AsyncGenerator
 from dataclasses import dataclass, field
-from typing import Any, Protocol
+from typing import Any, AsyncIterator, Protocol, TypeVar
 
 import pytest
-from pepperpy_core.base import BaseConfigData, BaseModule
+import pytest_asyncio
+
+from pepperpy_core.module import BaseModule
+from pepperpy_core.types import BaseConfigData
+
+T = TypeVar("T")
+
+
+async def async_next(agen: AsyncGenerator[T, None]) -> T:
+    """Get next value from async generator."""
+    try:
+        return await agen.__anext__()
+    except StopAsyncIteration:
+        raise StopAsyncIteration("No more items")
 
 
 @dataclass
@@ -97,42 +110,34 @@ def log_config() -> LogConfig:
     return LogConfig(name="test")
 
 
-@pytest.fixture
-async def log_manager(log_config: LogConfig) -> AsyncGenerator[MockLogManager, None]:
+@pytest_asyncio.fixture
+async def log_manager(log_config: LogConfig) -> AsyncIterator[MockLogManager]:
     """Create test log manager."""
     manager = MockLogManager(config=log_config)
     await manager.initialize()
-    try:
-        yield manager
-    finally:
-        await manager.cleanup()
+    yield manager
+    await manager.cleanup()
 
 
 @pytest.mark.asyncio
-async def test_log_manager_levels(
-    log_manager: AsyncGenerator[MockLogManager, None]
-) -> None:
+async def test_log_manager_levels(log_manager: MockLogManager) -> None:
     """Test log manager levels."""
-    manager = await anext(log_manager)
-    await manager.debug("Debug message")
-    await manager.info("Info message")
-    await manager.warning("Warning message")
-    await manager.error("Error message")
+    await log_manager.debug("Debug message")
+    await log_manager.info("Info message")
+    await log_manager.warning("Warning message")
+    await log_manager.error("Error message")
 
-    assert len(manager.logs) == 4
-    assert manager.logs[0] == "DEBUG: Debug message"
-    assert manager.logs[1] == "INFO: Info message"
-    assert manager.logs[2] == "WARNING: Warning message"
-    assert manager.logs[3] == "ERROR: Error message"
+    assert len(log_manager.logs) == 4
+    assert log_manager.logs[0] == "DEBUG: Debug message"
+    assert log_manager.logs[1] == "INFO: Info message"
+    assert log_manager.logs[2] == "WARNING: Warning message"
+    assert log_manager.logs[3] == "ERROR: Error message"
 
 
 @pytest.mark.asyncio
-async def test_log_manager_metadata(
-    log_manager: AsyncGenerator[MockLogManager, None]
-) -> None:
+async def test_log_manager_metadata(log_manager: MockLogManager) -> None:
     """Test log manager metadata."""
-    manager = await anext(log_manager)
-    await manager.info("Test message", user="test_user", action="test_action")
+    await log_manager.info("Test message", user="test_user", action="test_action")
 
-    assert len(manager.metadata) == 1
-    assert manager.metadata[0] == {"user": "test_user", "action": "test_action"}
+    assert len(log_manager.metadata) == 1
+    assert log_manager.metadata[0] == {"user": "test_user", "action": "test_action"}

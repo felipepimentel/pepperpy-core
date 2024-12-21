@@ -1,57 +1,67 @@
 """Configuration tests."""
 
-from collections.abc import AsyncGenerator
+import json
 from pathlib import Path
+from typing import Any, AsyncIterator
 
 import pytest
-from pepperpy_core.config import Config, JsonConfigLoader
+import pytest_asyncio
+
+from pepperpy_core.config import (
+    Config,
+    JsonConfigLoader,
+)
+from pepperpy_core.exceptions import ConfigError
 
 
 class _TestConfig(Config):
     """Test configuration."""
 
-    def __init__(self, name: str = "test") -> None:
-        """Initialize configuration."""
-        super().__init__(name=name)
+    def __init__(self) -> None:
+        """Initialize test configuration."""
+        super().__init__(name="test", enabled=True, metadata={})
+
+    def get(self, key: str) -> Any:
+        """Get configuration value.
+
+        Args:
+            key: Configuration key
+
+        Returns:
+            Configuration value
+        """
+        return self._values[key].value
+
+    async def cleanup(self) -> None:
+        """Cleanup configuration."""
+        self._values.clear()
 
 
-@pytest.fixture
-async def config() -> AsyncGenerator[_TestConfig, None]:
-    """Create test configuration."""
-    config = _TestConfig()
-    try:
-        yield config
-    finally:
-        await config.cleanup()
-
-
-@pytest.fixture
-def test_config_file(tmp_path: Path) -> Path:
-    """Create a test config file."""
-    config_path = tmp_path / "test_config.json"
-    config_path.write_text('{"name": "test", "value": "test_value"}')
-    return config_path
+@pytest_asyncio.fixture
+async def config() -> AsyncIterator[_TestConfig]:
+    """Test configuration fixture."""
+    config_instance = _TestConfig()
+    yield config_instance
+    await config_instance.cleanup()
 
 
 @pytest.mark.asyncio
-async def test_config_load(
-    config: AsyncGenerator[_TestConfig, None],
-    test_config_file: Path,
-) -> None:
+async def test_config_load(config: _TestConfig, tmp_path: Path) -> None:
     """Test config loading."""
-    config_instance = await anext(config)
     loader = JsonConfigLoader()
-    await config_instance.load(loader, test_config_file)
-    assert config_instance.name == "test"
+
+    # Create a test config file
+    config_path = tmp_path / "test_config.json"
+    with config_path.open("w", encoding="utf-8") as f:
+        json.dump({"test_key": "test_value"}, f)
+
+    await config.load(loader, config_path)
+    assert config.get("test_key") == "test_value"
 
 
 @pytest.mark.asyncio
-async def test_config_validation(
-    config: AsyncGenerator[_TestConfig, None],
-    tmp_path: Path,
-) -> None:
+async def test_config_validation(config: _TestConfig, tmp_path: Path) -> None:
     """Test config validation."""
-    config_instance = await anext(config)
     loader = JsonConfigLoader()
 
     # Ensure the config file doesn't exist
@@ -59,5 +69,7 @@ async def test_config_validation(
     if config_path.exists():
         config_path.unlink()
 
-    with pytest.raises(ValueError, match="Config file not found: invalid_config"):
-        await config_instance.load(loader, config_path)
+    with pytest.raises(
+        ConfigError, match="Failed to load configuration: Failed to load config file"
+    ):
+        await config.load(loader, config_path)

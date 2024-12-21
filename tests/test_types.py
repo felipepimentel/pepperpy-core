@@ -1,7 +1,8 @@
 """Test core types"""
 
 import pytest
-from pepperpy_core.base.types import JsonDict, JsonValue
+
+from pepperpy_core.types import JsonDict, JsonValue
 
 
 def test_json_dict_type() -> None:

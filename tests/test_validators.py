@@ -1,10 +1,12 @@
 """Validator tests."""
 
 import pytest
+
 from pepperpy_core.validation import (
     LengthValidator,
     PatternValidator,
     TypeValidator,
+    ValidationResult,
 )
 
 
@@ -12,8 +14,10 @@ from pepperpy_core.validation import (
 async def test_regex_validation() -> None:
     """Test regex validation."""
     validator = PatternValidator(pattern=r"^test\d+$")
-    assert await validator.validate("test123")
-    assert not await validator.validate("invalid")
+    result = await validator.validate("test123")
+    assert result.valid
+    result = await validator.validate("invalid")
+    assert not result.valid
 
 
 @pytest.mark.asyncio
@@ -51,10 +55,7 @@ async def test_type_validation() -> None:
 @pytest.mark.asyncio
 async def test_validate_many() -> None:
     """Test multiple validations."""
-    validators = [
-        PatternValidator(pattern=r"^test\d+$"),
-        LengthValidator(min_length=6, max_length=10),
-    ]
-    results = await validators[0].validate_many(["test123", "test"])
+    validator = PatternValidator(pattern=r"^test\d+$")
+    results: list[ValidationResult] = await validator.validate_many(["test123", "test"])
     assert results[0].valid
     assert not results[1].valid

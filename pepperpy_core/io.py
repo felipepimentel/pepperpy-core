@@ -1,6 +1,7 @@
 """File I/O operations module."""
 
 import configparser
+import json
 from pathlib import Path
 from typing import Any, Protocol
 
@@ -106,7 +107,9 @@ class YamlFileHandler:
             try:
                 import yaml
             except ImportError:
-                raise IOError("PyYAML package is not installed. Please install it with: pip install pyyaml")
+                raise IOError(
+                    "PyYAML package is not installed. Please install it with: pip install pyyaml"
+                )
 
             with path.open("r", encoding="utf-8") as f:
                 return yaml.safe_load(f)
@@ -128,7 +131,9 @@ class YamlFileHandler:
             try:
                 import yaml
             except ImportError:
-                raise IOError("PyYAML package is not installed. Please install it with: pip install pyyaml")
+                raise IOError(
+                    "PyYAML package is not installed. Please install it with: pip install pyyaml"
+                )
 
             with path.open("w", encoding="utf-8") as f:
                 yaml.safe_dump(content, f, default_flow_style=False)
@@ -180,6 +185,46 @@ class IniFileHandler:
             raise IOError(f"Failed to write INI file {path}: {e}") from e
 
 
+class JsonFileHandler:
+    """JSON file handler implementation."""
+
+    @staticmethod
+    def read(path: Path) -> dict[str, Any]:
+        """Read JSON file.
+
+        Args:
+            path: File path
+
+        Returns:
+            File content as dictionary
+
+        Raises:
+            IOError: If reading fails
+        """
+        try:
+            with path.open("r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception as e:
+            raise IOError(f"Failed to read JSON file {path}: {e}") from e
+
+    @staticmethod
+    def write(path: Path, content: dict[str, Any]) -> None:
+        """Write dictionary to JSON file.
+
+        Args:
+            path: File path
+            content: Dictionary content
+
+        Raises:
+            IOError: If writing fails
+        """
+        try:
+            with path.open("w", encoding="utf-8") as f:
+                json.dump(content, f, indent=2)
+        except Exception as e:
+            raise IOError(f"Failed to write JSON file {path}: {e}") from e
+
+
 class FileIO(BaseModule[ModuleConfig]):
     """File I/O manager implementation."""
 
@@ -191,6 +236,7 @@ class FileIO(BaseModule[ModuleConfig]):
             ".yaml": (YamlFileHandler(), YamlFileHandler()),
             ".yml": (YamlFileHandler(), YamlFileHandler()),
             ".ini": (IniFileHandler(), IniFileHandler()),
+            ".json": (JsonFileHandler(), JsonFileHandler()),
         }
 
     async def _setup(self) -> None:
@@ -284,5 +330,6 @@ __all__ = [
     "TextFileHandler",
     "YamlFileHandler",
     "IniFileHandler",
+    "JsonFileHandler",
     "FileIO",
-] 
+]

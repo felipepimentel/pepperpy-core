@@ -1,55 +1,31 @@
 """Event implementation module."""
 
-import asyncio
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
-from datetime import datetime
 from enum import Enum
 from typing import Any, Generic, TypeVar
 
-from .exceptions import PepperpyError
+from .exceptions import EventError
 from .module import BaseModule, ModuleConfig
-from .utils import utcnow
-
-
-class EventError(PepperpyError):
-    """Event specific error."""
-
-    pass
 
 
 class EventPriority(Enum):
-    """Event priority levels."""
+    """Event listener priority."""
 
-    LOW = "low"
-    NORMAL = "normal"
-    HIGH = "high"
-    CRITICAL = "critical"
-
-    def __str__(self) -> str:
-        """Return string representation."""
-        return self.value
+    LOWEST = 0
+    LOW = 1
+    NORMAL = 2
+    HIGH = 3
+    HIGHEST = 4
 
 
 @dataclass
 class EventConfig(ModuleConfig):
-    """Event configuration."""
+    """Event bus configuration."""
 
-    # Required fields (inherited from ModuleConfig)
     name: str
-
-    # Optional fields
     enabled: bool = True
-    max_listeners: int = 100
-    buffer_size: int = 1000
     metadata: dict[str, Any] = field(default_factory=dict)
-
-    def validate(self) -> None:
-        """Validate configuration."""
-        if self.max_listeners < 1:
-            raise ValueError("max_listeners must be greater than 0")
-        if self.buffer_size < 1:
-            raise ValueError("buffer_size must be greater than 0")
 
 
 T = TypeVar("T")
@@ -57,35 +33,31 @@ T = TypeVar("T")
 
 @dataclass
 class Event(Generic[T]):
-    """Event data."""
+    """Event data container."""
 
     name: str
     data: T
-    priority: EventPriority = EventPriority.NORMAL
-    timestamp: datetime = field(default_factory=utcnow)
     metadata: dict[str, Any] = field(default_factory=dict)
-
-
-EventHandler = Callable[[Event[T]], Awaitable[None]]
 
 
 @dataclass
 class EventListener(Generic[T]):
-    """Event listener."""
+    """Event listener data."""
 
-    name: str
-    handler: EventHandler[T]
+    handler: Callable[[Event[T]], Awaitable[None]]
     priority: EventPriority = EventPriority.NORMAL
-    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 class EventBus(Generic[T], BaseModule[EventConfig]):
     """Event bus implementation."""
 
-    def __init__(self) -> None:
-        """Initialize event bus."""
-        config = EventConfig(name="event-bus")
-        super().__init__(config)
+    def __init__(self, config: EventConfig | None = None) -> None:
+        """Initialize event bus.
+
+        Args:
+            config: Event bus configuration
+        """
+        super().__init__(config or EventConfig(name="event_bus"))
         self._listeners: dict[str, list[EventListener[T]]] = {}
         self._events: list[Event[T]] = []
 
@@ -95,7 +67,7 @@ class EventBus(Generic[T], BaseModule[EventConfig]):
         self._events.clear()
 
     async def _teardown(self) -> None:
-        """Teardown event bus."""
+        """Cleanup event bus."""
         self._listeners.clear()
         self._events.clear()
 
@@ -105,34 +77,52 @@ class EventBus(Generic[T], BaseModule[EventConfig]):
         Returns:
             Event bus statistics
         """
-        self._ensure_initialized()
+        if not self.is_initialized:
+            await self.initialize()
+
         return {
             "name": self.config.name,
             "enabled": self.config.enabled,
-            "total_listeners": sum(len(l) for l in self._listeners.values()),
+            "total_listeners": sum(
+                len(listeners) for listeners in self._listeners.values()
+            ),
             "total_events": len(self._events),
             "event_types": list(self._listeners.keys()),
-            "max_listeners": self.config.max_listeners,
-            "buffer_size": self.config.buffer_size,
         }
+
+    async def emit(self, event: Event[T]) -> None:
+        """Emit event.
+
+        Args:
+            event: Event to emit
+        """
+        if not self.is_initialized:
+            await self.initialize()
+
+        self._events.append(event)
+
+        if event.name not in self._listeners:
+            return
+
+        listeners = self._listeners[event.name]
+        for listener in listeners:
+            try:
+                await listener.handler(event)
+            except Exception as e:
+                raise EventError(f"Failed to handle event {event.name}: {e}")
 
     def add_listener(
         self,
         event_name: str,
-        handler: EventHandler[T],
+        handler: Callable[[Event[T]], Awaitable[None]],
         priority: EventPriority = EventPriority.NORMAL,
-        metadata: dict[str, Any] | None = None,
     ) -> None:
         """Add event listener.
 
         Args:
             event_name: Event name
-            handler: Event handler
+            handler: Event handler function
             priority: Event priority
-            metadata: Optional listener metadata
-
-        Raises:
-            EventError: If too many listeners
         """
         self._ensure_initialized()
 
@@ -140,30 +130,25 @@ class EventBus(Generic[T], BaseModule[EventConfig]):
             self._listeners[event_name] = []
 
         listeners = self._listeners[event_name]
-        if len(listeners) >= self.config.max_listeners:
-            raise EventError(f"Too many listeners for event {event_name}")
-
-        listener = EventListener(
-            name=f"{event_name}_listener_{len(listeners)}",
-            handler=handler,
-            priority=priority,
-            metadata=metadata or {},
-        )
 
         # Insert listener in priority order
         index = 0
-        for i, l in enumerate(listeners):
-            if l.priority.value < priority.value:
+        for i, listener in enumerate(listeners):
+            if listener.priority.value < priority.value:
                 index = i
-                break
-        listeners.insert(index, listener)
 
-    def remove_listener(self, event_name: str, handler: EventHandler[T]) -> None:
+        listeners.insert(index, EventListener(handler=handler, priority=priority))
+
+    def remove_listener(
+        self,
+        event_name: str,
+        handler: Callable[[Event[T]], Awaitable[None]],
+    ) -> None:
         """Remove event listener.
 
         Args:
             event_name: Event name
-            handler: Event handler
+            handler: Event handler function
         """
         self._ensure_initialized()
 
@@ -171,47 +156,10 @@ class EventBus(Generic[T], BaseModule[EventConfig]):
             return
 
         self._listeners[event_name] = [
-            l for l in self._listeners[event_name] if l.handler != handler
+            listener
+            for listener in self._listeners[event_name]
+            if listener.handler != handler
         ]
-
-    async def emit(
-        self,
-        event_name: str,
-        data: T,
-        priority: EventPriority = EventPriority.NORMAL,
-        metadata: dict[str, Any] | None = None,
-    ) -> None:
-        """Emit event.
-
-        Args:
-            event_name: Event name
-            data: Event data
-            priority: Event priority
-            metadata: Optional event metadata
-        """
-        self._ensure_initialized()
-
-        event = Event(
-            name=event_name,
-            data=data,
-            priority=priority,
-            metadata=metadata or {},
-        )
-
-        self._events.append(event)
-        if len(self._events) > self.config.buffer_size:
-            self._events.pop(0)
-
-        if event_name not in self._listeners:
-            return
-
-        # Call handlers in priority order
-        for listener in self._listeners[event_name]:
-            try:
-                await listener.handler(event)
-            except Exception as e:
-                # Log error but continue processing
-                print(f"Error in event handler {listener.name}: {e}")
 
     def get_events(self, event_name: str | None = None) -> list[Event[T]]:
         """Get events.
@@ -228,14 +176,3 @@ class EventBus(Generic[T], BaseModule[EventConfig]):
             return list(self._events)
 
         return [e for e in self._events if e.name == event_name]
-
-
-__all__ = [
-    "EventError",
-    "EventPriority",
-    "EventConfig",
-    "Event",
-    "EventHandler",
-    "EventListener",
-    "EventBus",
-] 
