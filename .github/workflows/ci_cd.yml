@@ -16,6 +16,11 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v3
 
+      - name: Install essential tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y curl python3 python3-pip
+
       - name: Install Dagger CLI
         run: |
           curl -fsSL https://dl.dagger.io/dagger/install.sh | sudo bash
@@ -30,7 +35,7 @@ jobs:
           echo "PATH=$HOME/.local/bin:\$PATH" >> $GITHUB_ENV
           poetry --version
 
-      - name: Install Dependencies
+      - name: Install Python dependencies
         run: |
           export PATH="$HOME/.local/bin:$PATH"
           poetry install --with dev
