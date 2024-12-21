@@ -1,4 +1,4 @@
-name: Dagger CI/CD Workflow
+name: CI/CD Workflow
 
 on:
   push:
@@ -7,13 +7,13 @@ on:
   pull_request:
     branches:
       - main
+  workflow_dispatch:
 
 jobs:
-  dagger:
+  dagger-pipeline:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Check out code
+      - name: Checkout code
         uses: actions/checkout@v3
 
       - name: Set up Python
@@ -21,12 +21,17 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install Dagger CLI
+      - name: Install dependencies
         run: |
-          curl -fsSL https://dl.dagger.io/dagger/install.sh | sudo bash
-          echo "$HOME/.dagger/bin" >> $GITHUB_PATH
+          python -m pip install --upgrade pip
+          pip install poetry
+          poetry install --with dev
 
-      - name: Run Dagger Pipeline
-        run: |
-          export PATH="$HOME/.dagger/bin:$PATH"
-          dagger run python ci_cd_pipeline.py test
+      - name: Run Dagger pipeline
+        uses: dagger/dagger-for-github@v7
+        with:
+          version: 'latest'
+          verb: 'run'
+          args: 'python ci_cd_pipeline.py test'
+        env:
+          DAGGER_CLOUD_TOKEN: ${{ secrets.DAGGER_CLOUD_TOKEN }}
