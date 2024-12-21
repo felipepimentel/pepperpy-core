@@ -1,19 +1,31 @@
 {
-    "python.analysis.extraPaths": [
-        "examples"
-    ],
-    "files.exclude": {
-        "**/.git": true,
-        "**/.svn": true,
-        "**/.hg": true,
-        "**/CVS": true,
-        "**/.DS_Store": true,
-        "**/Thumbs.db": true,
-        "**/node_modules": true,
-        "**/dist": true,
-        "**/build": true,
-        "**/out": true,
-        "**/target": true,
-        "**/__pycache__": true,
+  "python.analysis.extraPaths": ["examples"],
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {
+    "source.organizeImports": "explicit",
+    "source.fixAll": "explicit"
+  },
+  "editor.defaultFormatter": "charliermarsh.ruff",
+  "[python]": {
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "charliermarsh.ruff",
+    "editor.codeActionsOnSave": {
+      "source.organizeImports": "always",
+      "source.fixAll": "always"
     }
+  },
+  "files.exclude": {
+    "**/.git": true,
+    "**/.svn": true,
+    "**/.hg": true,
+    "**/CVS": true,
+    "**/.DS_Store": true,
+    "**/Thumbs.db": true,
+    "**/node_modules": true,
+    "**/dist": true,
+    "**/build": true,
+    "**/out": true,
+    "**/target": true,
+    "**/__pycache__": true
+  }
 }

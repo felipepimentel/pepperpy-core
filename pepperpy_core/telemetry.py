@@ -3,9 +3,9 @@
 import asyncio
 import functools
 import time
-from collections.abc import Awaitable, Callable, Coroutine
+from collections.abc import Callable, Coroutine
 from dataclasses import dataclass, field
-from typing import Any, Generic, ParamSpec, Protocol, TypeVar, Union, cast
+from typing import Any, ParamSpec, Protocol, TypeVar, Union, cast
 
 from .exceptions import PepperpyError
 from .module import BaseModule, ModuleConfig
@@ -80,7 +80,11 @@ class HistogramProtocol(Protocol):
 try:
     from prometheus_client import (
         Counter as PromCounter,
+    )
+    from prometheus_client import (
         Histogram as PromHistogram,
+    )
+    from prometheus_client import (
         start_http_server as prom_start_server,
     )
 
@@ -148,7 +152,9 @@ class TelemetryCollector(BaseModule[TelemetryConfig]):
             "buffer_size": self.config.buffer_size,
             "flush_interval": self.config.flush_interval,
             "prometheus_enabled": prometheus_available,
-            "prometheus_port": self.config.prometheus_port if prometheus_available else None,
+            "prometheus_port": self.config.prometheus_port
+            if prometheus_available
+            else None,
         }
 
 
@@ -367,4 +373,4 @@ __all__ = [
     "MetricsCollector",
     "timing",
     "count",
-] 
+]
