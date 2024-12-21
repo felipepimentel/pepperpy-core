@@ -1,4 +1,4 @@
-name: CI/CD Workflow
+name: Dagger CI/CD Workflow
 
 on:
   push:
@@ -16,31 +16,17 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v3
 
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y curl python3 python3-pip
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
 
       - name: Install Dagger CLI
         run: |
           curl -fsSL https://dl.dagger.io/dagger/install.sh | sudo bash
           echo "$HOME/.dagger/bin" >> $GITHUB_PATH
-          echo "PATH=$HOME/.dagger/bin:\$PATH" >> $GITHUB_ENV
-          echo "Dagger CLI installed at: $(which dagger)"
 
-      - name: Install Poetry
+      - name: Run Dagger Pipeline
         run: |
-          curl -sSL https://install.python-poetry.org | python3 -
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
-          echo "PATH=$HOME/.local/bin:\$PATH" >> $GITHUB_ENV
-          echo "Poetry installed at: $(which poetry)"
-
-      - name: Install Python dependencies
-        run: |
-          export PATH="$HOME/.local/bin:$HOME/.dagger/bin:$PATH"
-          poetry install --with dev
-
-      - name: Run CI/CD pipeline
-        run: |
-          export PATH="$HOME/.local/bin:$HOME/.dagger/bin:$PATH"
+          export PATH="$HOME/.dagger/bin:$PATH"
           dagger run python ci_cd_pipeline.py test
