@@ -25,25 +25,25 @@ jobs:
         run: |
           pip install poetry
 
-      - name: Install Dagger CLI
+      - name: Install Dependencies
         run: |
-          curl -L https://dl.dagger.io/dagger/install.sh | sudo bash
+          poetry install
 
       - name: Run Tests
         run: |
-          dagger run python ci_cd_pipeline.py test
+          poetry run dagger run python ci_cd_pipeline.py test
 
       - name: Run Linting
         run: |
-          dagger run python ci_cd_pipeline.py lint
+          poetry run dagger run python ci_cd_pipeline.py lint
 
       - name: Run Security Analysis
         run: |
-          dagger run python ci_cd_pipeline.py security
+          poetry run dagger run python ci_cd_pipeline.py security
 
       - name: Build Package
         run: |
-          dagger run python ci_cd_pipeline.py build
+          poetry run dagger run python ci_cd_pipeline.py build
 
       - name: Publish to PyPI
         if: github.event_name == 'push' && contains(github.ref, 'refs/tags')
@@ -51,4 +51,4 @@ jobs:
           PYPI_USERNAME: ${{ secrets.PYPI_USERNAME }}
           PYPI_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
         run: |
-          dagger run python ci_cd_pipeline.py publish
+          poetry run dagger run python ci_cd_pipeline.py publish
