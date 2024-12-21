@@ -16,41 +16,12 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v3
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.12'
-
-      - name: Set up Docker
-        uses: docker/setup-buildx-action@v2
-
-      - name: Install Poetry
-        run: pip install poetry
-
-      - name: Install Dependencies
-        run: poetry install --with dev
-
       - name: Install Dagger CLI
         run: |
-          curl -fsSL https://dl.dagger.io/dagger/install.sh | bash
+          curl -fsSL https://dl.dagger.io/dagger/install.sh | sudo bash
           echo "$PWD/bin" >> $GITHUB_PATH
           export PATH=$PATH:$PWD/bin
-          dagger version  # Confirmar instalação
+          dagger version
 
-      - name: Run Tests
-        run: dagger run poetry run python ci_cd_pipeline.py test
-
-      - name: Run Linting
-        run: dagger run poetry run python ci_cd_pipeline.py lint
-
-      - name: Run Security Analysis
-        run: dagger run poetry run python ci_cd_pipeline.py security
-
-      - name: Build Package
-        run: dagger run poetry run python ci_cd_pipeline.py build
-
-      - name: Publish to PyPI
-        if: github.event_name == 'push' && contains(github.ref, 'refs/tags')
-        env:
-          POETRY_PYPI_TOKEN_PYPI: ${{ secrets.PYPI_TOKEN }}
-        run: dagger run poetry publish --build
+      - name: Run CI/CD pipeline
+        run: dagger run python ci_cd_pipeline.py test

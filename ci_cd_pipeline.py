@@ -7,7 +7,7 @@ import dagger
 
 async def setup_environment(client: dagger.Client) -> dagger.Container:
     """
-    Set up the base Python environment with Poetry and mount the project directory.
+    Set up the base Python environment with Poetry and install dependencies.
 
     Args:
         client (dagger.Client): Dagger client instance.
@@ -18,7 +18,12 @@ async def setup_environment(client: dagger.Client) -> dagger.Container:
     python = client.container().from_("python:3.12-slim")
     python = python.with_exec(["pip", "install", "poetry"])
     source = client.host().directory(".")
-    return python.with_mounted_directory("/src", source).with_workdir("/src")
+    # Instalar dependências incluindo o grupo "dev"
+    return (
+        python.with_mounted_directory("/src", source)
+        .with_workdir("/src")
+        .with_exec(["poetry", "install", "--with", "dev"])
+    )
 
 
 async def run_tests(client: dagger.Client) -> int:
