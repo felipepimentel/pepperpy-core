@@ -13,15 +13,34 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # 1. Checkout do código
       - name: Check out code
         uses: actions/checkout@v3
 
+      # 2. Instalar a CLI do Dagger
       - name: Install Dagger CLI
         run: |
           curl -fsSL https://dl.dagger.io/dagger/install.sh | sudo bash
-          echo "$PWD/bin" >> $GITHUB_PATH
-          export PATH=$PATH:$PWD/bin
+          echo "$HOME/.dagger/bin" >> $GITHUB_PATH
+          export PATH="$HOME/.dagger/bin:$PATH"
           dagger version
 
+      # 3. Instalar o Poetry para gerenciar dependências Python
+      - name: Install Poetry
+        run: |
+          curl -sSL https://install.python-poetry.org | python3 -
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          export PATH="$HOME/.local/bin:$PATH"
+          poetry --version
+
+      # 4. Instalar dependências Python (incluindo dagger-io)
+      - name: Install Dependencies
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          poetry install --with dev
+
+      # 5. Executar o pipeline usando Dagger CLI
       - name: Run CI/CD pipeline
-        run: dagger run python ci_cd_pipeline.py test
+        run: |
+          export PATH="$HOME/.local/bin:$PATH:$HOME/.dagger/bin"
+          dagger run python ci_cd_pipeline.py test

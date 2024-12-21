@@ -18,7 +18,6 @@ async def setup_environment(client: dagger.Client) -> dagger.Container:
     python = client.container().from_("python:3.12-slim")
     python = python.with_exec(["pip", "install", "poetry"])
     source = client.host().directory(".")
-    # Instalar dependências incluindo o grupo "dev"
     return (
         python.with_mounted_directory("/src", source)
         .with_workdir("/src")
@@ -138,8 +137,6 @@ async def main():
             "build": build_package,
             "publish": publish_package,
         }
-
-        # Execute the specified phase
         exit_code = await phase_map[args.phase](client)
         sys.exit(exit_code)
 
