@@ -9,7 +9,7 @@ on:
       - main
 
 jobs:
-  build:
+  dagger:
     runs-on: ubuntu-latest
 
     steps:
@@ -30,6 +30,23 @@ jobs:
       - name: Install Dagger CLI
         run: |
           curl -fsSL https://dl.dagger.io/dagger/install.sh | sudo bash
+          echo "/usr/local/bin" >> $GITHUB_PATH
 
-      - name: Run CI/CD pipeline
+      - name: Run Tests
         run: dagger run python ci_cd_pipeline.py test
+
+      - name: Run Linting
+        run: dagger run python ci_cd_pipeline.py lint
+
+      - name: Run Security Analysis
+        run: dagger run python ci_cd_pipeline.py security
+
+      - name: Build Package
+        run: dagger run python ci_cd_pipeline.py build
+
+      - name: Publish to PyPI
+        if: github.event_name == 'push' && contains(github.ref, 'refs/tags')
+        env:
+          PYPI_USERNAME: ${{ secrets.PYPI_USERNAME }}
+          PYPI_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
+        run: dagger run python ci_cd_pipeline.py publish
