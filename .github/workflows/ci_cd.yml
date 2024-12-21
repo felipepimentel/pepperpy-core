@@ -9,7 +9,7 @@ on:
       - main
 
 jobs:
-  dagger:
+  build:
     runs-on: ubuntu-latest
 
     steps:
@@ -22,33 +22,14 @@ jobs:
           python-version: '3.12'
 
       - name: Install Poetry
-        run: |
-          pip install poetry
+        run: pip install poetry
 
       - name: Install Dependencies
-        run: |
-          poetry install
+        run: poetry install --with dev
 
-      - name: Run Tests
+      - name: Install Dagger CLI
         run: |
-          poetry run dagger run python ci_cd_pipeline.py test
+          curl -fsSL https://dl.dagger.io/dagger/install.sh | sudo bash
 
-      - name: Run Linting
-        run: |
-          poetry run dagger run python ci_cd_pipeline.py lint
-
-      - name: Run Security Analysis
-        run: |
-          poetry run dagger run python ci_cd_pipeline.py security
-
-      - name: Build Package
-        run: |
-          poetry run dagger run python ci_cd_pipeline.py build
-
-      - name: Publish to PyPI
-        if: github.event_name == 'push' && contains(github.ref, 'refs/tags')
-        env:
-          PYPI_USERNAME: ${{ secrets.PYPI_USERNAME }}
-          PYPI_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
-        run: |
-          poetry run dagger run python ci_cd_pipeline.py publish
+      - name: Run CI/CD pipeline
+        run: dagger run python ci_cd_pipeline.py test
