@@ -55,6 +55,6 @@ jobs:
       - name: Publish to PyPI
         if: github.event_name == 'push' && contains(github.ref, 'refs/tags')
         env:
-          PYPI_USERNAME: ${{ secrets.PYPI_USERNAME }}
-          PYPI_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
-        run: dagger run poetry run python ci_cd_pipeline.py publish
+          POETRY_PYPI_TOKEN_PYPI: ${{ secrets.PYPI_TOKEN }}
+        run: |
+          dagger run poetry publish --build
