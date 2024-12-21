@@ -32,13 +32,10 @@ jobs:
 
       - name: Install Dagger CLI
         run: |
-          curl -fsSL https://dl.dagger.io/dagger/install.sh | sudo bash
-          echo "/usr/local/bin" >> $GITHUB_PATH
-          export PATH=$PATH:/usr/local/bin
-          dagger version
-
-      - name: Check Docker
-        run: docker --version
+          curl -fsSL https://dl.dagger.io/dagger/install.sh | bash
+          echo "$PWD/bin" >> $GITHUB_PATH
+          export PATH=$PATH:$PWD/bin
+          dagger version  # Confirmar instalação
 
       - name: Run Tests
         run: dagger run poetry run python ci_cd_pipeline.py test
@@ -56,5 +53,4 @@ jobs:
         if: github.event_name == 'push' && contains(github.ref, 'refs/tags')
         env:
           POETRY_PYPI_TOKEN_PYPI: ${{ secrets.PYPI_TOKEN }}
-        run: |
-          dagger run poetry publish --build
+        run: dagger run poetry publish --build
