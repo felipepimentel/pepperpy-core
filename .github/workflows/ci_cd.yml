@@ -31,6 +31,8 @@ jobs:
         run: |
           curl -fsSL https://dl.dagger.io/dagger/install.sh | sudo bash
           echo "/usr/local/bin" >> $GITHUB_PATH
+          export PATH=$PATH:/usr/local/bin
+          dagger version  # Verificar instalação
 
       - name: Run Tests
         run: dagger run python ci_cd_pipeline.py test
