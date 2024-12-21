@@ -1,143 +1,127 @@
+"""CI/CD pipeline using Dagger."""
+
 import argparse
-import os
 import sys
+from collections.abc import Awaitable, Callable
 
 import dagger
 
 
-async def setup_environment(client: dagger.Client) -> dagger.Container:
-    """
-    Set up the base Python environment with Poetry and install dependencies.
-
-    Args:
-        client (dagger.Client): Dagger client instance.
-
-    Returns:
-        dagger.Container: Configured Python container.
-    """
-    python = client.container().from_("python:3.12-slim")
-    python = python.with_exec(["pip", "install", "poetry"])
-    source = client.host().directory(".")
+async def setup_python(client: dagger.Client) -> dagger.Container:
+    """Set up Python container with Poetry and dependencies."""
     return (
-        python.with_mounted_directory("/src", source)
+        client.container()
+        .from_("python:3.12-slim")
+        .with_exec(["pip", "install", "--no-cache-dir", "poetry"])
+        .with_mounted_directory("/src", client.host().directory("."))
         .with_workdir("/src")
         .with_exec(["poetry", "install", "--with", "dev"])
     )
 
 
-async def run_tests(client: dagger.Client) -> int:
-    """
-    Run tests using pytest.
-
-    Args:
-        client (dagger.Client): Dagger client instance.
-
-    Returns:
-        int: Exit code of the tests.
-    """
-    python = await setup_environment(client)
+async def run_tests(python: dagger.Container) -> int:
+    """Run tests with coverage."""
     test = python.with_exec([
         "poetry",
         "run",
         "pytest",
-        "--maxfail=1",
-        "--disable-warnings",
+        "--cov=pepperpy_core",
+        "--cov-report=xml",
+        "--cov-report=term",
     ])
+
+    # Export coverage report
+    await test.file("coverage.xml").export("coverage.xml")
     return await test.exit_code()
 
 
-async def run_lint(client: dagger.Client) -> int:
-    """
-    Run linting using Ruff.
+async def run_lint(python: dagger.Container) -> int:
+    """Run Ruff linting and formatting."""
+    lint = python.with_exec(["poetry", "run", "ruff", "check", "."])
+    format_check = python.with_exec(["poetry", "run", "ruff", "format", "--check", "."])
 
-    Args:
-        client (dagger.Client): Dagger client instance.
-
-    Returns:
-        int: Exit code of the linting process.
-    """
-    python = await setup_environment(client)
-    lint = python.with_exec(["poetry", "run", "ruff", ".", "--fix"])
-    return await lint.exit_code()
+    if await lint.exit_code() != 0:
+        return 1
+    return await format_check.exit_code()
 
 
-async def run_security(client: dagger.Client) -> int:
-    """
-    Run security analysis using Bandit.
-
-    Args:
-        client (dagger.Client): Dagger client instance.
-
-    Returns:
-        int: Exit code of the security scan.
-    """
-    python = await setup_environment(client)
-    security = python.with_exec(["poetry", "run", "bandit", "-r", "."])
-    return await security.exit_code()
+async def run_type_check(python: dagger.Container) -> int:
+    """Run mypy type checking."""
+    return await python.with_exec([
+        "poetry",
+        "run",
+        "mypy",
+        "pepperpy_core",
+        "--strict",
+    ]).exit_code()
 
 
-async def build_package(client: dagger.Client) -> int:
-    """
-    Build the Python package.
+async def run_security_check(python: dagger.Container) -> int:
+    """Run Bandit security checks."""
+    return await python.with_exec([
+        "poetry",
+        "run",
+        "bandit",
+        "-r",
+        "pepperpy_core",
+    ]).exit_code()
 
-    Args:
-        client (dagger.Client): Dagger client instance.
 
-    Returns:
-        int: Exit code of the build process.
-    """
-    python = await setup_environment(client)
+async def build_package(python: dagger.Container) -> int:
+    """Build package with Poetry."""
     build = python.with_exec(["poetry", "build"])
+
+    # Export built package
+    await build.directory("dist").export("dist")
     return await build.exit_code()
 
 
-async def publish_package(client: dagger.Client) -> int:
-    """
-    Publish the package to PyPI.
+async def run_ci(client: dagger.Client) -> int:
+    """Run CI pipeline."""
+    python = await setup_python(client)
 
-    Args:
-        client (dagger.Client): Dagger client instance.
+    steps: list[Callable[[dagger.Container], Awaitable[int]]] = [
+        run_tests,
+        run_lint,
+        run_type_check,
+        run_security_check,
+    ]
 
-    Returns:
-        int: Exit code of the publishing process.
-    """
-    python = await setup_environment(client)
-    username = os.getenv("PYPI_USERNAME")
-    password = os.getenv("PYPI_PASSWORD")
+    for step in steps:
+        if await step(python) != 0:
+            return 1
 
-    if not username or not password:
-        print("Error: Missing PyPI credentials in environment variables.")
+    return 0
+
+
+async def run_cd(client: dagger.Client) -> int:
+    """Run CD pipeline."""
+    python = await setup_python(client)
+
+    # Run tests first
+    if await run_tests(python) != 0:
         return 1
 
-    publish = (
-        python.with_env_variable("TWINE_USERNAME", username)
-        .with_env_variable("TWINE_PASSWORD", password)
-        .with_exec(["poetry", "publish", "--build"])
-    )
-    return await publish.exit_code()
+    # Build package
+    if await build_package(python) != 0:
+        return 1
+
+    return 0
 
 
-async def main():
-    """
-    Entry point for the Dagger CI/CD pipeline. Executes the phase based on the CLI argument.
-    """
-    parser = argparse.ArgumentParser(description="Run CI/CD pipeline with Dagger.")
-    parser.add_argument(
-        "phase",
-        choices=["test", "lint", "security", "build", "publish"],
-        help="Phase of the pipeline to execute",
-    )
+async def main() -> None:
+    """Main entry point."""
+    parser = argparse.ArgumentParser()
+    parser.add_argument("command", choices=["ci", "cd"])
     args = parser.parse_args()
 
+    pipeline: dict[str, Callable[[dagger.Client], Awaitable[int]]] = {
+        "ci": run_ci,
+        "cd": run_cd,
+    }
+
     async with dagger.Connection() as client:
-        phase_map = {
-            "test": run_tests,
-            "lint": run_lint,
-            "security": run_security,
-            "build": build_package,
-            "publish": publish_package,
-        }
-        exit_code = await phase_map[args.phase](client)
+        exit_code = await pipeline[args.command](client)
         sys.exit(exit_code)
 
 
