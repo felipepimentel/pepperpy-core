@@ -1,138 +1,32 @@
-"""Core types and type definitions."""
+"""Common types and interfaces."""
 
 from dataclasses import dataclass, field
-from typing import Any, Protocol, TypeVar
-
-# Add generic type T definition
-T = TypeVar("T")
-
-# JSON types
-JsonPrimitive = str | int | float | bool | None
-JsonValue = JsonPrimitive | list["JsonValue"] | dict[str, "JsonValue"]
-JsonDict = dict[str, JsonValue]
-JsonList = list[JsonValue]
+from typing import Any, Protocol
 
 
 @dataclass
-class BaseData:
-    """Base data class for all data objects."""
+class BaseConfig:
+    """Base configuration class."""
 
+    name: str
     metadata: dict[str, Any] = field(default_factory=dict)
 
     def validate(self) -> None:
-        """Validate data object.
-
-        Raises:
-            ValueError: If validation fails
-        """
+        """Validate configuration."""
         pass
 
 
-@dataclass
-class BaseConfigData(BaseData):
-    """Base configuration data class."""
-
-    name: str = field(default="")
-    enabled: bool = True
-
-    def __post_init__(self) -> None:
-        """Post initialization hook."""
-        self.validate()
-
-    def validate(self) -> None:
-        """Validate configuration data.
-
-        Raises:
-            ValueError: If validation fails
-        """
-        super().validate()
-        if not self.name.strip():
-            raise ValueError("name must not be empty")
-
-
-class BaseValidator(Protocol[T]):
+class BaseValidator(Protocol):
     """Base validator protocol."""
 
-    async def validate(self, value: T) -> bool:
+    def validate(self, value: Any) -> None:
         """Validate value.
 
         Args:
             value: Value to validate
 
-        Returns:
-            True if value is valid
-        """
-        ...
-
-
-class BaseFactory(Protocol[T]):
-    """Base factory protocol."""
-
-    def create(self) -> T:
-        """Create new instance.
-
-        Returns:
-            New instance
-        """
-        ...
-
-
-class BaseHandler(Protocol):
-    """Base handler protocol."""
-
-    async def handle(self, data: Any) -> Any:
-        """Handle data.
-
-        Args:
-            data: Data to handle
-
-        Returns:
-            Handled data
-        """
-        ...
-
-
-class BaseProcessor(Protocol):
-    """Base processor protocol."""
-
-    async def process(self, data: Any) -> Any:
-        """Process data.
-
-        Args:
-            data: Data to process
-
-        Returns:
-            Processed data
-        """
-        ...
-
-
-class BaseFormatter(Protocol):
-    """Base formatter protocol."""
-
-    def format(self, data: Any) -> str:
-        """Format data.
-
-        Args:
-            data: Data to format
-
-        Returns:
-            Formatted string
-        """
-        ...
-
-
-class BaseParser(Protocol):
-    """Base parser protocol."""
-
-    def parse(self, data: str) -> Any:
-        """Parse data.
-
-        Args:
-            data: Data to parse
-
-        Returns:
-            Parsed data
+        Raises:
+            ValidationError: If validation fails
         """
         ...
 
@@ -140,41 +34,230 @@ class BaseParser(Protocol):
 class BaseSerializer(Protocol):
     """Base serializer protocol."""
 
-    def serialize(self, data: Any) -> bytes:
-        """Serialize data.
+    def serialize(self, value: Any) -> Any:
+        """Serialize value.
 
         Args:
-            data: Data to serialize
+            value: Value to serialize
 
         Returns:
-            Serialized data
+            Serialized value
         """
         ...
 
-    def deserialize(self, data: bytes) -> Any:
-        """Deserialize data.
+    def deserialize(self, value: Any) -> Any:
+        """Deserialize value.
 
         Args:
-            data: Data to deserialize
+            value: Value to deserialize
 
         Returns:
-            Deserialized data
+            Deserialized value
         """
+        ...
+
+
+class BaseFormatter(Protocol):
+    """Base formatter protocol."""
+
+    def format(self, value: Any) -> str:
+        """Format value.
+
+        Args:
+            value: Value to format
+
+        Returns:
+            Formatted value
+        """
+        ...
+
+
+class BaseParser(Protocol):
+    """Base parser protocol."""
+
+    def parse(self, value: str) -> Any:
+        """Parse value.
+
+        Args:
+            value: Value to parse
+
+        Returns:
+            Parsed value
+        """
+        ...
+
+
+class BaseConverter(Protocol):
+    """Base converter protocol."""
+
+    def convert(self, value: Any) -> Any:
+        """Convert value.
+
+        Args:
+            value: Value to convert
+
+        Returns:
+            Converted value
+        """
+        ...
+
+
+class BaseFilter(Protocol):
+    """Base filter protocol."""
+
+    def filter(self, value: Any) -> bool:
+        """Filter value.
+
+        Args:
+            value: Value to filter
+
+        Returns:
+            True if value passes filter, False otherwise
+        """
+        ...
+
+
+class BaseTransformer(Protocol):
+    """Base transformer protocol."""
+
+    def transform(self, value: Any) -> Any:
+        """Transform value.
+
+        Args:
+            value: Value to transform
+
+        Returns:
+            Transformed value
+        """
+        ...
+
+
+class BaseHandler(Protocol):
+    """Base handler protocol."""
+
+    def handle(self, value: Any) -> None:
+        """Handle value.
+
+        Args:
+            value: Value to handle
+        """
+        ...
+
+
+class BaseProcessor(Protocol):
+    """Base processor protocol."""
+
+    def process(self, value: Any) -> Any:
+        """Process value.
+
+        Args:
+            value: Value to process
+
+        Returns:
+            Processed value
+        """
+        ...
+
+
+class BaseProvider(Protocol):
+    """Base provider protocol."""
+
+    def provide(self) -> Any:
+        """Provide value.
+
+        Returns:
+            Provided value
+        """
+        ...
+
+
+class BaseConsumer(Protocol):
+    """Base consumer protocol."""
+
+    def consume(self, value: Any) -> None:
+        """Consume value.
+
+        Args:
+            value: Value to consume
+        """
+        ...
+
+
+class BasePublisher(Protocol):
+    """Base publisher protocol."""
+
+    def publish(self, value: Any) -> None:
+        """Publish value.
+
+        Args:
+            value: Value to publish
+        """
+        ...
+
+
+class BaseSubscriber(Protocol):
+    """Base subscriber protocol."""
+
+    def subscribe(self, value: Any) -> None:
+        """Subscribe to value.
+
+        Args:
+            value: Value to subscribe to
+        """
+        ...
+
+
+class BaseObserver(Protocol):
+    """Base observer protocol."""
+
+    def update(self, value: Any) -> None:
+        """Update with value.
+
+        Args:
+            value: Value to update with
+        """
+        ...
+
+
+class BaseSubject(Protocol):
+    """Base subject protocol."""
+
+    def attach(self, observer: BaseObserver) -> None:
+        """Attach observer.
+
+        Args:
+            observer: Observer to attach
+        """
+        ...
+
+    def detach(self, observer: BaseObserver) -> None:
+        """Detach observer.
+
+        Args:
+            observer: Observer to detach
+        """
+        ...
+
+    def notify(self) -> None:
+        """Notify observers."""
         ...
 
 
 __all__ = [
-    "JsonPrimitive",
-    "JsonValue",
-    "JsonDict",
-    "JsonList",
-    "BaseData",
-    "BaseConfigData",
+    "BaseConfig",
     "BaseValidator",
-    "BaseFactory",
-    "BaseHandler",
-    "BaseProcessor",
+    "BaseSerializer",
     "BaseFormatter",
     "BaseParser",
-    "BaseSerializer",
+    "BaseConverter",
+    "BaseFilter",
+    "BaseTransformer",
+    "BaseHandler",
+    "BaseProcessor",
+    "BaseProvider",
+    "BaseConsumer",
+    "BasePublisher",
+    "BaseSubscriber",
+    "BaseObserver",
+    "BaseSubject",
 ]

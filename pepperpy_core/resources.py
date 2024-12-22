@@ -4,7 +4,13 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from pepperpy_core.exceptions.resource import ResourceError
+from .exceptions import PepperpyError
+
+
+class ResourceError(PepperpyError):
+    """Resource specific error."""
+
+    pass
 
 
 @dataclass

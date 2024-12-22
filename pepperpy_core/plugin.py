@@ -2,9 +2,10 @@
 
 import importlib.util
 import inspect
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable, TypeVar
+from typing import Any, TypeVar
 
 from .exceptions import PluginError
 from .module import BaseModule, ModuleConfig
@@ -15,7 +16,7 @@ class PluginConfig(ModuleConfig):
     """Plugin manager configuration."""
 
     name: str
-    plugin_dir: str | Path
+    plugin_dir: str | Path = "plugins"
     enabled: bool = True
     metadata: dict[str, Any] = field(default_factory=dict)
 
@@ -39,7 +40,7 @@ def plugin(name: str) -> Callable[[Any], Any]:
         Returns:
             Decorated plugin class
         """
-        setattr(cls, "__plugin_name__", name)
+        cls.__plugin_name__ = name
         return cls
 
     return decorator
@@ -122,7 +123,7 @@ class PluginManager(BaseModule[PluginConfig]):
             # Find plugin classes
             for name, obj in inspect.getmembers(module):
                 if inspect.isclass(obj) and is_plugin(obj):
-                    plugin_name = getattr(obj, "__plugin_name__")
+                    plugin_name = obj.__plugin_name__
                     self._plugins[plugin_name] = obj()
 
         except Exception as e:

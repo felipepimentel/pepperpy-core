@@ -2,10 +2,12 @@
 
 import re
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any, Callable, Generic, Pattern, TypeVar
+from re import Pattern
+from typing import Any, Generic, TypeVar
 
 from .exceptions import ValidationError
 
@@ -86,6 +88,22 @@ class Validator(ABC, Generic[T]):
         self.enabled = enabled
 
     @abstractmethod
+    async def _validate(
+        self,
+        value: T,
+        context: ValidationContext | None = None,
+    ) -> ValidationResult:
+        """Internal validation method.
+
+        Args:
+            value: Value to validate
+            context: Optional validation context
+
+        Returns:
+            Validation result
+        """
+        raise NotImplementedError
+
     async def validate(
         self,
         value: T,
@@ -100,7 +118,14 @@ class Validator(ABC, Generic[T]):
         Returns:
             Validation result
         """
-        raise NotImplementedError
+        if not self.enabled:
+            return ValidationResult(
+                valid=True,
+                level=ValidationLevel.INFO,
+                message="Validator is disabled",
+                context=context,
+            )
+        return await self._validate(value, context)
 
     async def validate_many(
         self,
@@ -122,7 +147,7 @@ class Validator(ABC, Generic[T]):
 class RequiredValidator(Validator[Any]):
     """Validates that a value is not None."""
 
-    async def validate(
+    async def _validate(
         self,
         value: Any,
         context: ValidationContext | None = None,
@@ -165,7 +190,7 @@ class TypeValidator(Validator[Any]):
         super().__init__(name=name, enabled=enabled)
         self.expected_type = expected_type
 
-    async def validate(
+    async def _validate(
         self,
         value: Any,
         context: ValidationContext | None = None,
@@ -214,7 +239,7 @@ class RangeValidator(Validator[int | float]):
         self.max_value = max_value
         self.inclusive = inclusive
 
-    async def validate(
+    async def _validate(
         self,
         value: int | float,
         context: ValidationContext | None = None,
@@ -285,7 +310,7 @@ class LengthValidator(Validator[str | list | dict]):
         self.min_length = min_length
         self.max_length = max_length
 
-    async def validate(
+    async def _validate(
         self,
         value: str | list | dict,
         context: ValidationContext | None = None,
@@ -339,7 +364,7 @@ class PatternValidator(Validator[str]):
         super().__init__(name=name, enabled=enabled)
         self.pattern = pattern if isinstance(pattern, Pattern) else re.compile(pattern)
 
-    async def validate(
+    async def _validate(
         self,
         value: str,
         context: ValidationContext | None = None,
@@ -388,7 +413,7 @@ class PathValidator(Validator[Path | str]):
         self.must_be_file = must_be_file
         self.must_be_dir = must_be_dir
 
-    async def validate(
+    async def _validate(
         self,
         value: Path | str,
         context: ValidationContext | None = None,

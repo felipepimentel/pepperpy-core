@@ -6,12 +6,11 @@ import functools
 import json
 import pstats
 import time
+import unittest
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Protocol, TypeVar, cast
-
-from .types import JsonDict
 
 
 class LoggerProtocol(Protocol):
@@ -94,11 +93,11 @@ class MockResponse:
     data: str | bytes | dict[str, Any] | None = None
     headers: dict[str, str] | None = field(default_factory=dict)
 
-    async def json(self) -> JsonDict:
+    async def json(self) -> dict[str, Any]:
         """Get JSON response data."""
         if isinstance(self.data, (str, bytes)):
-            return cast(JsonDict, json.loads(self.data))
-        return cast(JsonDict, self.data or {})
+            return cast(dict[str, Any], json.loads(self.data))
+        return cast(dict[str, Any], self.data or {})
 
     async def text(self) -> str:
         """Get text response data."""
@@ -189,7 +188,7 @@ def async_test(func: T) -> Callable[..., Any]:
     return cast(Callable[..., Any], wrapper)
 
 
-class AsyncTestCase:
+class AsyncTestCase(unittest.TestCase):
     """Base class for async test cases.
 
     Provides setup and teardown of an event loop for the test case,
@@ -202,19 +201,17 @@ class AsyncTestCase:
                 self.assertEqual(result, expected)
     """
 
-    loop: asyncio.AbstractEventLoop
+    def setUp(self) -> None:
+        """Set up test case."""
+        super().setUp()
+        self.loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(self.loop)
 
-    @classmethod
-    def setUpClass(cls) -> None:
-        """Set up test class by creating a new event loop."""
-        cls.loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(cls.loop)
-
-    @classmethod
-    def tearDownClass(cls) -> None:
-        """Tear down test class by closing the event loop."""
-        cls.loop.close()
+    def tearDown(self) -> None:
+        """Tear down test case."""
+        self.loop.close()
         asyncio.set_event_loop(None)
+        super().tearDown()
 
     def run_async(self, coro: Awaitable[T]) -> T:
         """Run a coroutine in the test loop.
@@ -264,4 +261,4 @@ __all__ = [
     "async_test",
     "AsyncTestCase",
     "run_async",
-] 
+]

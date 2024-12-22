@@ -7,7 +7,7 @@ from typing import Any, ParamSpec, TypeVar, cast
 
 from .exceptions import PepperpyError
 from .module import BaseModule, ModuleConfig
-from .validation import ValidationResult, Validator
+from .validation import ValidationContext, ValidationLevel, ValidationResult, Validator
 
 
 class SecurityError(PepperpyError):
@@ -97,29 +97,49 @@ class DefaultValidatorFactory:
 class DefaultValidator(Validator[Any]):
     """Default validator implementation."""
 
-    async def validate(self, value: Any) -> ValidationResult:
+    async def _validate(
+        self,
+        value: Any,
+        context: ValidationContext | None = None,
+    ) -> ValidationResult:
         """Validate value.
 
         Args:
             value: Value to validate
+            context: Optional validation context
 
         Returns:
             Validation result
         """
         # Implement actual validation logic
-        return ValidationResult(valid=True)
+        return ValidationResult(valid=True, level=ValidationLevel.INFO, context=context)
 
 
 class SecurityManager(BaseModule[SecurityConfig]):
     """Security manager implementation."""
 
-    def __init__(self) -> None:
-        """Initialize security manager."""
-        config = SecurityConfig(name="security-manager")
-        super().__init__(config)
-        self._validator_factory = DefaultValidatorFactory()
-        self._config_validator = self._create_config_validator()
-        self._context = SecurityContext()
+    _instance: "SecurityManager | None" = None
+
+    def __new__(cls) -> "SecurityManager":
+        """Create or return singleton instance."""
+        if cls._instance is None:
+            config = SecurityConfig(name="security-manager")
+            cls._instance = super().__new__(cls)
+            cls._instance.__init__(config)
+        return cls._instance
+
+    def __init__(self, config: SecurityConfig | None = None) -> None:
+        """Initialize security manager.
+
+        Args:
+            config: Security configuration
+        """
+        if not hasattr(self, "_initialized"):
+            super().__init__(config or SecurityConfig(name="security-manager"))
+            self._validator_factory = DefaultValidatorFactory()
+            self._config_validator = self._create_config_validator()
+            self._context = SecurityContext()
+            self._initialized = True
 
     def _create_config_validator(self) -> Validator[Any]:
         """Create config validator.
@@ -139,6 +159,12 @@ class SecurityManager(BaseModule[SecurityConfig]):
     async def _teardown(self) -> None:
         """Teardown security manager."""
         self._context = SecurityContext()
+        SecurityManager._instance = None
+        await super()._teardown()
+
+    async def teardown(self) -> None:
+        """Teardown module."""
+        await super().teardown()
 
     async def get_stats(self) -> dict[str, Any]:
         """Get security manager statistics.
@@ -152,7 +178,9 @@ class SecurityManager(BaseModule[SecurityConfig]):
             "enabled": self.config.enabled,
             "require_auth": self.config.require_auth,
             "is_authenticated": self._context.is_authenticated,
-            "user_id": self._context.auth_info.user_id if self._context.auth_info else None,
+            "user_id": self._context.auth_info.user_id
+            if self._context.auth_info
+            else None,
             "roles_count": len(self._context.auth_info.roles)
             if self._context.auth_info
             else 0,
@@ -230,16 +258,21 @@ def require_auth() -> Callable[[AsyncFunc[P, R]], AsyncFunc[P, R]]:
 
 
 def require_roles(
-    *roles: str,
+    *roles_or_list: str | list[str],
 ) -> Callable[[AsyncFunc[P, R]], AsyncFunc[P, R]]:
     """Require roles decorator.
 
     Args:
-        *roles: Required roles
+        *roles_or_list: Required roles as positional arguments or a single list
 
     Returns:
         Decorated function
     """
+    # Handle both list and positional arguments
+    if len(roles_or_list) == 1 and isinstance(roles_or_list[0], list):
+        required_roles = roles_or_list[0]
+    else:
+        required_roles = [cast(str, role) for role in roles_or_list]
 
     def decorator(func: AsyncFunc[P, R]) -> AsyncFunc[P, R]:
         """Decorate function.
@@ -263,14 +296,15 @@ def require_roles(
                 Function result
 
             Raises:
-                SecurityError: If required roles not present
+                SecurityError: If not authenticated or missing required roles
             """
             manager = SecurityManager()
             context = manager.get_context()
             if not context.is_authenticated:
                 raise SecurityError("Authentication required")
-            if not all(context.has_role(role) for role in roles):
-                raise SecurityError("Required roles not present")
+            for role in required_roles:
+                if not context.has_role(role):
+                    raise SecurityError(f"Missing required role: {role}")
             return await func(*args, **kwargs)
 
         return cast(AsyncFunc[P, R], wrapper)
@@ -336,4 +370,4 @@ __all__ = [
     "require_auth",
     "require_roles",
     "require_permissions",
-] 
+]

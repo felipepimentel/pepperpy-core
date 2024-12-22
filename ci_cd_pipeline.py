@@ -24,76 +24,71 @@ async def setup_python(client: dagger.Client) -> dagger.Container:
 
 async def run_tests(python: dagger.Container) -> bool:
     """Run tests with coverage."""
-    test = await python.with_exec([
-        "poetry",
-        "run",
-        "pytest",
-        "--cov=pepperpy_core",
-        "--cov-report=xml",
-        "--cov-report=term",
-    ]).exit_code()
+    try:
+        await python.with_exec([
+            "poetry",
+            "run",
+            "pytest",
+            "--cov=pepperpy_core",
+            "--cov-report=xml",
+            "--cov-report=term",
+        ])
 
-    if test == 0:
         # Export coverage report
         await python.file("coverage.xml").export("coverage.xml")
         return True
-    return False
+    except dagger.ExecError:
+        return False
 
 
 async def run_lint(python: dagger.Container) -> bool:
     """Run Ruff linting and formatting."""
-    lint = await python.with_exec(["poetry", "run", "ruff", "check", "."]).exit_code()
-    if lint != 0:
+    try:
+        await python.with_exec(["poetry", "run", "ruff", "check", "."])
+        await python.with_exec(["poetry", "run", "ruff", "format", "--check", "."])
+        return True
+    except dagger.ExecError:
         return False
-
-    format_check = await python.with_exec([
-        "poetry",
-        "run",
-        "ruff",
-        "format",
-        "--check",
-        ".",
-    ]).exit_code()
-    return format_check == 0
 
 
 async def run_type_check(python: dagger.Container) -> bool:
     """Run mypy type checking."""
-    return (
+    try:
         await python.with_exec([
             "poetry",
             "run",
             "mypy",
             "pepperpy_core",
             "--strict",
-        ]).exit_code()
-        == 0
-    )
+        ])
+        return True
+    except dagger.ExecError:
+        return False
 
 
 async def run_security_check(python: dagger.Container) -> bool:
     """Run Bandit security checks."""
-    return (
+    try:
         await python.with_exec([
             "poetry",
             "run",
             "bandit",
             "-r",
             "pepperpy_core",
-        ]).exit_code()
-        == 0
-    )
+        ])
+        return True
+    except dagger.ExecError:
+        return False
 
 
 async def build_package(python: dagger.Container) -> bool:
     """Build package with Poetry."""
-    build = await python.with_exec(["poetry", "build"]).exit_code()
-
-    if build == 0:
-        # Export built package
+    try:
+        await python.with_exec(["poetry", "build"])
         await python.directory("dist").export("dist")
         return True
-    return False
+    except dagger.ExecError:
+        return False
 
 
 async def run_ci(client: dagger.Client) -> bool:

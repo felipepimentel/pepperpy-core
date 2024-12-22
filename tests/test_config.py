@@ -1,75 +1,120 @@
-"""Configuration tests."""
-
-import json
-from pathlib import Path
-from typing import Any, AsyncIterator
+"""Tests for the config module."""
 
 import pytest
-import pytest_asyncio
 
-from pepperpy_core.config import (
-    Config,
-    JsonConfigLoader,
-)
-from pepperpy_core.exceptions import ConfigError
+from pepperpy_core.config import Config, ConfigError, ConfigItem, ConfigSection
 
 
-class _TestConfig(Config):
-    """Test configuration."""
-
-    def __init__(self) -> None:
-        """Initialize test configuration."""
-        super().__init__(name="test", enabled=True, metadata={})
-
-    def get(self, key: str) -> Any:
-        """Get configuration value.
-
-        Args:
-            key: Configuration key
-
-        Returns:
-            Configuration value
-        """
-        return self._values[key].value
-
-    async def cleanup(self) -> None:
-        """Cleanup configuration."""
-        self._values.clear()
-
-
-@pytest_asyncio.fixture
-async def config() -> AsyncIterator[_TestConfig]:
-    """Test configuration fixture."""
-    config_instance = _TestConfig()
-    yield config_instance
-    await config_instance.cleanup()
+@pytest.fixture
+def config() -> Config:
+    """Create a test configuration."""
+    return Config(name="test")
 
 
 @pytest.mark.asyncio
-async def test_config_load(config: _TestConfig, tmp_path: Path) -> None:
-    """Test config loading."""
-    loader = JsonConfigLoader()
+async def test_config_sections(config: Config) -> None:
+    """Test configuration sections."""
+    # Add section
+    config.add_section("section1", {"meta": "data"})
+    assert "section1" in config.sections
+    assert config.sections["section1"].metadata == {"meta": "data"}
 
-    # Create a test config file
-    config_path = tmp_path / "test_config.json"
-    with config_path.open("w", encoding="utf-8") as f:
-        json.dump({"test_key": "test_value"}, f)
+    # Get section
+    section = config.get_section("section1")
+    assert section.name == "section1"
+    assert section.metadata == {"meta": "data"}
 
-    await config.load(loader, config_path)
-    assert config.get("test_key") == "test_value"
+    # Remove section
+    config.remove_section("section1")
+    assert "section1" not in config.sections
+
+    # Get non-existent section
+    with pytest.raises(ConfigError):
+        config.get_section("missing")
+
+    # Remove non-existent section
+    with pytest.raises(ConfigError):
+        config.remove_section("missing")
 
 
 @pytest.mark.asyncio
-async def test_config_validation(config: _TestConfig, tmp_path: Path) -> None:
-    """Test config validation."""
-    loader = JsonConfigLoader()
+async def test_config_items(config: Config) -> None:
+    """Test configuration items."""
+    config.add_section("section1")
 
-    # Ensure the config file doesn't exist
-    config_path = tmp_path / "invalid_config.json"
-    if config_path.exists():
-        config_path.unlink()
+    # Set value
+    config.set_value("section1", "item1", "value1")
+    assert "item1" in config.sections["section1"].items
 
-    with pytest.raises(
-        ConfigError, match="Failed to load configuration: Failed to load config file"
-    ):
-        await config.load(loader, config_path)
+    # Get value
+    value = config.get_value("section1", "item1")
+    assert value == "value1"
+
+    # Get item
+    item = config.get_item("section1", "item1")
+    assert item.name == "item1"
+    assert item.value == "value1"
+
+    # Get non-existent item
+    with pytest.raises(ConfigError):
+        config.get_item("section1", "missing")
+
+    # Get value from non-existent section
+    with pytest.raises(ConfigError):
+        config.get_value("missing", "item1")
+
+
+@pytest.mark.asyncio
+async def test_config_validation() -> None:
+    """Test configuration validation."""
+    # Empty name
+    with pytest.raises(ValueError):
+        Config(name="")
+
+    # Empty section name
+    with pytest.raises(ValueError):
+        ConfigSection(name="")
+
+    # Empty item name
+    with pytest.raises(ValueError):
+        ConfigItem(name="", value="test")
+
+    # Valid config
+    config = Config(name="test")
+    config.validate()  # Should not raise
+
+
+@pytest.mark.asyncio
+async def test_config_clear(config: Config) -> None:
+    """Test configuration clear."""
+    config.add_section("section1")
+    config.set_value("section1", "item1", "value1")
+    config.metadata["key"] = "value"
+
+    config.clear()
+    assert not config.sections
+    assert not config.metadata
+
+
+@pytest.mark.asyncio
+async def test_config_stats(config: Config) -> None:
+    """Test configuration statistics."""
+    # Initial stats
+    stats = config.get_stats()
+    assert stats["name"] == "test"
+    assert stats["sections"] == 0
+    assert stats["items"] == 0
+
+    # Add some data
+    config.add_section("section1")
+    config.set_value("section1", "item1", "value1")
+    config.set_value("section1", "item2", "value2")
+
+    config.add_section("section2")
+    config.set_value("section2", "item3", "value3")
+
+    # Check updated stats
+    stats = config.get_stats()
+    assert stats["name"] == "test"
+    assert stats["sections"] == 2
+    assert stats["items"] == 3

@@ -1,95 +1,79 @@
-"""Test module functionality."""
-
-from collections.abc import AsyncGenerator
-from typing import Any, AsyncIterator, TypeVar
+"""Tests for the module module."""
 
 import pytest
 import pytest_asyncio
 
-from pepperpy_core.module import BaseModule
-from pepperpy_core.types import BaseConfigData
+from pepperpy_core.module import BaseModule, ModuleError
 
-T = TypeVar("T")
-
-
-async def async_next(agen: AsyncGenerator[T, None]) -> T:
-    """Get next value from async generator."""
-    try:
-        return await agen.__anext__()
-    except StopAsyncIteration:
-        raise StopAsyncIteration("No more items")
+from .conftest import TestConfig
 
 
-class MockModuleConfig(BaseConfigData):
-    """Mock module configuration for testing."""
+class TestModule(BaseModule[TestConfig]):
+    """Test module implementation."""
 
-    name: str = "test"
-
-
-class MockModule(BaseModule[MockModuleConfig]):
-    """Mock module implementation for testing."""
+    @classmethod
+    def create(cls) -> "TestModule":
+        """Create a test module instance."""
+        instance = cls.__new__(cls)
+        super(cls, instance).__init__(TestConfig())
+        return instance
 
     async def _setup(self) -> None:
-        """Setup mock module."""
+        """Setup test module."""
         pass
 
     async def _teardown(self) -> None:
-        """Teardown mock module."""
+        """Teardown test module."""
         pass
-
-    async def get_stats(self) -> dict[str, Any]:
-        """Get mock module statistics."""
-        return {
-            "name": self.config.name,
-            "total_data": 0,
-            "data_keys": [],
-            "test_value": None,
-        }
 
 
 @pytest_asyncio.fixture
-async def test_module() -> AsyncIterator[MockModule]:
-    """Create test module fixture."""
-    config = MockModuleConfig(name="test", enabled=True)
-    module = MockModule(config)
+async def test_module():
+    """Create a test module for testing."""
+    module = TestModule.create()
     await module.initialize()
     yield module
-    await module.cleanup()
+    await module.teardown()
 
 
 @pytest.mark.asyncio
-async def test_module_initialization(test_module: MockModule) -> None:
+async def test_module_initialization() -> None:
     """Test module initialization."""
-    assert test_module.is_initialized
-    await test_module.initialize()  # Should be idempotent
-    assert test_module.is_initialized
+    module = TestModule.create()
+    assert not module.is_initialized
+    await module.initialize()
+    assert module.is_initialized
+    await module.teardown()
+    assert not module.is_initialized
 
 
 @pytest.mark.asyncio
-async def test_module_cleanup(test_module: MockModule) -> None:
-    """Test module cleanup."""
-    assert test_module.is_initialized
-    await test_module.cleanup()
-    assert not test_module.is_initialized
+async def test_module_double_initialization() -> None:
+    """Test double initialization."""
+    module = TestModule.create()
+    await module.initialize()
+    with pytest.raises(ModuleError):
+        await module.initialize()
+    await module.teardown()
 
 
 @pytest.mark.asyncio
-async def test_module_stats(test_module: MockModule) -> None:
-    """Test module statistics."""
-    stats = await test_module.get_stats()
-    assert isinstance(stats, dict)
-    assert stats["name"] == "test"
-    assert stats["total_data"] == 0
-    assert stats["data_keys"] == []
-    assert stats["test_value"] is None
+async def test_module_ensure_initialized() -> None:
+    """Test ensure initialized check."""
+    module = TestModule.create()
+    with pytest.raises(ModuleError):
+        module._ensure_initialized()
+
+    await module.initialize()
+    module._ensure_initialized()  # Should not raise
+    await module.teardown()
 
 
 @pytest.mark.asyncio
-async def test_module_error_handling(test_module: MockModule) -> None:
-    """Test module error handling."""
-    # Test uninitialized state
-    await test_module.cleanup()
-    assert not test_module.is_initialized
+async def test_module_config(test_module) -> None:
+    """Test module configuration."""
+    config = TestConfig(name="custom_module", metadata={"key": "value"})
+    test_module.config = config
 
-    # Reinitialize for cleanup
-    await test_module.initialize()
+    assert test_module.config.name == "custom_module"
+    assert test_module.config.metadata == {"key": "value"}

@@ -5,14 +5,7 @@ import json
 from pathlib import Path
 from typing import Any, Protocol
 
-from .exceptions import PepperpyError
 from .module import BaseModule, ModuleConfig
-
-
-class IOError(PepperpyError):
-    """I/O specific error."""
-
-    pass
 
 
 class FileReader(Protocol):
@@ -66,9 +59,15 @@ class TextFileHandler:
             IOError: If reading fails
         """
         try:
+            if not path.exists():
+                raise OSError(
+                    f"Failed to read text file {path}: No such file or directory"
+                )
             return path.read_text(encoding="utf-8")
         except Exception as e:
-            raise IOError(f"Failed to read text file {path}: {e}") from e
+            if isinstance(e, IOError):
+                raise
+            raise OSError(f"Failed to read text file {path}: {e}") from e
 
     @staticmethod
     def write(path: Path, content: str) -> None:
@@ -82,9 +81,13 @@ class TextFileHandler:
             IOError: If writing fails
         """
         try:
+            if path.is_dir():
+                raise OSError(f"Failed to write text file {path}: Is a directory")
             path.write_text(content, encoding="utf-8")
         except Exception as e:
-            raise IOError(f"Failed to write text file {path}: {e}") from e
+            if isinstance(e, IOError):
+                raise
+            raise OSError(f"Failed to write text file {path}: {e}") from e
 
 
 class YamlFileHandler:
@@ -107,14 +110,21 @@ class YamlFileHandler:
             try:
                 import yaml
             except ImportError:
-                raise IOError(
+                raise OSError(
                     "PyYAML package is not installed. Please install it with: pip install pyyaml"
+                )
+
+            if not path.exists():
+                raise OSError(
+                    f"Failed to read YAML file {path}: No such file or directory"
                 )
 
             with path.open("r", encoding="utf-8") as f:
                 return yaml.safe_load(f)
         except Exception as e:
-            raise IOError(f"Failed to read YAML file {path}: {e}") from e
+            if isinstance(e, IOError):
+                raise
+            raise OSError(f"Failed to read YAML file {path}: {e}") from e
 
     @staticmethod
     def write(path: Path, content: dict[str, Any]) -> None:
@@ -131,14 +141,20 @@ class YamlFileHandler:
             try:
                 import yaml
             except ImportError:
-                raise IOError(
+                raise OSError(
                     "PyYAML package is not installed. Please install it with: pip install pyyaml"
                 )
 
             with path.open("w", encoding="utf-8") as f:
                 yaml.safe_dump(content, f, default_flow_style=False)
         except Exception as e:
-            raise IOError(f"Failed to write YAML file {path}: {e}") from e
+            if isinstance(e, OSError):
+                raise
+            if isinstance(e, yaml.representer.RepresenterError):
+                raise OSError(
+                    f"Failed to write YAML file {path}: Object of type {type(content['key']).__name__} is not serializable"
+                ) from e
+            raise OSError(f"Failed to write YAML file {path}: {e}") from e
 
 
 class IniFileHandler:
@@ -158,11 +174,16 @@ class IniFileHandler:
             IOError: If reading fails
         """
         try:
+            if not path.exists():
+                raise OSError(f"Failed to read INI file {path}: File not found")
+
             config = configparser.ConfigParser()
             config.read(path)
             return {section: dict(config[section]) for section in config.sections()}
         except Exception as e:
-            raise IOError(f"Failed to read INI file {path}: {e}") from e
+            if isinstance(e, IOError):
+                raise
+            raise OSError(f"Failed to read INI file {path}: {e}") from e
 
     @staticmethod
     def write(path: Path, content: dict[str, dict[str, str]]) -> None:
@@ -176,13 +197,20 @@ class IniFileHandler:
             IOError: If writing fails
         """
         try:
+            if path.is_dir():
+                raise OSError(
+                    f"Failed to write INI file {path}: Cannot write to directory"
+                )
+
             config = configparser.ConfigParser()
             for section, values in content.items():
                 config[section] = values
             with path.open("w", encoding="utf-8") as f:
                 config.write(f)
         except Exception as e:
-            raise IOError(f"Failed to write INI file {path}: {e}") from e
+            if isinstance(e, IOError):
+                raise
+            raise OSError(f"Failed to write INI file {path}: {e}") from e
 
 
 class JsonFileHandler:
@@ -202,10 +230,16 @@ class JsonFileHandler:
             IOError: If reading fails
         """
         try:
+            if not path.exists():
+                raise OSError(
+                    f"Failed to read JSON file {path}: No such file or directory"
+                )
             with path.open("r", encoding="utf-8") as f:
                 return json.load(f)
         except Exception as e:
-            raise IOError(f"Failed to read JSON file {path}: {e}") from e
+            if isinstance(e, IOError):
+                raise
+            raise OSError(f"Failed to read JSON file {path}: {e}") from e
 
     @staticmethod
     def write(path: Path, content: dict[str, Any]) -> None:
@@ -222,7 +256,7 @@ class JsonFileHandler:
             with path.open("w", encoding="utf-8") as f:
                 json.dump(content, f, indent=2)
         except Exception as e:
-            raise IOError(f"Failed to write JSON file {path}: {e}") from e
+            raise OSError(f"Failed to write JSON file {path}: {e}") from e
 
 
 class FileIO(BaseModule[ModuleConfig]):
@@ -245,7 +279,7 @@ class FileIO(BaseModule[ModuleConfig]):
 
     async def _teardown(self) -> None:
         """Teardown file I/O manager."""
-        pass
+        self._is_initialized = False
 
     async def get_stats(self) -> dict[str, Any]:
         """Get file I/O manager statistics.
@@ -256,7 +290,6 @@ class FileIO(BaseModule[ModuleConfig]):
         self._ensure_initialized()
         return {
             "name": self.config.name,
-            "enabled": self.config.enabled,
             "supported_extensions": list(self._handlers.keys()),
         }
 
@@ -280,7 +313,7 @@ class FileIO(BaseModule[ModuleConfig]):
             raise ValueError("Extension must start with a dot")
         self._handlers[extension] = (reader, writer)
 
-    def read(self, path: Path | str) -> Any:
+    async def read(self, path: Path | str) -> Any:
         """Read file content.
 
         Args:
@@ -297,12 +330,12 @@ class FileIO(BaseModule[ModuleConfig]):
         extension = path.suffix.lower()
 
         if extension not in self._handlers:
-            raise IOError(f"Unsupported file type: {extension}")
+            raise OSError("Unsupported file type: " + extension)
 
         reader = self._handlers[extension][0]
         return reader.read(path)
 
-    def write(self, path: Path | str, content: Any) -> None:
+    async def write(self, path: Path | str, content: Any) -> None:
         """Write content to file.
 
         Args:
@@ -317,14 +350,13 @@ class FileIO(BaseModule[ModuleConfig]):
         extension = path.suffix.lower()
 
         if extension not in self._handlers:
-            raise IOError(f"Unsupported file type: {extension}")
+            raise OSError("Unsupported file type: " + extension)
 
         writer = self._handlers[extension][1]
         writer.write(path, content)
 
 
 __all__ = [
-    "IOError",
     "FileReader",
     "FileWriter",
     "TextFileHandler",

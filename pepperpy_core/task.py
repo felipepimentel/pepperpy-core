@@ -114,6 +114,9 @@ class Task:
 
         Returns:
             Task result
+
+        Raises:
+            TaskError: If task fails or is already running
         """
         if self.is_running:
             raise TaskError("Task is already running")
@@ -123,17 +126,20 @@ class Task:
             self._task = asyncio.create_task(self._func(**self._kwargs))
             self._result = await self._task
             self._status = TaskStatus.COMPLETED
-        except Exception as e:
-            self._error = e
-            self._status = TaskStatus.FAILED
-            raise TaskError(f"Task {self.name} failed") from e
-        finally:
             return TaskResult(
                 task_id=self.name,
                 status=self._status,
                 result=self._result,
                 error=self._error,
             )
+        except asyncio.CancelledError as e:
+            self._error = e
+            self._status = TaskStatus.CANCELLED
+            raise TaskError(f"Task {self.name} cancelled") from e
+        except Exception as e:
+            self._error = e
+            self._status = TaskStatus.FAILED
+            raise TaskError(f"Task {self.name} failed") from e
 
     async def cancel(self) -> None:
         """Cancel task."""
@@ -238,14 +244,25 @@ class TaskWorker:
     async def _run(self) -> None:
         """Run worker loop."""
         while self._running:
+            task = None
             try:
                 task = await self._queue.get()
-                await task.run()
+                try:
+                    await task.run()
+                except TaskError:
+                    # Task failed or was cancelled, continue processing
+                    pass
+            except asyncio.CancelledError:
+                # Worker is being stopped
+                if task is not None:
+                    self._queue.task_done()
+                raise
             except Exception:
                 # Log error but continue processing
                 pass
             finally:
-                self._queue.task_done()
+                if task is not None:
+                    self._queue.task_done()
 
 
 class TaskManager(BaseModule[TaskConfig]):
@@ -338,4 +355,4 @@ __all__ = [
     "TaskQueue",
     "TaskWorker",
     "TaskManager",
-] 
+]

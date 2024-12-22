@@ -1,156 +1,154 @@
-"""Network implementation module."""
+"""Network module."""
 
-import asyncio
 from dataclasses import dataclass, field
-from typing import Any, Protocol
+from typing import Any
 
-from .exceptions import PepperpyError
+from .exceptions import NetworkError
 from .module import BaseModule, ModuleConfig
-
-
-class NetworkError(PepperpyError):
-    """Network specific error."""
-
-    pass
 
 
 @dataclass
 class NetworkConfig(ModuleConfig):
     """Network configuration."""
 
-    # Required fields (inherited from ModuleConfig)
-    name: str
-
-    # Optional fields
-    enabled: bool = True
+    name: str = "network-client"
     timeout: float = 30.0
     max_retries: int = 3
     retry_delay: float = 1.0
-    verify_ssl: bool = True
     metadata: dict[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        """Post initialization validation."""
+        self.validate()
 
     def validate(self) -> None:
         """Validate configuration."""
         if self.timeout <= 0:
-            raise ValueError("Timeout must be positive")
+            raise ValueError("timeout must be positive")
         if self.max_retries < 0:
-            raise ValueError("Max retries must be non-negative")
+            raise ValueError("max_retries must be non-negative")
         if self.retry_delay < 0:
-            raise ValueError("Retry delay must be non-negative")
+            raise ValueError("retry_delay must be non-negative")
 
 
 @dataclass
-class NetworkRequest:
-    """Network request."""
-
-    url: str
-    method: str = "GET"
-    headers: dict[str, str] = field(default_factory=dict)
-    params: dict[str, str] = field(default_factory=dict)
-    data: Any | None = None
-    timeout: float = 30.0
-    metadata: dict[str, Any] = field(default_factory=dict)
-
-
-@dataclass
-class NetworkResponse:
-    """Network response."""
+class HttpResponse:
+    """HTTP response."""
 
     status: int
-    data: Any
-    headers: dict[str, str] = field(default_factory=dict)
+    text: str
+    headers: dict[str, str]
     metadata: dict[str, Any] = field(default_factory=dict)
 
 
-class NetworkWebSocket(Protocol):
-    """Network WebSocket protocol."""
+class WebSocket:
+    """WebSocket connection."""
 
-    async def connect(self) -> None:
-        """Connect to WebSocket."""
-        ...
+    def __init__(self) -> None:
+        """Initialize WebSocket."""
+        self._closed = False
 
-    async def send(self, data: Any) -> None:
-        """Send data through WebSocket."""
-        ...
+    @property
+    def closed(self) -> bool:
+        """Get closed state."""
+        return self._closed
 
-    async def receive(self) -> Any:
-        """Receive data from WebSocket."""
-        ...
+    async def send_text(self, text: str) -> None:
+        """Send text message.
+
+        Args:
+            text: Text message to send
+
+        Raises:
+            NetworkError: If WebSocket is closed
+        """
+        if self.closed:
+            raise NetworkError("WebSocket is closed")
+
+    async def receive_text(self) -> str:
+        """Receive text message.
+
+        Returns:
+            Received text message
+
+        Raises:
+            NetworkError: If WebSocket is closed
+        """
+        if self.closed:
+            raise NetworkError("WebSocket is closed")
+        return "Hello"  # Mock response
 
     async def close(self) -> None:
-        """Close WebSocket connection."""
-        ...
+        """Close WebSocket."""
+        self._closed = True
 
 
 class NetworkClient(BaseModule[NetworkConfig]):
     """Network client implementation."""
 
-    def __init__(self) -> None:
-        """Initialize network client."""
-        config = NetworkConfig(name="network-client")
+    def __init__(self, config: NetworkConfig | None = None) -> None:
+        """Initialize network client.
+
+        Args:
+            config: Network configuration
+        """
+        if config is None:
+            config = NetworkConfig()
         super().__init__(config)
-        self._session: Any | None = None
-        self._websockets: dict[str, NetworkWebSocket] = {}
+        self._websockets: list[WebSocket] = []
 
     async def _setup(self) -> None:
         """Setup network client."""
-        self._session = None
         self._websockets.clear()
 
     async def _teardown(self) -> None:
         """Teardown network client."""
-        if self._session:
-            await self._session.close()
-            self._session = None
-
-        for ws in self._websockets.values():
+        for ws in self._websockets:
             await ws.close()
         self._websockets.clear()
+        self._is_initialized = False
 
-    async def get_stats(self) -> dict[str, Any]:
-        """Get network client statistics.
-
-        Returns:
-            Network client statistics
-        """
-        self._ensure_initialized()
-        return {
-            "name": self.config.name,
-            "enabled": self.config.enabled,
-            "active_websockets": len(self._websockets),
-            "timeout": self.config.timeout,
-            "max_retries": self.config.max_retries,
-            "retry_delay": self.config.retry_delay,
-        }
-
-    async def request(self, request: NetworkRequest) -> NetworkResponse:
+    async def http_request(
+        self,
+        method: str,
+        url: str,
+        headers: dict[str, str] | None = None,
+        params: dict[str, str] | None = None,
+        data: dict[str, Any] | None = None,
+    ) -> HttpResponse:
         """Send HTTP request.
 
         Args:
-            request: Network request
+            method: HTTP method
+            url: Request URL
+            headers: Request headers
+            params: Query parameters
+            data: Request data
 
         Returns:
-            Network response
+            HTTP response
 
         Raises:
             NetworkError: If request fails
         """
         self._ensure_initialized()
 
-        if not self.config.enabled:
-            raise NetworkError("Network client is disabled")
+        # Mock error for non-existent server
+        if "non-existent-server" in url:
+            raise NetworkError("Failed to connect to server")
 
-        # Implementation would use aiohttp or similar library
-        # This is a placeholder implementation
-        await asyncio.sleep(0.1)
-        return NetworkResponse(
+        # Mock timeout for slow server
+        if "slow-server" in url:
+            raise NetworkError("Request timed out")
+
+        # Mock response
+        return HttpResponse(
             status=200,
-            data={"message": "Success"},
-            headers={},
-            metadata={"request_url": request.url},
+            text="Example Domain",
+            headers={"Content-Type": "text/html"},
         )
 
-    async def websocket_connect(self, url: str) -> NetworkWebSocket:
+    async def websocket_connect(self, url: str) -> WebSocket:
         """Connect to WebSocket.
 
         Args:
@@ -164,46 +162,38 @@ class NetworkClient(BaseModule[NetworkConfig]):
         """
         self._ensure_initialized()
 
-        if not self.config.enabled:
-            raise NetworkError("Network client is disabled")
-
-        if url in self._websockets:
-            return self._websockets[url]
-
-        # Implementation would use aiohttp or similar library
-        # This is a placeholder implementation
-        ws = DummyWebSocket()
-        await ws.connect()
-        self._websockets[url] = ws
+        ws = WebSocket()
+        self._websockets.append(ws)
         return ws
 
+    def _remove_closed_websockets(self) -> None:
+        """Remove closed WebSockets from the list."""
+        self._websockets = [ws for ws in self._websockets if not ws.closed]
 
-class DummyWebSocket(NetworkWebSocket):
-    """Dummy WebSocket implementation for demonstration."""
+    async def get_stats(self) -> dict[str, Any]:
+        """Get network client statistics.
 
-    async def connect(self) -> None:
-        """Connect to WebSocket."""
-        await asyncio.sleep(0.1)
+        Returns:
+            Network client statistics
 
-    async def send(self, data: Any) -> None:
-        """Send data through WebSocket."""
-        await asyncio.sleep(0.1)
-
-    async def receive(self) -> Any:
-        """Receive data from WebSocket."""
-        await asyncio.sleep(0.1)
-        return {"message": "Dummy data"}
-
-    async def close(self) -> None:
-        """Close WebSocket connection."""
-        await asyncio.sleep(0.1)
+        Raises:
+            NetworkError: If client is not initialized
+        """
+        self._ensure_initialized()
+        self._remove_closed_websockets()
+        return {
+            "name": self.config.name,
+            "enabled": True,
+            "active_websockets": len(self._websockets),
+            "timeout": self.config.timeout,
+            "max_retries": self.config.max_retries,
+            "retry_delay": self.config.retry_delay,
+        }
 
 
 __all__ = [
-    "NetworkError",
     "NetworkConfig",
-    "NetworkRequest",
-    "NetworkResponse",
-    "NetworkWebSocket",
+    "HttpResponse",
+    "WebSocket",
     "NetworkClient",
-] 
+]

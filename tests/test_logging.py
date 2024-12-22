@@ -177,7 +177,7 @@ async def logging_manager() -> LoggingManager:
     manager = LoggingManager()
     await manager.initialize()
     yield manager
-    await manager.teardown()
+    await manager._teardown()
 
 
 @pytest.mark.asyncio
@@ -190,7 +190,7 @@ class TestLoggingManager:
         assert not manager.is_initialized
         await manager.initialize()
         assert manager.is_initialized
-        await manager.teardown()
+        await manager._teardown()
 
     async def test_setup_teardown(self, logging_manager: LoggingManager) -> None:
         """Test setup and teardown."""
