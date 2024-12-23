@@ -1,34 +1,56 @@
-name: CI/CD Pipeline
+name: CI/CD
 
 on:
   push:
     branches: [main]
-    tags: ["v*"]
   pull_request:
     branches: [main]
-  workflow_dispatch:
+  release:
+    types: [created]
 
 jobs:
-  pipeline:
+  ci:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.12, 3.11]
     steps:
       - uses: actions/checkout@v4
-      
-      - uses: actions/setup-python@v5
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
-          
-      - name: Install Dagger CLI
-        run: |
-          curl -L https://dl.dagger.io/dagger/install.sh | sh
-          sudo mv bin/dagger /usr/local/bin
-          dagger version
-          
+          python-version: ${{ matrix.python-version }}
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install poetry dagger-io
-          poetry install
-          
-      - name: Run Pipeline
-        run: poetry run python ci_cd_pipeline.py
+          pip install poetry anyio dagger-io
+      - name: Run Linter
+        run: |
+          python ci_cd_pipeline.py lint
+      - name: Run CI
+        run: python ci_cd_pipeline.py ci
+
+  publish:
+    needs: ci
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.12
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install poetry anyio dagger-io
+      - name: Verify Poetry config
+        run: |
+          poetry --version
+          poetry config --list
+      - name: Publish to PyPI
+        env:
+          PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
+        run: python ci_cd_pipeline.py publish
