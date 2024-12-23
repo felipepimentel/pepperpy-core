@@ -8,7 +8,7 @@ def main() -> int:
     """Run tests."""
     try:
         subprocess.run(
-            ["pytest", "--cov=poetflow", "--cov-report=term-missing"],
+            ["pytest", "--cov=pepperpy_core", "--cov-report=term-missing"],
             check=True,
         )
         return 0

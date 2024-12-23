@@ -7,7 +7,7 @@ import sys
 def main() -> int:
     """Run type checking."""
     try:
-        subprocess.run(["mypy", "poetflow", "tests"], check=True)
+        subprocess.run(["mypy", "pepperpy_core", "tests"], check=True)
         return 0
     except subprocess.CalledProcessError as e:
         return e.returncode

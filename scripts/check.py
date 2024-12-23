@@ -24,7 +24,7 @@ def main() -> int:
     """Run all checks."""
     checks = [
         (
-            ["poetry", "run", "mypy", "poetflow", "tests"],
+            ["poetry", "run", "mypy", "pepperpy_core", "tests"],
             "Running type checking with mypy...",
         ),
         (
@@ -36,7 +36,13 @@ def main() -> int:
             "Running code formatting with ruff format...",
         ),
         (
-            ["poetry", "run", "pytest", "--cov=poetflow", "--cov-report=term-missing"],
+            [
+                "poetry",
+                "run",
+                "pytest",
+                "--cov=pepperpy_core",
+                "--cov-report=term-missing",
+            ],
             "Running tests with pytest...",
         ),
     ]
