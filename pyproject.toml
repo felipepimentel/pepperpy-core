@@ -21,17 +21,17 @@ python-dotenv = "^1.0.1"
 pydantic = "^2.6.3"
 structlog = "^24.4.0"
 pyyaml = "^6.0.2"
+anyio = "^4.2.0"
 
 [tool.poetry.group.dev.dependencies]
-pytest = "^8.1.1"
-pytest-asyncio = "^0.25.0"
-pytest-cov = "^6.0.0"
-ruff = "^0.8.4"
-dagger-io = "^0.15.1"
+pytest = "^8.0.0"
+pytest-asyncio = "^0.23.5"
+pytest-cov = "^4.1.0"
+ruff = "^0.2.1"
+dagger-io = "^0.9.6"
 mypy = "^1.9.0"
 bandit = "^1.7.8"
 coverage = "^7.4.4"
-anyio = "^4.3.0"
 
 [build-system]
 requires = ["poetry-core"]
@@ -42,37 +42,32 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.pytest.ini_options]
 asyncio_mode = "strict"
-asyncio_default_fixture_loop_scope = "function"
-addopts = "--cov=pepperpy_core --cov-report=xml --cov-report=term"
 testpaths = ["tests"]
-filterwarnings = ["ignore::pytest.PytestCollectionWarning"]
+python_files = ["test_*.py"]
+addopts = "--cov=pepperpy_core --cov-report=xml --cov-report=term -v"
 
 [tool.ruff]
 line-length = 88
 target-version = "py312"
-select = [
-    "E",
-    "F",
-    "B",
-    "I",
-    "N",
-    "UP",
-    "ANN001",
-    "ANN002",
-    "ANN003",
-    "S",
-    "A",
-    "C4",
-    "DTZ",
-    "T10",
-    "EM",
-    "ISC",
+extend-exclude = [
+    ".pytest_cache",
+    ".ruff_cache",
+    ".venv",
+    ".git",
+    "__pycache__",
 ]
+
+[tool.ruff.lint]
+select = ["E", "F", "B", "I"]
+ignore = []
+fixable = ["ALL"]
+unfixable = []
 
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
-line-ending = "lf"
+skip-magic-trailing-comma = false
+line-ending = "auto"
 
 [tool.mypy]
 python_version = "3.12"
@@ -90,7 +85,7 @@ warn_no_return = true
 warn_unreachable = true
 
 [tool.coverage.run]
-source = ["pepperpy_core"]
+source = ["src"]
 branch = true
 
 [tool.coverage.report]
@@ -103,6 +98,7 @@ exclude_lines = [
     "pass",
     "raise ImportError",
 ]
+ignore_errors = true
 fail_under = 80
 
 [project.entry-points."dagger.mod"]

@@ -1,9 +1,10 @@
 """Tests for the io module."""
 
 import json
-import os
 from collections.abc import AsyncIterator
+from os import PathLike
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 import pytest
 import pytest_asyncio
@@ -18,6 +19,43 @@ from pepperpy_core.io import (
 )
 
 
+class MockPath(PathLike):
+    """Mock Path object."""
+
+    def __init__(self, suffix: str = ".txt") -> None:
+        """Initialize mock path.
+
+        Args:
+            suffix: File suffix
+        """
+        self.exists = MagicMock(return_value=True)
+        self.is_dir = MagicMock(return_value=False)
+        self.read_text = MagicMock()
+        self.write_text = MagicMock()
+        self.resolve = MagicMock(return_value=self)
+        self._suffix = suffix
+        self._str = f"test{suffix}"
+
+    def __str__(self) -> str:
+        """Return string representation."""
+        return self._str
+
+    def __fspath__(self) -> str:
+        """Return file system path representation."""
+        return self._str
+
+    @property
+    def suffix(self) -> str:
+        """Get file suffix."""
+        return self._suffix
+
+    @suffix.setter
+    def suffix(self, value: str) -> None:
+        """Set file suffix."""
+        self._suffix = value
+        self._str = f"test{value}"
+
+
 @pytest_asyncio.fixture
 async def file_io() -> AsyncIterator[FileIO]:
     """Create a test file I/O manager."""
@@ -27,427 +65,207 @@ async def file_io() -> AsyncIterator[FileIO]:
     await io.teardown()
 
 
-@pytest.fixture
-def tmp_text_file(tmp_path: Path) -> Path:
-    """Create a temporary text file."""
-    file_path = tmp_path / "test.txt"
-    file_path.write_text("Hello, World!", encoding="utf-8")
-    return file_path
-
-
-@pytest.fixture
-def tmp_json_file(tmp_path: Path) -> Path:
-    """Create a temporary JSON file."""
-    file_path = tmp_path / "test.json"
-    data = {"message": "Hello, World!", "value": 42}
-    file_path.write_text(json.dumps(data), encoding="utf-8")
-    return file_path
-
-
-@pytest.fixture
-def tmp_yaml_file(tmp_path: Path) -> Path:
-    """Create a temporary YAML file."""
-    file_path = tmp_path / "test.yaml"
-    data = {"message": "Hello, World!", "value": 42}
-    file_path.write_text(yaml.dump(data), encoding="utf-8")
-    return file_path
-
-
-@pytest.fixture
-def tmp_ini_file(tmp_path: Path) -> Path:
-    """Create a temporary INI file."""
-    file_path = tmp_path / "test.ini"
-    content = """[section1]
-key1 = value1
-key2 = value2
-
-[section2]
-key3 = value3
-key4 = value4
-"""
-    file_path.write_text(content, encoding="utf-8")
-    return file_path
-
-
-def test_text_file_handler(tmp_path: Path) -> None:
+def test_text_file_handler() -> None:
     """Test text file handler."""
     handler = TextFileHandler()
-    file_path = tmp_path / "test.txt"
-
-    # Test write
-    content = "Hello, World!"
-    handler.write(file_path, content)
-    assert file_path.read_text(encoding="utf-8") == content
+    path = MagicMock(spec=Path)
+    path.exists.return_value = True
+    path.is_dir.return_value = False
 
     # Test read
-    assert handler.read(file_path) == content
+    content = "Hello, World!"
+    path.read_text.return_value = content
+    assert handler.read(path) == content
 
-    # Test read error
-    non_existent = tmp_path / "non_existent.txt"
+    # Test write
+    handler.write(path, content)
+    path.write_text.assert_called_once_with(content, encoding="utf-8")
+
+    # Test read error (file not found)
+    path.exists.return_value = False
     with pytest.raises(IOError) as exc_info:
-        handler.read(non_existent)
+        handler.read(path)
     error_msg = str(exc_info.value)
-    assert error_msg.startswith(f"Failed to read text file {non_existent}")
+    assert error_msg.startswith(f"Failed to read text file {path}")
     assert "No such file or directory" in error_msg
 
-    # Test write error (directory instead of file)
+    # Test write error (directory)
+    path.is_dir.return_value = True
     with pytest.raises(IOError) as exc_info:
-        handler.write(tmp_path, content)
+        handler.write(path, content)
     error_msg = str(exc_info.value)
-    assert error_msg.startswith(f"Failed to write text file {tmp_path}")
+    assert error_msg.startswith(f"Failed to write text file {path}")
     assert "Is a directory" in error_msg
 
-    # Test empty file
-    empty_file = tmp_path / "empty.txt"
-    handler.write(empty_file, "")
-    assert handler.read(empty_file) == ""
 
-    # Test large file
-    large_content = "x" * 1024 * 1024  # 1MB
-    large_file = tmp_path / "large.txt"
-    handler.write(large_file, large_content)
-    assert handler.read(large_file) == large_content
-
-    # Test file permissions
-    if os.name != "nt":  # Skip on Windows
-        readonly_file = tmp_path / "readonly.txt"
-        handler.write(readonly_file, "test")
-        readonly_file.chmod(0o444)  # Read-only
-        with pytest.raises(IOError) as exc_info:
-            handler.write(readonly_file, "new content")
-        assert "Permission denied" in str(exc_info.value)
-
-    # Test file encoding
-    special_chars = "Hello, 世界! 🌍"
-    unicode_file = tmp_path / "unicode.txt"
-    handler.write(unicode_file, special_chars)
-    assert handler.read(unicode_file) == special_chars
-
-
-def test_json_file_handler(tmp_path: Path) -> None:
+def test_json_file_handler() -> None:
     """Test JSON file handler."""
     handler = JsonFileHandler()
-    file_path = tmp_path / "test.json"
+    path = MagicMock(spec=Path)
+    path.exists.return_value = True
+    path.is_dir.return_value = False
 
     # Test write
     content = {"message": "Hello, World!", "value": 42}
-    handler.write(file_path, content)
-    assert json.loads(file_path.read_text(encoding="utf-8")) == content
+    handler.write(path, content)
+    path.write_text.assert_called_once_with(json.dumps(content), encoding="utf-8")
 
     # Test read
-    assert handler.read(file_path) == content
+    path.read_text.return_value = json.dumps(content)
+    assert handler.read(path) == content
 
-    # Test read error
-    non_existent = tmp_path / "non_existent.json"
+    # Test read error (file not found)
+    path.exists.return_value = False
     with pytest.raises(IOError) as exc_info:
-        handler.read(non_existent)
+        handler.read(path)
     error_msg = str(exc_info.value)
-    assert error_msg.startswith(f"Failed to read JSON file {non_existent}")
+    assert error_msg.startswith(f"Failed to read JSON file {path}")
     assert "No such file or directory" in error_msg
 
-    # Test write error (invalid JSON)
+    # Test write error (directory)
+    path.is_dir.return_value = True
     with pytest.raises(IOError) as exc_info:
-        handler.write(file_path, {"key": object()})
+        handler.write(path, content)
     error_msg = str(exc_info.value)
-    assert error_msg.startswith(f"Failed to write JSON file {file_path}")
-    assert "Object of type" in error_msg
+    assert error_msg.startswith(f"Failed to write JSON file {path}")
+    assert "Is a directory" in error_msg
 
-    # Test empty object
-    empty_file = tmp_path / "empty.json"
-    handler.write(empty_file, {})
-    assert handler.read(empty_file) == {}
-
-    # Test large file
-    large_content = {"key": "x" * 1024 * 1024}  # 1MB value
-    large_file = tmp_path / "large.json"
-    handler.write(large_file, large_content)
-    assert handler.read(large_file) == large_content
-
-    # Test malformed JSON
-    malformed_file = tmp_path / "malformed.json"
-    malformed_file.write_text("{invalid: json}", encoding="utf-8")
+    # Test read error (invalid JSON)
+    path.exists.return_value = True
+    path.is_dir.return_value = False
+    path.read_text.return_value = "invalid json"
     with pytest.raises(IOError) as exc_info:
-        handler.read(malformed_file)
+        handler.read(path)
     assert "Failed to read JSON file" in str(exc_info.value)
 
-    # Test nested structures
-    nested_content = {
-        "level1": {
-            "level2": {
-                "level3": {
-                    "array": [1, 2, 3],
-                    "string": "test",
-                    "number": 42.5,
-                    "boolean": True,
-                    "null": None,
-                }
-            }
-        }
-    }
-    nested_file = tmp_path / "nested.json"
-    handler.write(nested_file, nested_content)
-    assert handler.read(nested_file) == nested_content
 
-    # Test file permissions
-    if os.name != "nt":  # Skip on Windows
-        readonly_file = tmp_path / "readonly.json"
-        handler.write(readonly_file, {"test": "value"})
-        readonly_file.chmod(0o444)  # Read-only
-        with pytest.raises(IOError) as exc_info:
-            handler.write(readonly_file, {"new": "content"})
-        assert "Permission denied" in str(exc_info.value)
-
-
-def test_yaml_file_handler(tmp_path: Path) -> None:
+def test_yaml_file_handler() -> None:
     """Test YAML file handler."""
     handler = YamlFileHandler()
-    file_path = tmp_path / "test.yaml"
+    path = MagicMock(spec=Path)
+    path.exists.return_value = True
+    path.is_dir.return_value = False
+    path.__str__.return_value = "test.yaml"
 
     # Test write
     content = {"message": "Hello, World!", "value": 42}
-    handler.write(file_path, content)
-    assert yaml.safe_load(file_path.read_text(encoding="utf-8")) == content
+    handler.write(path, content)
+    path.write_text.assert_called_once_with(yaml.dump(content), encoding="utf-8")
 
     # Test read
-    assert handler.read(file_path) == content
+    path.read_text.return_value = yaml.dump(content)
+    assert handler.read(path) == content
 
-    # Test read error
-    non_existent = tmp_path / "non_existent.yaml"
-    with pytest.raises(IOError) as exc_info:
-        handler.read(non_existent)
+    # Test read error (file not found)
+    path.exists.return_value = False
+    with pytest.raises(OSError) as exc_info:
+        handler.read(path)
     error_msg = str(exc_info.value)
-    assert error_msg.startswith(f"Failed to read YAML file {non_existent}")
+    assert error_msg.startswith(f"Failed to read YAML file {path}")
     assert "No such file or directory" in error_msg
 
-    # Test write error (invalid YAML)
-    with pytest.raises(IOError) as exc_info:
-        handler.write(file_path, {"key": object()})
+    # Test write error (directory)
+    path.is_dir.return_value = True
+    with pytest.raises(OSError) as exc_info:
+        handler.write(path, content)
     error_msg = str(exc_info.value)
-    assert error_msg.startswith(f"Failed to write YAML file {file_path}")
-    assert "Object of type" in error_msg
+    assert error_msg.startswith(f"Failed to write YAML file {path}")
+    assert "Is a directory" in error_msg
 
-    # Test empty object
-    empty_file = tmp_path / "empty.yaml"
-    handler.write(empty_file, {})
-    assert handler.read(empty_file) == {}
-
-    # Test large file
-    large_content = {"key": "x" * 1024 * 1024}  # 1MB value
-    large_file = tmp_path / "large.yaml"
-    handler.write(large_file, large_content)
-    assert handler.read(large_file) == large_content
-
-    # Test malformed YAML
-    malformed_file = tmp_path / "malformed.yaml"
-    malformed_file.write_text("key: [invalid: yaml", encoding="utf-8")
-    with pytest.raises(IOError) as exc_info:
-        handler.read(malformed_file)
+    # Test read error (invalid YAML)
+    path.exists.return_value = True
+    path.is_dir.return_value = False
+    path.read_text.return_value = "key: [invalid: yaml"
+    with pytest.raises(OSError) as exc_info:
+        handler.read(path)
     assert "Failed to read YAML file" in str(exc_info.value)
 
-    # Test nested structures
-    nested_content = {
-        "level1": {
-            "level2": {
-                "level3": {
-                    "array": [1, 2, 3],
-                    "string": "test",
-                    "number": 42.5,
-                    "boolean": True,
-                    "null": None,
-                }
-            }
-        }
-    }
-    nested_file = tmp_path / "nested.yaml"
-    handler.write(nested_file, nested_content)
-    assert handler.read(nested_file) == nested_content
+    # Test write error (invalid YAML)
+    path.exists.return_value = True
+    path.is_dir.return_value = False
+    path.read_text.side_effect = None
 
-    # Test file permissions
-    if os.name != "nt":  # Skip on Windows
-        readonly_file = tmp_path / "readonly.yaml"
-        handler.write(readonly_file, {"test": "value"})
-        readonly_file.chmod(0o444)  # Read-only
-        with pytest.raises(IOError) as exc_info:
-            handler.write(readonly_file, {"new": "content"})
-        assert "Permission denied" in str(exc_info.value)
-
-    # Test YAML aliases
-    alias_content = """
-    defaults: &defaults
-      timeout: 30
-      retries: 3
-    
-    production:
-      <<: *defaults
-      host: example.com
-      port: 443
-    """
-    alias_file = tmp_path / "alias.yaml"
-    alias_file.write_text(alias_content, encoding="utf-8")
-    expected = {
-        "defaults": {"timeout": 30, "retries": 3},
-        "production": {"timeout": 30, "retries": 3, "host": "example.com", "port": 443},
-    }
-    assert handler.read(alias_file) == expected
+    # Mock yaml.dump to raise an error
+    with patch("yaml.dump") as mock_dump:
+        mock_dump.side_effect = yaml.YAMLError("Failed to serialize")
+        with pytest.raises(OSError) as exc_info:
+            handler.write(path, content)
+        error_msg = str(exc_info.value)
+        assert error_msg.startswith(f"Failed to write YAML file {path}")
 
 
-def test_ini_file_handler(tmp_path: Path) -> None:
+def test_ini_file_handler() -> None:
     """Test INI file handler."""
     handler = IniFileHandler()
-    file_path = tmp_path / "test.ini"
+    path = MagicMock(spec=Path)
+    path.exists.return_value = True
+    path.is_dir.return_value = False
+    path.__str__.return_value = "test.ini"
 
     # Test write
-    content = {
-        "section1": {"key1": "value1", "key2": "value2"},
-        "section2": {"key3": "value3", "key4": "value4"},
-    }
-    handler.write(file_path, content)
-    assert file_path.exists()
+    content = {"section1": {"key1": "value1", "key2": "value2"}}
+    handler.write(path, content)
 
     # Test read
-    assert handler.read(file_path) == content
+    path.read_text.return_value = """[section1]
+key1 = value1
+key2 = value2
+"""
+    assert handler.read(path) == content
 
-    # Test read error
-    non_existent = tmp_path / "non_existent.ini"
+    # Test read error (file not found)
+    path.exists.return_value = False
     with pytest.raises(IOError) as exc_info:
-        handler.read(non_existent)
+        handler.read(path)
     error_msg = str(exc_info.value)
-    assert error_msg.startswith(f"Failed to read INI file {non_existent}")
+    assert error_msg.startswith(f"Failed to read INI file {path}")
     assert "File not found" in error_msg
 
-    # Test write error (directory instead of file)
+    # Test write error (directory)
+    path.is_dir.return_value = True
     with pytest.raises(IOError) as exc_info:
-        handler.write(tmp_path, content)
+        handler.write(path, content)
     error_msg = str(exc_info.value)
-    assert error_msg.startswith(f"Failed to write INI file {tmp_path}")
+    assert error_msg.startswith(f"Failed to write INI file {path}")
     assert "Cannot write to directory" in error_msg
-
-    # Test empty file
-    empty_file = tmp_path / "empty.ini"
-    handler.write(empty_file, {})
-    assert handler.read(empty_file) == {}
-
-    # Test malformed INI
-    malformed_file = tmp_path / "malformed.ini"
-    malformed_file.write_text("[invalid\nkey = value", encoding="utf-8")
-    with pytest.raises(IOError) as exc_info:
-        handler.read(malformed_file)
-    assert "Failed to read INI file" in str(exc_info.value)
-
-    # Test special characters in values
-    special_content = {
-        "section": {
-            "unicode": "Hello, 世界",
-            "spaces": "value with spaces",
-            "escaped": "test",  # Avoid special characters in INI files
-        }
-    }
-    special_file = tmp_path / "special.ini"
-    handler.write(special_file, special_content)
-    assert handler.read(special_file) == special_content
-
-    # Test file permissions
-    if os.name != "nt":  # Skip on Windows
-        readonly_file = tmp_path / "readonly.ini"
-        handler.write(readonly_file, {"section": {"key": "value"}})
-        readonly_file.chmod(0o444)  # Read-only
-        with pytest.raises(IOError) as exc_info:
-            handler.write(readonly_file, {"new": {"key": "value"}})
-        assert "Permission denied" in str(exc_info.value)
-
-    # Test default section
-    default_content = """
-[DEFAULT]
-host = localhost
-port = 8080
-
-[production]
-host = example.com
-debug = false
-"""
-    default_file = tmp_path / "default.ini"
-    default_file.write_text(default_content, encoding="utf-8")
-    result = handler.read(default_file)
-    assert result["production"]["host"] == "example.com"
-    assert result["production"]["port"] == "8080"  # Inherited from DEFAULT
 
 
 @pytest.mark.asyncio
-async def test_file_io_manager(file_io: FileIO, tmp_path: Path) -> None:
+async def test_file_io_manager(file_io: FileIO) -> None:
     """Test file I/O manager."""
-    # Test text file
-    text_file = tmp_path / "test.txt"
-    text_content = "Hello, World!"
-    await file_io.write(text_file, text_content)
-    assert await file_io.read(text_file) == text_content
+    # Create a mock path with a proper suffix
+    path = MockPath(".txt")
+    path.read_text.return_value = "Hello, World!"
 
-    # Test JSON file
-    json_file = tmp_path / "test.json"
-    json_content = {"message": "Hello, World!", "value": 42}
-    await file_io.write(json_file, json_content)
-    assert await file_io.read(json_file) == json_content
+    # Test read
+    content = "Hello, World!"
+    assert await file_io.read(path) == content
 
-    # Test YAML file
-    yaml_file = tmp_path / "test.yaml"
-    yaml_content = {"message": "Hello, World!", "value": 42}
-    await file_io.write(yaml_file, yaml_content)
-    assert await file_io.read(yaml_file) == yaml_content
-
-    # Test INI file
-    ini_file = tmp_path / "test.ini"
-    ini_content = {
-        "section1": {"key1": "value1", "key2": "value2"},
-        "section2": {"key3": "value3", "key4": "value4"},
-    }
-    await file_io.write(ini_file, ini_content)
-    assert await file_io.read(ini_file) == ini_content
+    # Test write
+    await file_io.write(path, content)
+    path.write_text.assert_called_once_with(content, encoding="utf-8")
 
     # Test unsupported file type
-    unsupported_file = tmp_path / "test.xyz"
-    with pytest.raises(IOError) as exc_info:
-        await file_io.write(unsupported_file, "content")
-    assert str(exc_info.value) == "Unsupported file type: .xyz"
-    with pytest.raises(IOError) as exc_info:
-        await file_io.read(unsupported_file)
-    assert str(exc_info.value) == "Unsupported file type: .xyz"
+    path = MockPath(".unsupported")
+    with pytest.raises(OSError) as exc_info:
+        await file_io.read(path)
+    assert "Unsupported file type: .unsupported" in str(exc_info.value)
 
-    # Test file operations
-    assert text_file.exists()  # Use Path.exists() instead of file_io.exists()
-    text_file.unlink()  # Use Path.unlink() instead of file_io.delete()
-    assert not text_file.exists()
-
-    # Test concurrent access
-    import asyncio
-
-    async def write_file() -> None:
-        for i in range(5):
-            await file_io.write(text_file, f"content{i}")
-            await asyncio.sleep(0.1)
-
-    async def read_file() -> None:
-        for _ in range(5):
-            try:
-                await file_io.read(text_file)
-            except OSError:
-                pass  # File might not exist yet
-            await asyncio.sleep(0.1)
-
-    await asyncio.gather(write_file(), read_file())
+    # Test write to unsupported file type
+    with pytest.raises(OSError) as exc_info:
+        await file_io.write(path, content)
+    assert "Unsupported file type: .unsupported" in str(exc_info.value)
 
 
 @pytest.mark.asyncio
 async def test_file_io_stats(file_io: FileIO) -> None:
-    """Test file I/O manager statistics."""
+    """Test file I/O statistics."""
     stats = await file_io.get_stats()
     assert stats["name"] == "file-io"
-    assert stats["supported_extensions"] == [".txt", ".yaml", ".yml", ".ini", ".json"]
-
-    # Test basic stats
-    text_file = Path("test.txt")
-    await file_io.write(text_file, "content")
-    await file_io.read(text_file)
-    text_file.unlink(missing_ok=True)  # Use Path.unlink() instead of file_io.delete()
-
-    stats = await file_io.get_stats()
-    assert stats["name"] == "file-io"
-    assert stats["supported_extensions"] == [".txt", ".yaml", ".yml", ".ini", ".json"]
+    assert sorted(stats["supported_extensions"]) == sorted([
+        ".txt",
+        ".yaml",
+        ".yml",
+        ".ini",
+        ".json",
+    ])

@@ -8,26 +8,27 @@ on:
     branches: [main]
   workflow_dispatch:
 
-permissions:
-  contents: read
-  id-token: write
-
 jobs:
   pipeline:
     runs-on: ubuntu-latest
-    environment:
-      name: ${{ startsWith(github.ref, 'refs/tags/') && 'release' || 'ci' }}
-    
     steps:
       - uses: actions/checkout@v4
       
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      
-      - uses: dagger/dagger-for-github@v5
-      
+          
+      - name: Install Dagger CLI
+        run: |
+          curl -L https://dl.dagger.io/dagger/install.sh | sh
+          sudo mv bin/dagger /usr/local/bin
+          dagger version
+          
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install poetry dagger-io
+          poetry install
+          
       - name: Run Pipeline
-        run: python ci_cd_pipeline.py ${{ startsWith(github.ref, 'refs/tags/') && 'cd' || 'ci' }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: poetry run python ci_cd_pipeline.py
