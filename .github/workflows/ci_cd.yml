@@ -33,7 +33,12 @@ jobs:
           pip install poetry
           poetry install
 
+      - name: Validate dependencies
+        run: |
+          poetry check
+          poetry show
+
       - name: Run pipeline
         env:
           PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
-        run: python pipeline.py
+        run: poetry run python pipeline.py
