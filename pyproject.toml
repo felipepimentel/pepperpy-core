@@ -106,4 +106,5 @@ exclude_lines = [
 fail_under = 80
 
 [project.entry-points."dagger.mod"]
+name = "pepperpy_core"
 main_object = "pepperpy_core.main:Pepperpy"
