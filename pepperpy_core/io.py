@@ -188,12 +188,12 @@ class YamlFileHandler:
         try:
             yaml_str = yaml.dump(content)
         except (TypeError, ValueError, yaml.YAMLError) as e:
-            raise OSError(f"Failed to write YAML file {path}: {e}")
+            raise OSError(f"Failed to write YAML file {path}: {e}") from e
 
         try:
             path.write_text(yaml_str, encoding="utf-8")
         except OSError as e:
-            raise OSError(f"Failed to write YAML file {path}: {e}")
+            raise OSError(f"Failed to write YAML file {path}: {e}") from e
 
 
 class IniFileHandler:

@@ -1,5 +1,5 @@
 {
-  "python.analysis.extraPaths": ["examples"],
+  "python.analysis.extraPaths": ["examples", "scripts", "tests"],
   "editor.formatOnSave": true,
   "editor.codeActionsOnSave": {
     "source.organizeImports": "explicit",

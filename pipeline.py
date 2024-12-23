@@ -73,6 +73,9 @@ async def main() -> int:
     Returns:
         int: Exit code (0 for success, 1 for failure).
     """
+    # Get command line arguments
+    command = sys.argv[1] if len(sys.argv) > 1 else "ci"
+
     async with dagger.Connection() as client:
         # Run build and tests
         print("Starting build and test process...")
@@ -80,11 +83,14 @@ async def main() -> int:
             print("Build or tests failed. Exiting.")
             return 1
 
-        # If tests pass, attempt to publish
-        print("Build and tests passed. Starting publish process...")
-        if not await publish_package(client):
-            print("Publish process failed. Exiting.")
-            return 1
+        # If tests pass and it's a release, attempt to publish
+        if command == "release":
+            print("Build and tests passed. Starting publish process...")
+            if not await publish_package(client):
+                print("Publish process failed. Exiting.")
+                return 1
+        else:
+            print("Not a release, skipping publish process.")
 
     print("Pipeline completed successfully.")
     return 0

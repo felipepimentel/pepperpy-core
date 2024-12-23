@@ -41,7 +41,8 @@ def verify_protocol_compliance(
         cast(protocol_cls, instance)
     except TypeError as e:
         pytest.fail(
-            f"{implementation_cls.__name__} does not implement {protocol_cls.__name__} correctly: {e}"
+            f"{implementation_cls.__name__} does not implement "
+            f"{protocol_cls.__name__} correctly: {e}"
         )
 
 

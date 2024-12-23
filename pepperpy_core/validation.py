@@ -208,7 +208,9 @@ class TypeValidator(Validator[Any]):
             return ValidationResult(
                 valid=False,
                 level=ValidationLevel.ERROR,
-                message=f"Expected type {self.expected_type}, got {type(value).__name__}",
+                message=(
+                    f"Expected type {self.expected_type}, got {type(value).__name__}"
+                ),
                 context=context,
             )
         return ValidationResult(valid=True, context=context)

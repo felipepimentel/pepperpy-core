@@ -298,4 +298,4 @@ __all__ = [
     "BaseLogger",
     "Logger",
     "LoggingManager",
-] 
+]

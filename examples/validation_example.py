@@ -17,7 +17,7 @@ class ValidatorConfig:
         metadata: JsonDict | None = None,
     ) -> None:
         """Initialize configuration.
-        
+
         Args:
             name: Validator name
             enabled: Whether validator is enabled

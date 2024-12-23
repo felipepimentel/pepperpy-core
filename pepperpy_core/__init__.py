@@ -1,7 +1,7 @@
 """Core package exports."""
 
-from .module import BaseModule
 from .main import Pepperpy
+from .module import BaseModule
 
 __all__ = [
     "BaseModule",

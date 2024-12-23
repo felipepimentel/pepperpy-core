@@ -8,7 +8,7 @@ T = TypeVar("T")
 
 def utcnow() -> dt.datetime:
     """Get current UTC datetime.
-    
+
     Returns:
         Current UTC datetime
     """
@@ -17,10 +17,10 @@ def utcnow() -> dt.datetime:
 
 def format_datetime(value: dt.datetime) -> str:
     """Format datetime in ISO format.
-    
+
     Args:
         value: Datetime to format
-        
+
     Returns:
         Formatted datetime string
     """
@@ -29,13 +29,13 @@ def format_datetime(value: dt.datetime) -> str:
 
 def parse_datetime(value: str) -> dt.datetime:
     """Parse datetime from ISO format.
-    
+
     Args:
         value: Datetime string to parse
-        
+
     Returns:
         Parsed datetime
-        
+
     Raises:
         ValueError: If datetime string is invalid
     """
@@ -44,10 +44,10 @@ def parse_datetime(value: str) -> dt.datetime:
 
 def get_type_name(obj: Any) -> str:
     """Get type name of object.
-    
+
     Args:
         obj: Object to get type name for
-        
+
     Returns:
         Type name
     """
@@ -56,11 +56,11 @@ def get_type_name(obj: Any) -> str:
 
 def safe_cast(value: Any, target_type: type[T]) -> T | None:
     """Safely cast value to target type.
-    
+
     Args:
         value: Value to cast
         target_type: Target type
-        
+
     Returns:
         Cast value or None if casting fails
     """
@@ -76,4 +76,4 @@ __all__ = [
     "parse_datetime",
     "get_type_name",
     "safe_cast",
-] 
+]

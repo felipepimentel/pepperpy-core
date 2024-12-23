@@ -1,21 +1,58 @@
-"""Shared test configurations and fixtures."""
+"""Test configuration."""
 
-from dataclasses import dataclass, field
-from typing import Any
+import asyncio
+from typing import Any, AsyncGenerator, Generator
 
 import pytest
+import pytest_asyncio
 
-from pepperpy_core.module import ModuleConfig
+
+def pytest_configure(config: pytest.Config) -> None:
+    """Configure pytest."""
+    config.addinivalue_line(
+        "markers",
+        "no_cover: mark test to be excluded from coverage",
+    )
 
 
-@pytest.mark.no_cover
-@dataclass
-class TestConfig(ModuleConfig):
-    """Test configuration."""
+@pytest.fixture(scope="session")
+def event_loop_policy() -> Generator[asyncio.AbstractEventLoopPolicy, None, None]:
+    """Create an event loop policy for testing."""
+    policy = asyncio.get_event_loop_policy()
+    yield policy
 
-    name: str = "test-module"
-    metadata: dict[str, Any] = field(default_factory=dict)
 
-    def validate(self) -> None:
-        """Validate configuration."""
-        pass
+@pytest_asyncio.fixture
+async def test_module() -> AsyncGenerator[Any, None]:
+    """Create a test module for testing."""
+    from pepperpy_core.module import BaseModule, ModuleConfig
+
+    class TestConfig(ModuleConfig):
+        """Test configuration."""
+
+        name: str = "test-module"
+        metadata: dict[str, Any] = {}
+
+        def validate(self) -> None:
+            """Validate configuration."""
+            pass
+
+    class TestModule(BaseModule[TestConfig]):
+        """Test module implementation."""
+
+        def __init__(self, config: TestConfig | None = None) -> None:
+            """Initialize test module."""
+            super().__init__(config or TestConfig())
+
+        async def _setup(self) -> None:
+            """Setup test module."""
+            pass
+
+        async def _teardown(self) -> None:
+            """Teardown test module."""
+            pass
+
+    module = TestModule()
+    await module.initialize()
+    yield module
+    await module.teardown()

@@ -96,7 +96,7 @@ class MetricsCollector(BaseModule[TelemetryConfig]):
             await asyncio.sleep(0.1)
             self._metrics.clear()
         except Exception as e:
-            raise TelemetryError(f"Failed to flush metrics: {e}")
+            raise TelemetryError(f"Failed to flush metrics: {e}") from e
 
     async def record(
         self,

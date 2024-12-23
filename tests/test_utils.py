@@ -45,7 +45,7 @@ def test_parse_datetime() -> None:
     # Test invalid datetime string
     try:
         parse_datetime("invalid")
-        assert False, "Expected ValueError"
+        raise AssertionError("Expected ValueError")
     except ValueError:
         pass
 

@@ -75,7 +75,9 @@ class Registry(Generic[T], BaseModule[RegistryConfig]):
             "max_items": self.config.max_items,
         }
 
-    def register(self, name: str, value: T, metadata: dict[str, Any] | None = None) -> None:
+    def register(
+        self, name: str, value: T, metadata: dict[str, Any] | None = None
+    ) -> None:
         """Register item.
 
         Args:
@@ -174,4 +176,4 @@ __all__ = [
     "RegistryConfig",
     "RegistryItem",
     "Registry",
-] 
+]

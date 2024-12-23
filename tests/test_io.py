@@ -262,10 +262,12 @@ async def test_file_io_stats(file_io: FileIO) -> None:
     """Test file I/O statistics."""
     stats = await file_io.get_stats()
     assert stats["name"] == "file-io"
-    assert sorted(stats["supported_extensions"]) == sorted([
-        ".txt",
-        ".yaml",
-        ".yml",
-        ".ini",
-        ".json",
-    ])
+    assert sorted(stats["supported_extensions"]) == sorted(
+        [
+            ".txt",
+            ".yaml",
+            ".yml",
+            ".ini",
+            ".json",
+        ]
+    )

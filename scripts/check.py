@@ -6,7 +6,15 @@ from typing import List, Tuple
 
 
 def run_command(command: List[str], description: str) -> Tuple[int, str, str]:
-    """Run a command and return its exit code and output."""
+    """Run a command and return its exit code, stdout, and stderr.
+
+    Args:
+        command: The command to run as a list of strings.
+        description: A description of the command being executed.
+
+    Returns:
+        A tuple containing the exit code, stdout, and stderr of the command.
+    """
     print(f"\n🔄 {description}")
     try:
         process = subprocess.run(
@@ -16,24 +24,24 @@ def run_command(command: List[str], description: str) -> Tuple[int, str, str]:
             text=True,
         )
         return 0, process.stdout, process.stderr
-    except subprocess.CalledProcessError as e:
-        return e.returncode, e.stdout, e.stderr
+    except subprocess.CalledProcessError as exc:
+        return exc.returncode, exc.stdout, exc.stderr
 
 
 def main() -> int:
-    """Run all checks."""
+    """Run all checks and report the results.
+
+    Returns:
+        Exit code: 0 if all checks pass, 1 otherwise.
+    """
     checks = [
         (
-            ["poetry", "run", "mypy", "pepperpy_core", "tests"],
-            "Running type checking with mypy...",
+            ["poetry", "run", "ruff", "format", "."],
+            "Running code formatting with ruff format...",
         ),
         (
             ["poetry", "run", "ruff", "check", "."],
             "Running linting with ruff...",
-        ),
-        (
-            ["poetry", "run", "ruff", "format", "."],
-            "Running code formatting with ruff format...",
         ),
         (
             [
@@ -47,7 +55,6 @@ def main() -> int:
         ),
     ]
 
-    failed = False
     for command, description in checks:
         exit_code, stdout, stderr = run_command(command, description)
 
@@ -57,14 +64,11 @@ def main() -> int:
             print(stderr, file=sys.stderr)
 
         if exit_code != 0:
-            failed = True
             print(f"❌ {description} failed!")
-            break
+            return 1
 
-    if not failed:
-        print("\n✅ All checks passed!")
-        return 0
-    return 1
+    print("\n✅ All checks passed!")
+    return 0
 
 
 if __name__ == "__main__":

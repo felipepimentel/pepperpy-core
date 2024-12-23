@@ -121,13 +121,13 @@ class PluginManager(BaseModule[PluginConfig]):
             spec.loader.exec_module(module)
 
             # Find plugin classes
-            for name, obj in inspect.getmembers(module):
+            for _name, obj in inspect.getmembers(module):
                 if inspect.isclass(obj) and is_plugin(obj):
                     plugin_name = obj.__plugin_name__
                     self._plugins[plugin_name] = obj()
 
         except Exception as e:
-            raise PluginError(f"Failed to load plugin from {path}: {e}")
+            raise PluginError(f"Failed to load plugin from {path}: {e}") from e
 
     def get_plugin(self, name: str) -> Any:
         """Get plugin by name.

@@ -83,7 +83,8 @@ class ResourceManager:
             Resource information
 
         Raises:
-            ResourceError: If resource manager not initialized or resource already exists
+            ResourceError: If resource manager not initialized or
+                resource already exists
         """
         if not self._initialized:
             raise ResourceError("Resource manager not initialized")

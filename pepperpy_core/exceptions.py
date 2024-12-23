@@ -29,21 +29,21 @@ class PepperpyError(Exception):
     def __str__(self) -> str:
         """Return string representation."""
         parts = [self.args[0]]
-        
+
         if self.error_code:
             parts.insert(0, f"[{self.error_code}]")
-            
+
         if self.cause:
             parts.append(f"(caused by: {self.cause})")
-            
+
         if self.details:
             parts.append(f"details: {self.details}")
-            
+
         return " - ".join(parts)
-        
+
     def get_full_details(self) -> dict[str, Any]:
         """Get full error details including cause chain.
-        
+
         Returns:
             Dictionary with all error details
         """
@@ -51,13 +51,13 @@ class PepperpyError(Exception):
             "message": str(self.args[0]),
             "type": self.__class__.__name__,
         }
-        
+
         if self.error_code:
             details["error_code"] = self.error_code
-            
+
         if self.details:
             details["details"] = self.details
-            
+
         if self.cause:
             if isinstance(self.cause, PepperpyError):
                 details["cause"] = self.cause.get_full_details()
@@ -66,7 +66,7 @@ class PepperpyError(Exception):
                     "message": str(self.cause),
                     "type": self.cause.__class__.__name__,
                 }
-                
+
         return details
 
 
@@ -74,7 +74,12 @@ class PepperpyError(Exception):
 class ConfigError(PepperpyError):
     """Configuration-related errors."""
 
-    def __init__(self, message: str, cause: Exception | None = None, config_name: str | None = None) -> None:
+    def __init__(
+        self,
+        message: str,
+        cause: Exception | None = None,
+        config_name: str | None = None,
+    ) -> None:
         """Initialize configuration error.
 
         Args:
@@ -82,7 +87,9 @@ class ConfigError(PepperpyError):
             cause: Original exception that caused this error
             config_name: Name of the configuration that caused the error
         """
-        super().__init__(message, cause, {"config_name": config_name} if config_name else None)
+        super().__init__(
+            message, cause, {"config_name": config_name} if config_name else None
+        )
         self.config_name = config_name
 
 
@@ -120,7 +127,12 @@ class ValidationError(PepperpyError):
 class ResourceError(PepperpyError):
     """Resource-related errors."""
 
-    def __init__(self, message: str, cause: Exception | None = None, resource_name: str | None = None) -> None:
+    def __init__(
+        self,
+        message: str,
+        cause: Exception | None = None,
+        resource_name: str | None = None,
+    ) -> None:
         """Initialize resource error.
 
         Args:
@@ -128,7 +140,9 @@ class ResourceError(PepperpyError):
             cause: Original exception that caused this error
             resource_name: Name of the resource that caused the error
         """
-        super().__init__(message, cause, {"resource_name": resource_name} if resource_name else None)
+        super().__init__(
+            message, cause, {"resource_name": resource_name} if resource_name else None
+        )
         self.resource_name = resource_name
 
 
@@ -136,7 +150,12 @@ class ResourceError(PepperpyError):
 class StateError(PepperpyError):
     """State-related errors."""
 
-    def __init__(self, message: str, cause: Exception | None = None, current_state: str | None = None) -> None:
+    def __init__(
+        self,
+        message: str,
+        cause: Exception | None = None,
+        current_state: str | None = None,
+    ) -> None:
         """Initialize state error.
 
         Args:
@@ -144,7 +163,9 @@ class StateError(PepperpyError):
             cause: Original exception that caused this error
             current_state: Current state when the error occurred
         """
-        super().__init__(message, cause, {"current_state": current_state} if current_state else None)
+        super().__init__(
+            message, cause, {"current_state": current_state} if current_state else None
+        )
         self.current_state = current_state
 
 
@@ -152,7 +173,12 @@ class StateError(PepperpyError):
 class ModuleError(PepperpyError):
     """Module-related errors."""
 
-    def __init__(self, message: str, cause: Exception | None = None, module_name: str | None = None) -> None:
+    def __init__(
+        self,
+        message: str,
+        cause: Exception | None = None,
+        module_name: str | None = None,
+    ) -> None:
         """Initialize module error.
 
         Args:
@@ -160,17 +186,21 @@ class ModuleError(PepperpyError):
             cause: Original exception that caused this error
             module_name: Name of the module that caused the error
         """
-        super().__init__(message, cause, {"module_name": module_name} if module_name else None)
+        super().__init__(
+            message, cause, {"module_name": module_name} if module_name else None
+        )
         self.module_name = module_name
 
 
 class InitializationError(ModuleError):
     """Initialization-related errors."""
+
     pass
 
 
 class ModuleNotFoundError(ModuleError):
     """Module not found errors."""
+
     pass
 
 
@@ -178,7 +208,9 @@ class ModuleNotFoundError(ModuleError):
 class CacheError(PepperpyError):
     """Cache-related errors."""
 
-    def __init__(self, message: str, cause: Exception | None = None, key: str | None = None) -> None:
+    def __init__(
+        self, message: str, cause: Exception | None = None, key: str | None = None
+    ) -> None:
         """Initialize cache error.
 
         Args:
@@ -194,7 +226,9 @@ class CacheError(PepperpyError):
 class SecurityError(PepperpyError):
     """Security-related errors."""
 
-    def __init__(self, message: str, cause: Exception | None = None, operation: str | None = None) -> None:
+    def __init__(
+        self, message: str, cause: Exception | None = None, operation: str | None = None
+    ) -> None:
         """Initialize security error.
 
         Args:
@@ -202,27 +236,33 @@ class SecurityError(PepperpyError):
             cause: Original exception that caused this error
             operation: Security operation that failed
         """
-        super().__init__(message, cause, {"operation": operation} if operation else None)
+        super().__init__(
+            message, cause, {"operation": operation} if operation else None
+        )
         self.operation = operation
 
 
 class AuthError(SecurityError):
     """Authentication error."""
+
     pass
 
 
 class PermissionError(SecurityError):
     """Permission error."""
+
     pass
 
 
 class TokenError(SecurityError):
     """Token error."""
+
     pass
 
 
 class CryptoError(SecurityError):
     """Cryptography error."""
+
     pass
 
 
@@ -230,7 +270,9 @@ class CryptoError(SecurityError):
 class TaskError(PepperpyError):
     """Task-related errors."""
 
-    def __init__(self, message: str, cause: Exception | None = None, task_id: str | None = None) -> None:
+    def __init__(
+        self, message: str, cause: Exception | None = None, task_id: str | None = None
+    ) -> None:
         """Initialize task error.
 
         Args:
@@ -244,18 +286,20 @@ class TaskError(PepperpyError):
 
 class TaskExecutionError(TaskError):
     """Task execution error."""
+
     pass
 
 
 class TaskNotFoundError(TaskError):
     """Task not found error."""
+
     pass
 
 
 # Event Errors
 class EventError(PepperpyError):
     """Event-related errors."""
-    
+
     def __init__(
         self,
         message: str,
@@ -264,7 +308,7 @@ class EventError(PepperpyError):
         event_id: str | None = None,
     ) -> None:
         """Initialize event error.
-        
+
         Args:
             message: Error message
             cause: Original exception that caused this error
@@ -283,7 +327,7 @@ class EventError(PepperpyError):
 
 class EventHandlerError(EventError):
     """Event handler-related errors."""
-    
+
     def __init__(
         self,
         message: str,
@@ -293,7 +337,7 @@ class EventHandlerError(EventError):
         handler_name: str | None = None,
     ) -> None:
         """Initialize event handler error.
-        
+
         Args:
             message: Error message
             cause: Original exception that caused this error
@@ -309,7 +353,7 @@ class EventHandlerError(EventError):
 
 class EventMiddlewareError(EventError):
     """Event middleware-related errors."""
-    
+
     def __init__(
         self,
         message: str,
@@ -320,7 +364,7 @@ class EventMiddlewareError(EventError):
         stage: str | None = None,
     ) -> None:
         """Initialize event middleware error.
-        
+
         Args:
             message: Error message
             cause: Original exception that caused this error
@@ -341,153 +385,164 @@ class EventMiddlewareError(EventError):
 # Network Errors
 class NetworkError(PepperpyError):
     """Network-related errors."""
+
     pass
 
 
 class ConnectionError(NetworkError):
     """Connection error."""
+
     pass
 
 
 class RequestError(NetworkError):
     """Request error."""
+
     pass
 
 
 class ResponseError(NetworkError):
     """Response error."""
+
     pass
 
 
 class TimeoutError(NetworkError):
     """Timeout error."""
+
     pass
 
 
 class SSLError(NetworkError):
     """SSL error."""
+
     pass
 
 
 class ProxyError(NetworkError):
     """Proxy error."""
+
     pass
 
 
 class DNSError(NetworkError):
     """DNS error."""
+
     pass
 
 
 # Plugin Errors
 class PluginError(PepperpyError):
     """Plugin-related errors."""
+
     pass
 
 
 class PluginNotFoundError(PluginError):
     """Plugin not found error."""
+
     pass
 
 
 class PluginLoadError(PluginError):
     """Plugin load error."""
+
     pass
 
 
 # Logging Errors
 class LoggingError(PepperpyError):
     """Logging-related errors."""
+
     pass
 
 
 class LogConfigError(LoggingError):
     """Log configuration error."""
+
     pass
 
 
 class LogHandlerError(LoggingError):
     """Log handler error."""
+
     pass
 
 
 class LogFormatError(LoggingError):
     """Log format error."""
+
     pass
 
 
 # Telemetry Errors
 class TelemetryError(PepperpyError):
     """Telemetry-related errors."""
+
     pass
 
 
 class MetricError(TelemetryError):
     """Metric error."""
+
     pass
 
 
 class CollectorError(MetricError):
     """Collector error."""
+
     pass
 
 
 class MetricValueError(MetricError):
     """Metric value error."""
+
     pass
 
 
 class TracingError(TelemetryError):
     """Tracing error."""
+
     pass
 
 
 class PerformanceError(TelemetryError):
     """Performance error."""
+
     pass
 
 
 __all__ = [
     # Base
     "PepperpyError",
-    
     # Configuration
     "ConfigError",
-    
     # Validation
     "ValidationError",
-    
     # Resource
     "ResourceError",
-    
     # State
     "StateError",
-    
     # Module
     "ModuleError",
     "InitializationError",
     "ModuleNotFoundError",
-    
     # Cache
     "CacheError",
-    
     # Security
     "SecurityError",
     "AuthError",
     "PermissionError",
     "TokenError",
     "CryptoError",
-    
     # Task
     "TaskError",
     "TaskExecutionError",
     "TaskNotFoundError",
-    
     # Event
     "EventError",
     "EventHandlerError",
     "EventMiddlewareError",
-    
     # Network
     "NetworkError",
     "ConnectionError",
@@ -497,18 +552,15 @@ __all__ = [
     "SSLError",
     "ProxyError",
     "DNSError",
-    
     # Plugin
     "PluginError",
     "PluginNotFoundError",
     "PluginLoadError",
-    
     # Logging
     "LoggingError",
     "LogConfigError",
     "LogHandlerError",
     "LogFormatError",
-    
     # Telemetry
     "TelemetryError",
     "MetricError",
@@ -516,4 +568,4 @@ __all__ = [
     "MetricValueError",
     "TracingError",
     "PerformanceError",
-] 
+]

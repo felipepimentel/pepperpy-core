@@ -1,79 +1,101 @@
 """Tests for the module module."""
 
+from dataclasses import dataclass, field
+from typing import Any
+
 import pytest
-import pytest_asyncio
 
-from pepperpy_core.module import BaseModule, ModuleError
-
-from .conftest import TestConfig
+from pepperpy_core.module import BaseModule, ModuleConfig, ModuleError
 
 
-class TestModule(BaseModule[TestConfig]):
-    """Test module implementation."""
+@pytest.fixture
+def test_config() -> ModuleConfig:
+    """Create a test configuration."""
 
-    @classmethod
-    def create(cls) -> "TestModule":
-        """Create a test module instance."""
-        instance = cls.__new__(cls)
-        super(cls, instance).__init__(TestConfig())
-        return instance
+    @dataclass
+    class Config(ModuleConfig):
+        """Test configuration."""
 
-    async def _setup(self) -> None:
-        """Setup test module."""
-        pass
+        name: str = "test-module"
+        metadata: dict[str, Any] = field(default_factory=dict)
 
-    async def _teardown(self) -> None:
-        """Teardown test module."""
-        pass
+        def validate(self) -> None:
+            """Validate configuration."""
+            pass
+
+    return Config()
 
 
-@pytest_asyncio.fixture
-async def test_module():
-    """Create a test module for testing."""
-    module = TestModule.create()
-    await module.initialize()
-    yield module
-    await module.teardown()
+@pytest.fixture
+def test_module(test_config: ModuleConfig) -> BaseModule[ModuleConfig]:
+    """Create a test module."""
+
+    class Module(BaseModule[ModuleConfig]):
+        """Test module implementation."""
+
+        async def _setup(self) -> None:
+            """Setup test module."""
+            pass
+
+        async def _teardown(self) -> None:
+            """Teardown test module."""
+            pass
+
+    return Module(test_config)
 
 
 @pytest.mark.asyncio
-async def test_module_initialization() -> None:
-    """Test module initialization."""
-    module = TestModule.create()
-    assert not module.is_initialized
+async def test_module_initialization_flow(
+    test_module: BaseModule[ModuleConfig],
+) -> None:
+    """Test module initialization flow."""
+    # Test initial state
+    assert not test_module.is_initialized
+
+    # Test successful initialization
+    await test_module.initialize()
+    assert test_module.is_initialized
+
+    # Test double initialization protection
+    try:
+        await test_module.initialize()
+        pytest.fail("Should have raised ModuleError")
+    except ModuleError as error:
+        assert str(error) == f"Module {test_module.config.name} is already initialized"
+
+    # Test _ensure_initialized when initialized
+    test_module._ensure_initialized()  # Should not raise
+
+    # Test teardown
+    await test_module.teardown()
+    assert not test_module.is_initialized
+
+    # Test _ensure_initialized when not initialized
+    try:
+        test_module._ensure_initialized()
+        pytest.fail("Should have raised ModuleError")
+    except ModuleError as error:
+        assert str(error) == f"Module {test_module.config.name} is not initialized"
+
+
+@pytest.mark.asyncio
+async def test_module_config(test_config: ModuleConfig) -> None:
+    """Test module configuration."""
+
+    class Module(BaseModule[ModuleConfig]):
+        """Test module implementation."""
+
+        async def _setup(self) -> None:
+            """Setup test module."""
+            pass
+
+        async def _teardown(self) -> None:
+            """Teardown test module."""
+            pass
+
+    module = Module(test_config)
+    assert module.config.name == "test-module"
+
     await module.initialize()
     assert module.is_initialized
     await module.teardown()
-    assert not module.is_initialized
-
-
-@pytest.mark.asyncio
-async def test_module_double_initialization() -> None:
-    """Test double initialization."""
-    module = TestModule.create()
-    await module.initialize()
-    with pytest.raises(ModuleError):
-        await module.initialize()
-    await module.teardown()
-
-
-@pytest.mark.asyncio
-async def test_module_ensure_initialized() -> None:
-    """Test ensure initialized check."""
-    module = TestModule.create()
-    with pytest.raises(ModuleError):
-        module._ensure_initialized()
-
-    await module.initialize()
-    module._ensure_initialized()  # Should not raise
-    await module.teardown()
-
-
-@pytest.mark.asyncio
-async def test_module_config(test_module) -> None:
-    """Test module configuration."""
-    config = TestConfig(name="custom_module", metadata={"key": "value"})
-    test_module.config = config
-
-    assert test_module.config.name == "custom_module"
-    assert test_module.config.metadata == {"key": "value"}

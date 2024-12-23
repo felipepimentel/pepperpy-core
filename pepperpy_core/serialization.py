@@ -59,19 +59,31 @@ class JsonSerializer:
 
         return json.dumps(data)
 
-    def deserialize(self, data: str) -> Any:
+    def deserialize(self, data: str, target_type: type[T] | None = None) -> Any:
         """Deserialize JSON string to object.
 
         Args:
             data: JSON string to deserialize
+            target_type: Optional type to deserialize to
 
         Returns:
             Deserialized object
 
         Raises:
             json.JSONDecodeError: If JSON string is invalid
+            TypeError: If target_type is provided but does not implement Serializable
         """
-        return json.loads(data)
+        try:
+            deserialized = json.loads(data)
+        except json.JSONDecodeError as err:
+            raise ValueError("Invalid JSON string") from err
+
+        if target_type is not None:
+            if not issubclass(target_type, Serializable):
+                raise TypeError("Target type must implement Serializable protocol")
+            return target_type.from_dict(deserialized)
+
+        return deserialized
 
 
 __all__ = [
