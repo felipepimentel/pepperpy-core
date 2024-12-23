@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Core package for PepperPy Framework"
 authors = ["Felipe Pimentel <fpimentel88@gmail.com>"]
 readme = "README.md"
-packages = [{ include = "pepperpy_core", from = "src" }]
+packages = [{ include = "pepperpy_core" }]
 repository = "https://github.com/pimentel/pepperpy-core"
 documentation = "https://pepperpy.readthedocs.io/"
 classifiers = [
@@ -63,6 +63,13 @@ ignore = []
 fixable = ["ALL"]
 unfixable = []
 
+[tool.poetry.scripts]
+check = "scripts.check:main"
+lint = "scripts.lint:main"
+format = "scripts.format:main"
+typecheck = "scripts.typecheck:main"
+test = "scripts.test:main"
+
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
@@ -100,7 +107,3 @@ exclude_lines = [
 ]
 ignore_errors = true
 fail_under = 80
-
-[project.entry-points."dagger.mod"]
-name = "pepperpy_core"
-main_object = "pepperpy_core.main:Pepperpy"
