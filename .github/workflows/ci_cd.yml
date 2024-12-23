@@ -7,28 +7,18 @@ on:
     branches: [main]
 
 jobs:
-  build-and-publish:
+  ci:
     runs-on: ubuntu-latest
-
-    permissions:
-      id-token: write  # Required for Trusted Publishing
-      contents: read
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
+      - uses: actions/checkout@v4
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install poetry dagger-io
-
-      - name: Run pipeline
+      - name: Install Poetry
+        run: pip install poetry dagger
+      - name: Run Dagger Pipeline
         env:
           PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
-        run: python pipeline.py
+          CONFIRM_RELEASE: ${{ github.event_name == 'release' && github.event.action == 'created' && 'true' || 'false' }}
+        run: python pipeline.py release

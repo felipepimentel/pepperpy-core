@@ -76,7 +76,7 @@ async def main() -> int:
     # Get command line arguments
     command = sys.argv[1] if len(sys.argv) > 1 else "ci"
 
-    async with dagger.Connection() as client:
+    async with dagger.Connection(log_output=sys.stdout) as client:
         # Run build and tests
         print("Starting build and test process...")
         if not await build_and_test(client):
