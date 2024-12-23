@@ -72,7 +72,12 @@ async def publish(pypi_token: Optional[str] = None) -> bool:
             print("No PyPI token provided and PYPI_TOKEN environment variable not set")
             return False
 
+    print("Starting publish process...")
+    print(f"PyPI token present: {bool(pypi_token)}")
+
     async with dagger.Connection() as client:
+        print("Connected to Dagger")
+
         # Get Python image
         python = (
             client.container()
@@ -82,16 +87,23 @@ async def publish(pypi_token: Optional[str] = None) -> bool:
             .with_workdir("/app")
             .with_exec(["poetry", "install"])
         )
+        print("Container configured with Poetry")
 
         # Configure poetry with PyPI token as a secret
         secret = client.set_secret("pypi_token", pypi_token)
         python = python.with_secret_variable("POETRY_PYPI_TOKEN_PYPI", secret)
+        print("PyPI token configured in container")
 
         try:
             # Build package
             build = python.with_exec(["poetry", "build"])
             print("Building package...")
             print(await build.stdout())
+
+            # Show contents of dist directory
+            ls_dist = build.with_exec(["ls", "-la", "dist"])
+            print("Contents of dist directory:")
+            print(await ls_dist.stdout())
 
             # Publish to PyPI
             publish = build.with_exec(["poetry", "publish", "--no-interaction"])
@@ -101,6 +113,10 @@ async def publish(pypi_token: Optional[str] = None) -> bool:
             return True
         except dagger.ExecError as e:
             print(f"Publish failed with error: {e}")
+            if hasattr(e, "stdout"):
+                print("Stdout:", e.stdout)
+            if hasattr(e, "stderr"):
+                print("Stderr:", e.stderr)
             return False
 
 
@@ -168,7 +184,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install anyio dagger-io
+          pip install poetry anyio dagger-io
           
       - name: Run CI
         run: python ci_cd_pipeline.py ci
@@ -177,6 +193,9 @@ jobs:
     needs: ci
     runs-on: ubuntu-latest
     if: github.event_name == 'release' && github.event.action == 'created'
+    permissions:
+      id-token: write
+      contents: read
     
     steps:
       - uses: actions/checkout@v4
@@ -189,12 +208,19 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install anyio dagger-io
+          pip install poetry anyio dagger-io
+          
+      - name: Verify Poetry config
+        run: |
+          poetry --version
+          poetry config --list
           
       - name: Publish to PyPI
         env:
           PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
-        run: python ci_cd_pipeline.py publish
+        run: |
+          echo "Starting publish process..."
+          python ci_cd_pipeline.py publish
 """
 
 
