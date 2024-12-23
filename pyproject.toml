@@ -104,3 +104,6 @@ exclude_lines = [
     "raise ImportError",
 ]
 fail_under = 80
+
+[project.entry-points."dagger.mod"]
+main_object = "pepperpy_core.main:Pepperpy"
