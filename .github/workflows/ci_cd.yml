@@ -10,7 +10,7 @@ on:
 
 permissions:
   contents: read
-  id-token: write  # Necessário para publicação no PyPI usando OIDC
+  id-token: write
 
 jobs:
   dagger:
