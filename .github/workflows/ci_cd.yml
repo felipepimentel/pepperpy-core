@@ -24,4 +24,4 @@ jobs:
         with:
           verb: call
           module: github.com/felipepimentel/daggerverse/python
-          args: cicd --source . --token env:PYPI_TOKEN
+          args: cicd --source . --token env:PYPI_TOKEN --build-config '{"workdir":"/app","skip_root":true}'
