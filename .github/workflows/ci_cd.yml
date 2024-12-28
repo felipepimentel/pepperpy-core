@@ -18,10 +18,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Run Dagger Pipeline
-        uses: dagger/dagger-for-github@v6
+        uses: dagger/dagger-for-github@v7
         env:
           PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
         with:
           verb: call
-          module: github.com/felipepimentel/daggerverse/python@7e356dcdf0cfa656262e675c9ea6f4e9006dcd71
+          module: github.com/felipepimentel/daggerverse/python@latest
           args: cicd --source .
