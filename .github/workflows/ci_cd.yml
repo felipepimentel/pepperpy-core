@@ -23,5 +23,5 @@ jobs:
           PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
         with:
           verb: call
-          module: github.com/felipepimentel/daggerverse/python@43ac3a946a6c8fe0ef1f32187bbc726689744a2c
+          module: github.com/felipepimentel/daggerverse/python
           args: cicd --source .
