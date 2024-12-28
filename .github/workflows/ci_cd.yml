@@ -1,44 +1,29 @@
-name: CI/CD Workflow
+name: CI/CD
 
 on:
   push:
-    branches: [main]
+    branches: [ "main" ]
   pull_request:
-    branches: [main]
+    branches: [ "main" ]
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+  id-token: write  # Necessário para publicação no PyPI usando OIDC
 
 jobs:
-  build-and-publish:
+  dagger:
+    name: CI/CD Pipeline
     runs-on: ubuntu-latest
-
-    permissions:
-      id-token: write  # Required for Trusted Publishing
-      contents: read
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Install latest Dagger CLI
-        run: |
-          curl -fsSL https://dagger.io/install.sh | sh
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install poetry
-          poetry install
-
-      - name: Validate dependencies
-        run: |
-          poetry check
-          poetry show
-
-      - name: Run pipeline
+      - uses: actions/checkout@v4
+      
+      - name: Run Dagger Pipeline
+        uses: dagger/dagger-for-github@v6
         env:
           PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
-        run: poetry run python pipeline.py
+        with:
+          verb: call
+          module: github.com/felipepimentel/daggerverse/python@7e356dcdf0cfa656262e675c9ea6f4e9006dcd71
+          args: cicd --source .
