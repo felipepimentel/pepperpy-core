@@ -13,19 +13,7 @@ permissions:
   id-token: write
 
 jobs:
-  pipeline:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Run Pipeline
-        uses: dagger/dagger-for-github@v7
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
-        with:
-          verb: call
-          module: github.com/felipepimentel/daggerverse/python
-          args: cicd --source . --token env:PYPI_TOKEN
+  python-pipeline:
+    uses: felipepimentel/daggerverse/.github/workflows/python-ci.yml@v1
+    secrets:
+      PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
