@@ -13,6 +13,8 @@ permissions:
   id-token: write
   issues: write
   pull-requests: write
+  packages: write
+  statuses: write
 
 jobs:
   python-pipeline:
