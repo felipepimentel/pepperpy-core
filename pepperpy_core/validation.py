@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 from re import Pattern
-from typing import Any, Generic, TypeVar
+from typing import Any, Generic, Sequence, TypeVar
 
 from .exceptions import ValidationError
 
@@ -61,7 +61,7 @@ class ValidationContext:
                 pass  # Ignore cleanup errors
 
 
-@dataclass
+@dataclass(frozen=True)  # Make immutable for thread safety
 class ValidationResult:
     """Validation result."""
 
@@ -129,7 +129,7 @@ class Validator(ABC, Generic[T]):
 
     async def validate_many(
         self,
-        values: list[T],
+        values: Sequence[T],  # Changed from list to Sequence for more flexibility
         context: ValidationContext | None = None,
     ) -> list[ValidationResult]:
         """Validate multiple values.
