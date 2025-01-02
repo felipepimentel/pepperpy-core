@@ -19,7 +19,7 @@ permissions:
 
 jobs:
   pipeline:
-    uses: felipepimentel/daggerverse/.github/workflows/reusable-python-ci.yml@main
+    uses: felipepimentel/daggerverse/.github/reusable-workflows/python.yml@main
     secrets:
       PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
     with:
