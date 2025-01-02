@@ -2,9 +2,9 @@ name: CI/CD
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
   release:
     types: [published]
 
@@ -13,32 +13,9 @@ permissions:
   id-token: write
 
 jobs:
-  dagger:
-    name: CI/CD Pipeline
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Configure Git
-        run: |
-          git config --global user.name 'github-actions[bot]'
-          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-
-      - name: Version Management
-        id: versioner
-        run: |
-          echo "version=$(dagger call -m github.com/felipepimentel/daggerverse/versioner bump-version --source . --output-version)" >> $GITHUB_OUTPUT
-
-      - name: Run Python Pipeline
-        id: python
-        uses: dagger/dagger-for-github@v7
-        env:
-          PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
-          VERSION: ${{ steps.versioner.outputs.version }}
-        with:
-          verb: call
-          module: github.com/felipepimentel/daggerverse/python
-          args: check --source . --token env:PYPI_TOKEN --version env:VERSION
+  pipeline:
+    uses: felipepimentel/daggerverse/.github/workflows/reusable-python-ci.yml@main
+    secrets:
+      PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
+    with:
+      source-path: "."
