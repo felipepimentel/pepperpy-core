@@ -10,12 +10,12 @@ on:
 
 permissions:
   contents: write
-      id-token: write
-      issues: write
-      pull-requests: write
-      packages: write
-      statuses: write
-      actions: read
+  id-token: write
+  issues: write
+  pull-requests: write
+  packages: write
+  statuses: write
+  actions: read
 
 jobs:
   pipeline:
@@ -23,5 +23,4 @@ jobs:
     secrets:
       PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
     with:
-      source-path: "."
       source-path: "."
