@@ -9,7 +9,7 @@ on:
     types: [published]
 
 permissions:
-      contents: write
+  contents: write
       id-token: write
       issues: write
       pull-requests: write
@@ -23,4 +23,5 @@ jobs:
     secrets:
       PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
     with:
+      source-path: "."
       source-path: "."
