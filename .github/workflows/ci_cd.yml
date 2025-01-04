@@ -17,6 +17,10 @@ permissions:
   statuses: write
   actions: read
 
+env:
+  ACTIONS_RUNNER_DEBUG: true
+  ACTIONS_STEP_DEBUG: true
+
 jobs:
   pipeline:
     uses: felipepimentel/daggerverse/.github/workflows/reusable-python.yml@main
