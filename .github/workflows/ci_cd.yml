@@ -28,4 +28,4 @@ jobs:
       PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
     with:
       source-path: "."
-      dagger-version: "0.15.1"
+      dagger_version: "0.15.1"
