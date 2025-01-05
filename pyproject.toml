@@ -21,6 +21,8 @@ pydantic = "^2.6.3"
 structlog = "^24.4.0"
 pyyaml = "^6.0.2"
 anyio = "^4.2.0"
+types-aiofiles = "^24.1.0.20241221"
+aiofiles = "^24.1.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.0.0"
@@ -31,6 +33,7 @@ dagger-io = "^0.15.1"
 mypy = "^1.9.0"
 bandit = "^1.7.8"
 coverage = "^7.4.4"
+types-pyyaml = "^6.0.12.20241230"
 
 [build-system]
 requires = ["poetry-core"]
@@ -64,10 +67,6 @@ unfixable = []
 
 [tool.poetry.scripts]
 check = "scripts.check:main"
-lint = "scripts.lint:main"
-format = "scripts.format:main"
-typecheck = "scripts.typecheck:main"
-test = "scripts.test:main"
 
 [tool.ruff.format]
 quote-style = "double"

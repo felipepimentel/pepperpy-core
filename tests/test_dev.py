@@ -1,4 +1,4 @@
-"""Test development utilities."""
+"""Test dev module."""
 
 import asyncio
 import time
@@ -9,117 +9,145 @@ import pytest
 from pepperpy_core.dev import (
     AsyncTestCase,
     LoggerProtocol,
-    MockResponse,
+    LogLevel,
     Timer,
+    async_debug_decorator,
     debug_call,
+    debug_decorator,
     debug_error,
     debug_result,
 )
+from pepperpy_core.logging import (
+    BaseHandler,
+    HandlerConfig,
+    LogRecord,
+)
+from pepperpy_core.logging import LogLevel as LoggingLevel
 
 
 @pytest.fixture
-def test_logger() -> type[LoggerProtocol]:
+def test_logger() -> "TestLogger":
     """Create a test logger."""
-
-    class TestLoggerImpl:
-        """Test logger implementation."""
-
-        messages: list[tuple[str, str, dict[str, Any]]] = []
-
-        @classmethod
-        def debug(cls, message: str, **kwargs: Any) -> None:
-            """Log debug message."""
-            cls.messages.append(("debug", message, kwargs))
-
-        @classmethod
-        def info(cls, message: str, **kwargs: Any) -> None:
-            """Log info message."""
-            cls.messages.append(("info", message, kwargs))
-
-        @classmethod
-        def clear(cls) -> None:
-            """Clear messages."""
-            cls.messages.clear()
-
-    return TestLoggerImpl
+    return TestLogger(HandlerConfig(level=LoggingLevel.DEBUG))
 
 
-@pytest.mark.no_cover
-def test_timer(test_logger: type[LoggerProtocol]) -> None:
-    """Test timer functionality."""
-    test_logger.clear()  # Clear any previous messages
-    with Timer("test_operation", logger=test_logger):
-        # Simulate some work
-        time.sleep(0.1)
+class TestLogger(BaseHandler, LoggerProtocol):
+    """Test logger implementation."""
 
-    assert len(test_logger.messages) == 1
-    level, message, kwargs = test_logger.messages[0]
-    assert level == "info"
-    assert "test_operation took" in message
-    assert "seconds" in message
-    assert kwargs["timer"] == "test_operation"
-    assert isinstance(kwargs["duration"], float)
-    assert kwargs["duration"] > 0
+    def __init__(self, config: HandlerConfig) -> None:
+        """Initialize test logger."""
+        super().__init__(config)
+        self.messages: list[str] = []
+
+    def handle(self, message: str) -> None:
+        """Handle message."""
+        self.messages.append(message)
+
+    def emit(self, record: "LogRecord") -> None:
+        """Emit log record."""
+        self.handle(record.message)
+
+    def log(self, level: LogLevel, message: str, **kwargs: Any) -> None:
+        """Log a message."""
+        self.messages.append(message)
+
+    def debug(self, message: str, **kwargs: Any) -> None:
+        """Log a debug message."""
+        self.log(LogLevel.DEBUG, message, **kwargs)
+
+    def info(self, message: str, **kwargs: Any) -> None:
+        """Log an info message."""
+        self.log(LogLevel.INFO, message, **kwargs)
+
+    def warning(self, message: str, **kwargs: Any) -> None:
+        """Log a warning message."""
+        self.log(LogLevel.WARNING, message, **kwargs)
+
+    def error(self, message: str, **kwargs: Any) -> None:
+        """Log an error message."""
+        self.log(LogLevel.ERROR, message, **kwargs)
+
+    def critical(self, message: str, **kwargs: Any) -> None:
+        """Log a critical message."""
+        self.log(LogLevel.CRITICAL, message, **kwargs)
 
 
-@pytest.mark.no_cover
 def test_timer_without_logger() -> None:
     """Test timer without logger."""
-    with Timer("test_operation") as timer:
-        # Simulate some work
+    with Timer("test") as timer:
         time.sleep(0.1)
+    assert hasattr(timer, "_start")
+    assert hasattr(timer, "_end")
+    assert timer._end - timer._start >= 0.1
 
-    assert timer._end > timer._start
+
+def test_timer_with_logger(test_logger: TestLogger) -> None:
+    """Test timer with logger."""
+    with Timer("test", test_logger):
+        time.sleep(0.1)
+    assert len(test_logger.messages) == 2
+    assert "Timer test started" in test_logger.messages[0]
+    assert "Timer test stopped after" in test_logger.messages[1]
+    assert "seconds" in test_logger.messages[1]
 
 
-@pytest.mark.no_cover
-def test_debug_logging(test_logger: type[LoggerProtocol]) -> None:
-    """Test debug logging functions."""
-    test_logger.clear()  # Clear any previous messages
-
-    # Test debug_call
-    debug_call(test_logger, "test_function", 42, "hello")
+def test_debug_call(test_logger: TestLogger) -> None:
+    """Test debug call."""
+    debug_call(test_logger, "test_func", 1, 2, a=3, b=4)
     assert len(test_logger.messages) == 1
-    level, message, kwargs = test_logger.messages[0]
-    assert level == "debug"
-    assert "Calling test_function" in message
-    assert kwargs["args"] == (42, "hello")
+    assert "Calling test_func" in test_logger.messages[0]
 
-    # Test debug_result
-    test_logger.clear()
-    debug_result(test_logger, "test_function", "42 hello")
+
+def test_debug_result(test_logger: TestLogger) -> None:
+    """Test debug result."""
+    debug_result(test_logger, "test_func", "result")
     assert len(test_logger.messages) == 1
-    level, message, kwargs = test_logger.messages[0]
-    assert level == "debug"
-    assert "Result from test_function" in message
-    assert kwargs["result"] == "42 hello"
+    assert "Result from test_func" in test_logger.messages[0]
 
-    # Test debug_error
-    test_logger.clear()
-    error = ValueError("Test error")
-    debug_error(test_logger, "test_function", error)
+
+def test_debug_error(test_logger: TestLogger) -> None:
+    """Test debug error."""
+    error = ValueError("test error")
+    debug_error(test_logger, "test_func", error)
     assert len(test_logger.messages) == 1
-    level, message, kwargs = test_logger.messages[0]
-    assert level == "debug"
-    assert "Error in test_function" in message
-    assert kwargs["error"] == "Test error"
-    assert kwargs["error_type"] == "ValueError"
+    assert "Error in test_func" in test_logger.messages[0]
 
 
-@pytest.mark.no_cover
-def test_mock_response() -> None:
-    """Test mock response."""
-    response = MockResponse(200, {"test": "test"})
-    assert response.status == 200
-    assert asyncio.run(response.json()) == {"test": "test"}
+def test_debug_decorator(test_logger: TestLogger) -> None:
+    """Test debug decorator."""
+
+    @debug_decorator(test_logger)
+    def test_func(a: int, b: int) -> int:
+        return a + b
+
+    result = test_func(1, 2)
+    assert result == 3
+    assert len(test_logger.messages) == 2
+    assert "Calling" in test_logger.messages[0]
+    assert "Result from" in test_logger.messages[1]
 
 
-@pytest.mark.no_cover
+@pytest.mark.asyncio
+async def test_async_debug_decorator(test_logger: TestLogger) -> None:
+    """Test async debug decorator."""
+
+    @async_debug_decorator(test_logger)
+    async def test_func(a: int, b: int) -> int:
+        await asyncio.sleep(0.1)
+        return a + b
+
+    result = await test_func(1, 2)
+    assert result == 3
+    assert len(test_logger.messages) == 2
+    assert "Calling" in test_logger.messages[0]
+    assert "Result from" in test_logger.messages[1]
+
+
 def test_async_test_case() -> None:
     """Test async test case."""
 
     class TestCase(AsyncTestCase):
-        """Test case."""
+        """Test case implementation."""
 
         async def test_method(self) -> None:
             """Test method."""

@@ -44,6 +44,10 @@ def main() -> int:
             "Running linting with ruff...",
         ),
         (
+            ["poetry", "run", "mypy", "pepperpy_core", "tests"],
+            "Running type checking with mypy...",
+        ),
+        (
             [
                 "poetry",
                 "run",

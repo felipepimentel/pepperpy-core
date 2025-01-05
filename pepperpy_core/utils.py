@@ -1,79 +1,139 @@
-"""Utility functions and helpers."""
+"""Utility functions."""
 
-import datetime as dt
+import importlib.metadata
+import logging
 from typing import Any, TypeVar
 
 T = TypeVar("T")
 
 
-def utcnow() -> dt.datetime:
-    """Get current UTC datetime.
-
-    Returns:
-        Current UTC datetime
-    """
-    return dt.datetime.now(dt.timezone.utc)
-
-
-def format_datetime(value: dt.datetime) -> str:
-    """Format datetime in ISO format.
+def get_logger(name: str) -> logging.Logger:
+    """Get logger by name.
 
     Args:
-        value: Datetime to format
+        name: Logger name
 
     Returns:
-        Formatted datetime string
+        Logger instance
     """
-    return value.isoformat()
+    return logging.getLogger(name)
 
 
-def parse_datetime(value: str) -> dt.datetime:
-    """Parse datetime from ISO format.
+def get_module_logger(module_name: str) -> logging.Logger:
+    """Get logger for module.
 
     Args:
-        value: Datetime string to parse
+        module_name: Module name
 
     Returns:
-        Parsed datetime
-
-    Raises:
-        ValueError: If datetime string is invalid
+        Logger instance
     """
-    return dt.datetime.fromisoformat(value)
+    return get_logger(module_name)
 
 
-def get_type_name(obj: Any) -> str:
-    """Get type name of object.
-
-    Args:
-        obj: Object to get type name for
+def get_package_logger() -> logging.Logger:
+    """Get logger for package.
 
     Returns:
-        Type name
+        Logger instance
     """
-    return type(obj).__name__
+    return get_logger("pepperpy_core")
 
 
-def safe_cast(value: Any, target_type: type[T]) -> T | None:
-    """Safely cast value to target type.
-
-    Args:
-        value: Value to cast
-        target_type: Target type
+def get_package_name() -> str:
+    """Get package name.
 
     Returns:
-        Cast value or None if casting fails
+        Package name
+    """
+    return "pepperpy_core"
+
+
+def get_package_version() -> str:
+    """Get package version.
+
+    Returns:
+        Package version
     """
     try:
-        return target_type(value)
-    except (TypeError, ValueError):
-        return None
+        return importlib.metadata.version("pepperpy_core")
+    except importlib.metadata.PackageNotFoundError:
+        return "0.0.0"
 
 
-__all__ = [
-    "utcnow",
-    "format_datetime",
-    "parse_datetime",
-    "get_type_name",
-    "safe_cast",
-]
+class LoggerMixin:
+    """Logger mixin."""
+
+    def __init__(self) -> None:
+        """Initialize logger mixin."""
+        self._logger = get_logger(self.__class__.__name__)
+
+    @property
+    def logger(self) -> logging.Logger:
+        """Get logger.
+
+        Returns:
+            Logger instance
+        """
+        return self._logger
+
+    def log(self, level: int, msg: str, *args: Any, **kwargs: Any) -> None:
+        """Log message.
+
+        Args:
+            level: Log level
+            msg: Log message
+            *args: Additional arguments
+            **kwargs: Additional keyword arguments
+        """
+        self.logger.log(level, msg, *args, **kwargs)
+
+    def debug(self, msg: str, *args: Any, **kwargs: Any) -> None:
+        """Log debug message.
+
+        Args:
+            msg: Log message
+            *args: Additional arguments
+            **kwargs: Additional keyword arguments
+        """
+        self.logger.debug(msg, *args, **kwargs)
+
+    def info(self, msg: str, *args: Any, **kwargs: Any) -> None:
+        """Log info message.
+
+        Args:
+            msg: Log message
+            *args: Additional arguments
+            **kwargs: Additional keyword arguments
+        """
+        self.logger.info(msg, *args, **kwargs)
+
+    def warning(self, msg: str, *args: Any, **kwargs: Any) -> None:
+        """Log warning message.
+
+        Args:
+            msg: Log message
+            *args: Additional arguments
+            **kwargs: Additional keyword arguments
+        """
+        self.logger.warning(msg, *args, **kwargs)
+
+    def error(self, msg: str, *args: Any, **kwargs: Any) -> None:
+        """Log error message.
+
+        Args:
+            msg: Log message
+            *args: Additional arguments
+            **kwargs: Additional keyword arguments
+        """
+        self.logger.error(msg, *args, **kwargs)
+
+    def critical(self, msg: str, *args: Any, **kwargs: Any) -> None:
+        """Log critical message.
+
+        Args:
+            msg: Log message
+            *args: Additional arguments
+            **kwargs: Additional keyword arguments
+        """
+        self.logger.critical(msg, *args, **kwargs)

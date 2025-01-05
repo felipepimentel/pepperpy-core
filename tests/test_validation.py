@@ -1,4 +1,4 @@
-"""Test validators module."""
+"""Test validation module."""
 
 from dataclasses import dataclass
 from typing import Any
@@ -9,7 +9,6 @@ from pepperpy_core.exceptions import ValidationError
 from pepperpy_core.validators import (
     DictValidator,
     EmailValidator,
-    IntegerValidator,
     IPAddressValidator,
     ListValidator,
     PhoneNumberValidator,
@@ -32,56 +31,12 @@ def test_data() -> TestData:
     return TestData(name="test", value=123)
 
 
-def test_dict_validator() -> None:
-    """Test dict validator."""
-    key_validator = StringValidator()
-    value_validator = IntegerValidator()
-    validator = DictValidator(key_validator, value_validator)
-
-    # Test valid dictionary
-    test_dict = {"a": 1, "b": 2, "c": 3}
-    assert validator.validate(test_dict) == test_dict
-
-    # Test invalid key type
-    with pytest.raises(ValidationError):
-        validator.validate({1: 1})
-
-    # Test invalid value type
-    with pytest.raises(ValidationError):
-        validator.validate({"a": "1"})
-
-    # Test invalid input type
-    with pytest.raises(ValidationError):
-        validator.validate("test")
-
-
-def test_list_validator() -> None:
-    """Test list validator."""
-    item_validator = IntegerValidator()
-    validator = ListValidator(item_validator)
-
-    # Test valid list
-    test_list = [1, 2, 3]
-    assert validator.validate(test_list) == test_list
-
-    # Test invalid item type
-    with pytest.raises(ValidationError):
-        validator.validate(["1", "2", "3"])
-
-    # Test invalid input type
-    with pytest.raises(ValidationError):
-        validator.validate("test")
-
-
-def test_string_validator() -> None:
-    """Test string validator."""
+def test_validate_string() -> None:
+    """Test validate string."""
     validator = StringValidator()
-
-    # Test valid string
     assert validator.validate("test") == "test"
     assert validator.validate("") == ""
 
-    # Test invalid types
     with pytest.raises(ValidationError):
         validator.validate(123)
 
@@ -92,31 +47,43 @@ def test_string_validator() -> None:
         validator.validate([])
 
 
-def test_integer_validator() -> None:
-    """Test integer validator."""
-    validator = IntegerValidator()
-
-    # Test valid integers
-    assert validator.validate(123) == 123
-    assert validator.validate(0) == 0
-    assert validator.validate(-123) == -123
-
-    # Test invalid types
-    with pytest.raises(ValidationError):
-        validator.validate("123")
+def test_validate_list() -> None:
+    """Test validate list."""
+    item_validator = StringValidator()
+    validator = ListValidator(item_validator)
+    assert validator.validate(["1", "2", "3"]) == ["1", "2", "3"]
+    assert validator.validate([]) == []
 
     with pytest.raises(ValidationError):
-        validator.validate(123.45)
+        validator.validate("test")
+
+    with pytest.raises(ValidationError):
+        validator.validate(123)
 
     with pytest.raises(ValidationError):
         validator.validate(True)
 
+
+def test_validate_dict() -> None:
+    """Test validate dict."""
+    key_validator = StringValidator()
+    value_validator = StringValidator()
+    validator = DictValidator(key_validator, value_validator)
+    assert validator.validate({"test": "test"}) == {"test": "test"}
+    assert validator.validate({}) == {}
+
     with pytest.raises(ValidationError):
-        validator.validate([])
+        validator.validate("test")
+
+    with pytest.raises(ValidationError):
+        validator.validate(123)
+
+    with pytest.raises(ValidationError):
+        validator.validate(True)
 
 
-def test_email_validator() -> None:
-    """Test email validator."""
+def test_validate_email() -> None:
+    """Test validate email."""
     validator = EmailValidator()
     assert validator.validate("test@example.com") == "test@example.com"
     assert validator.validate("test.user@example.co.uk") == "test.user@example.co.uk"
@@ -137,8 +104,8 @@ def test_email_validator() -> None:
         validator.validate(123)
 
 
-def test_url_validator() -> None:
-    """Test URL validator."""
+def test_validate_url() -> None:
+    """Test validate URL."""
     validator = URLValidator()
     assert validator.validate("http://example.com") == "http://example.com"
     assert validator.validate("https://example.com") == "https://example.com"
@@ -162,8 +129,8 @@ def test_url_validator() -> None:
         validator.validate(123)
 
 
-def test_ip_address_validator() -> None:
-    """Test IP address validator."""
+def test_validate_ip_address() -> None:
+    """Test validate IP address."""
     validator = IPAddressValidator()
     assert validator.validate("192.168.0.1") == "192.168.0.1"
     assert validator.validate("10.0.0.0") == "10.0.0.0"
@@ -184,8 +151,8 @@ def test_ip_address_validator() -> None:
         validator.validate(123)
 
 
-def test_phone_number_validator() -> None:
-    """Test phone number validator."""
+def test_validate_phone_number() -> None:
+    """Test validate phone number."""
     validator = PhoneNumberValidator()
     assert validator.validate("+1234567890") == "+1234567890"
     assert validator.validate("+44 1234567890") == "+44 1234567890"

@@ -1,204 +1,105 @@
-"""Tests for the logging module."""
-
-import io
+"""Test logging module."""
 
 import pytest
-import pytest_asyncio
 
 from pepperpy_core.logging import (
+    BaseHandler,
     HandlerConfig,
     Logger,
-    LoggingConfig,
-    LoggingManager,
     LogLevel,
     LogRecord,
-    StreamHandler,
 )
 
 
 @pytest.fixture
-def log_record() -> LogRecord:
-    """Create a log record for testing."""
-    return LogRecord(
-        level=LogLevel.INFO,
-        message="Test message",
-        logger_name="test_logger",
-        module="test_module",
-        function="test_function",
-        line=42,
-        metadata={"extra": "data"},
-    )
+def test_handler() -> "TestHandler":
+    """Create a test handler."""
+    return TestHandler(HandlerConfig(level=LogLevel.DEBUG))
 
 
-@pytest.fixture
-def string_io() -> io.StringIO:
-    """Create a string IO for testing."""
-    return io.StringIO()
+class TestHandler(BaseHandler):
+    """Test handler implementation."""
+
+    def __init__(self, config: HandlerConfig) -> None:
+        """Initialize handler."""
+        super().__init__(config)
+        self.messages: list[str] = []
+
+    def handle(self, message: str) -> None:
+        """Handle message."""
+        self.messages.append(message)
+
+    def emit(self, record: "LogRecord") -> None:
+        """Emit log record."""
+        self.handle(record.message)
 
 
-@pytest.fixture
-def stream_handler(string_io: io.StringIO) -> StreamHandler:
-    """Create a stream handler for testing."""
-    config = HandlerConfig(
-        name="test_handler",
-        level=LogLevel.DEBUG,
-        format="%(levelname)s: %(message)s",
-    )
-    return StreamHandler(string_io, config)
+def test_logger_debug(test_handler: TestHandler) -> None:
+    """Test logger debug."""
+    logger = Logger("test_debug")
+    logger.add_handler(test_handler)
+    logger.debug("test")
+    assert test_handler.messages == ["test"]
 
 
-@pytest.fixture
-def logger() -> Logger:
-    """Create a logger for testing."""
-    return Logger("test_logger")
+def test_logger_info(test_handler: TestHandler) -> None:
+    """Test logger info."""
+    logger = Logger("test_info")
+    logger.add_handler(test_handler)
+    logger.info("test")
+    assert test_handler.messages == ["test"]
 
 
-class TestLogLevel:
-    """Test LogLevel enum."""
-
-    def test_to_python_level(self) -> None:
-        """Test conversion to Python logging level."""
-        assert LogLevel.DEBUG.to_python_level() == 10
-        assert LogLevel.INFO.to_python_level() == 20
-        assert LogLevel.WARNING.to_python_level() == 30
-        assert LogLevel.ERROR.to_python_level() == 40
-        assert LogLevel.CRITICAL.to_python_level() == 50
+def test_logger_warning(test_handler: TestHandler) -> None:
+    """Test logger warning."""
+    logger = Logger("test_warning")
+    logger.add_handler(test_handler)
+    logger.warning("test")
+    assert test_handler.messages == ["test"]
 
 
-class TestLoggingConfig:
-    """Test LoggingConfig."""
-
-    def test_default_config(self) -> None:
-        """Test default configuration."""
-        config = LoggingConfig(name="test")
-        assert config.name == "test"
-        assert config.enabled is True
-        assert config.level == LogLevel.INFO
-        assert isinstance(config.handlers, dict)
-        assert isinstance(config.formatters, dict)
-        assert isinstance(config.metadata, dict)
-
-    def test_validate_handlers(self) -> None:
-        """Test handler validation."""
-        config = LoggingConfig(
-            name="test",
-            handlers={"console": {"class": "StreamHandler"}},
-        )
-        config.validate()  # Should not raise
-
-        with pytest.raises(
-            ValueError, match="Handler 'console' must have a 'class' field"
-        ):
-            config = LoggingConfig(
-                name="test",
-                handlers={"console": {}},  # Missing class
-            )
-            config.validate()
-
-    def test_validate_formatters(self) -> None:
-        """Test formatter validation."""
-        config = LoggingConfig(
-            name="test",
-            formatters={"simple": {"format": "%(message)s"}},
-        )
-        config.validate()  # Should not raise
-
-        with pytest.raises(
-            ValueError, match="Formatter 'simple' must have a 'format' field"
-        ):
-            config = LoggingConfig(
-                name="test",
-                formatters={"simple": {}},  # Missing format
-            )
-            config.validate()
+def test_logger_error(test_handler: TestHandler) -> None:
+    """Test logger error."""
+    logger = Logger("test_error")
+    logger.add_handler(test_handler)
+    logger.error("test")
+    assert test_handler.messages == ["test"]
 
 
-class TestStreamHandler:
-    """Test StreamHandler."""
-
-    def test_emit(self, stream_handler: StreamHandler, log_record: LogRecord) -> None:
-        """Test log record emission."""
-        stream_handler.emit(log_record)
-        output = stream_handler.stream.getvalue()  # type: ignore
-        assert "INFO: Test message" in output
-
-    def test_format(self, stream_handler: StreamHandler, log_record: LogRecord) -> None:
-        """Test log record formatting."""
-        formatted = stream_handler.format(log_record)
-        assert "INFO: Test message" in formatted
-        assert log_record.metadata["extra"] == "data"
+def test_logger_critical(test_handler: TestHandler) -> None:
+    """Test logger critical."""
+    logger = Logger("test_critical")
+    logger.add_handler(test_handler)
+    logger.critical("test")
+    assert test_handler.messages == ["test"]
 
 
-class TestLogger:
-    """Test Logger."""
-
-    def test_add_remove_handler(
-        self, logger: Logger, stream_handler: StreamHandler
-    ) -> None:
-        """Test adding and removing handlers."""
-        initial_handlers = len(logger._handlers)
-        logger.add_handler(stream_handler)
-        assert len(logger._handlers) == initial_handlers + 1
-
-        logger.remove_handler(stream_handler)
-        assert len(logger._handlers) == initial_handlers
-
-    def test_log_levels(self, logger: Logger, string_io: io.StringIO) -> None:
-        """Test different log levels."""
-        handler = StreamHandler(string_io, HandlerConfig(level=LogLevel.DEBUG))
-        logger.add_handler(handler)
-
-        logger.debug("Debug message")
-        logger.info("Info message")
-        logger.warning("Warning message")
-        logger.error("Error message")
-        logger.critical("Critical message")
-
-        output = string_io.getvalue()
-        assert "DEBUG" in output
-        assert "INFO" in output
-        assert "WARNING" in output
-        assert "ERROR" in output
-        assert "CRITICAL" in output
-
-    def test_log_with_metadata(self, logger: Logger, string_io: io.StringIO) -> None:
-        """Test logging with metadata."""
-        handler = StreamHandler(string_io)
-        logger.add_handler(handler)
-
-        logger.info("Test message", extra="data", user="test")
-        output = string_io.getvalue()
-        assert "Test message" in output
+def test_logger_multiple_handlers(test_handler: TestHandler) -> None:
+    """Test logger multiple handlers."""
+    logger = Logger("test_multiple")
+    handler1 = test_handler
+    handler2 = TestHandler(HandlerConfig(level=LogLevel.DEBUG))
+    logger.add_handler(handler1)
+    logger.add_handler(handler2)
+    logger.debug("test")
+    assert handler1.messages == ["test"]
+    assert handler2.messages == ["test"]
 
 
-@pytest_asyncio.fixture
-async def logging_manager() -> LoggingManager:
-    """Create a logging manager for testing."""
-    manager = LoggingManager()
-    await manager.initialize()
-    yield manager
-    await manager._teardown()
+def test_logger_remove_handler(test_handler: TestHandler) -> None:
+    """Test logger remove handler."""
+    logger = Logger("test_remove")
+    logger.add_handler(test_handler)
+    logger.remove_handler(test_handler)
+    logger.debug("test")
+    assert test_handler.messages == []
 
 
-@pytest.mark.asyncio
-class TestLoggingManager:
-    """Test LoggingManager."""
-
-    async def test_initialization(self) -> None:
-        """Test logging manager initialization."""
-        manager = LoggingManager()
-        assert not manager.is_initialized
-        await manager.initialize()
-        assert manager.is_initialized
-        await manager._teardown()
-
-    async def test_setup_teardown(self, logging_manager: LoggingManager) -> None:
-        """Test setup and teardown."""
-        # Test some logging
-        logger = Logger("test")
-        output = io.StringIO()
-        handler = StreamHandler(output)
-        logger.add_handler(handler)
-        logger.info("Test message")
-
-        assert "Test message" in output.getvalue()
+def test_logger_clear_handlers(test_handler: TestHandler) -> None:
+    """Test logger clear handlers."""
+    logger = Logger("test_clear")
+    logger.add_handler(test_handler)
+    for handler in logger._handlers:
+        logger.remove_handler(handler)
+    logger.debug("test")
+    assert test_handler.messages == []

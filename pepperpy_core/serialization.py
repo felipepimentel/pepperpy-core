@@ -48,15 +48,21 @@ class JsonSerializer:
         Raises:
             TypeError: If object cannot be serialized to JSON
         """
-        if is_dataclass(obj):
-            data = asdict(obj)
-        elif hasattr(obj, "to_dict"):
-            data = obj.to_dict()  # type: ignore
-        elif hasattr(obj, "__dict__"):
-            data = obj.__dict__
-        else:
-            data = obj
 
+        def _serialize_obj(o: Any) -> Any:
+            if is_dataclass(o) and not isinstance(o, type):
+                return asdict(o)
+            elif hasattr(o, "to_dict"):
+                return o.to_dict()
+            elif hasattr(o, "__dict__"):
+                return o.__dict__
+            elif isinstance(o, (list, tuple)):
+                return [_serialize_obj(item) for item in o]
+            elif isinstance(o, dict):
+                return {key: _serialize_obj(value) for key, value in o.items()}
+            return o
+
+        data = _serialize_obj(obj)
         return json.dumps(data)
 
     def deserialize(self, data: str, target_type: type[T] | None = None) -> Any:

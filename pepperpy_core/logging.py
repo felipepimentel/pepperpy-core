@@ -32,7 +32,14 @@ class LogLevel(str, Enum):
         Returns:
             Python logging level
         """
-        return getattr(logging, self.name)
+        level_map = {
+            LogLevel.DEBUG: logging.DEBUG,
+            LogLevel.INFO: logging.INFO,
+            LogLevel.WARNING: logging.WARNING,
+            LogLevel.ERROR: logging.ERROR,
+            LogLevel.CRITICAL: logging.CRITICAL,
+        }
+        return level_map[self]
 
 
 @dataclass
@@ -44,7 +51,7 @@ class LoggingConfig(ModuleConfig):
 
     # Optional fields
     enabled: bool = True
-    level: LogLevel = LogLevel.INFO
+    level: LogLevel = LogLevel.DEBUG
     format: str = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     handlers: dict[str, Any] = field(default_factory=dict)
     formatters: dict[str, Any] = field(default_factory=dict)
@@ -79,7 +86,7 @@ class HandlerConfig:
     """Handler configuration."""
 
     name: str = ""
-    level: LogLevel = LogLevel.INFO
+    level: LogLevel = LogLevel.DEBUG
     format: str = "%(levelname)s: %(message)s"
     metadata: dict[str, Any] = field(default_factory=dict)
 
@@ -189,7 +196,9 @@ class Logger(BaseLogger):
         """
         self.name = name
         self._handlers: list[BaseHandler] = []
-        self._default_handler = StreamHandler(sys.stdout)
+        self._default_handler = StreamHandler(
+            sys.stdout, HandlerConfig(level=LogLevel.DEBUG)
+        )
         self._handlers.append(self._default_handler)
 
     def add_handler(self, handler: BaseHandler) -> None:
@@ -237,7 +246,7 @@ class LoggingManager(BaseModule[LoggingConfig]):
 
     def __init__(self) -> None:
         """Initialize logging manager."""
-        config = LoggingConfig(name="logging-manager")
+        config = LoggingConfig(name="logging-manager", level=LogLevel.DEBUG)
         super().__init__(config)
         self._loggers: dict[str, Logger] = {}
 

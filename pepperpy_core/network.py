@@ -1,199 +1,166 @@
 """Network module."""
 
-from dataclasses import dataclass, field
-from typing import Any
+import asyncio
+from dataclasses import dataclass
+from typing import Optional
 
-from .exceptions import NetworkError
-from .module import BaseModule, ModuleConfig
+
+class NetworkError(Exception):
+    """Network error."""
+
+    pass
 
 
 @dataclass
-class NetworkConfig(ModuleConfig):
+class NetworkConfig:
     """Network configuration."""
 
-    name: str = "network-client"
-    timeout: float = 30.0
-    max_retries: int = 3
+    host: str
+    port: int
+    timeout: float = 5.0
+    retries: int = 3
     retry_delay: float = 1.0
-    metadata: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
-        """Post initialization validation."""
-        self.validate()
-
-    def validate(self) -> None:
         """Validate configuration."""
+        if not isinstance(self.host, str):
+            raise TypeError("Host must be a string")
+        if not isinstance(self.port, int):
+            raise TypeError("Port must be an integer")
+        if not isinstance(self.timeout, (int, float)):
+            raise TypeError("Timeout must be a number")
+        if not isinstance(self.retries, int):
+            raise TypeError("Retries must be an integer")
+        if not isinstance(self.retry_delay, (int, float)):
+            raise TypeError("Retry delay must be a number")
+
+        if not self.host:
+            raise ValueError("Host cannot be empty")
+        if self.port < 1:
+            raise ValueError("Port must be greater than 0")
         if self.timeout <= 0:
-            raise ValueError("timeout must be positive")
-        if self.max_retries < 0:
-            raise ValueError("max_retries must be non-negative")
-        if self.retry_delay < 0:
-            raise ValueError("retry_delay must be non-negative")
+            raise ValueError("Timeout must be greater than 0")
+        if self.retries < 0:
+            raise ValueError("Retries must be greater than or equal to 0")
+        if self.retry_delay <= 0:
+            raise ValueError("Retry delay must be greater than 0")
 
 
-@dataclass
-class HttpResponse:
-    """HTTP response."""
-
-    status: int
-    text: str
-    headers: dict[str, str]
-    metadata: dict[str, Any] = field(default_factory=dict)
-
-
-class WebSocket:
-    """WebSocket connection."""
-
-    def __init__(self) -> None:
-        """Initialize WebSocket."""
-        self._closed = False
-
-    @property
-    def closed(self) -> bool:
-        """Get closed state."""
-        return self._closed
-
-    async def send_text(self, text: str) -> None:
-        """Send text message.
-
-        Args:
-            text: Text message to send
-
-        Raises:
-            NetworkError: If WebSocket is closed
-        """
-        if self.closed:
-            raise NetworkError("WebSocket is closed")
-
-    async def receive_text(self) -> str:
-        """Receive text message.
-
-        Returns:
-            Received text message
-
-        Raises:
-            NetworkError: If WebSocket is closed
-        """
-        if self.closed:
-            raise NetworkError("WebSocket is closed")
-        return "Hello"  # Mock response
-
-    async def close(self) -> None:
-        """Close WebSocket."""
-        self._closed = True
-
-
-class NetworkClient(BaseModule[NetworkConfig]):
+class NetworkClient:
     """Network client implementation."""
 
-    def __init__(self, config: NetworkConfig | None = None) -> None:
+    def __init__(self, config: NetworkConfig) -> None:
         """Initialize network client.
 
         Args:
             config: Network configuration
         """
-        if config is None:
-            config = NetworkConfig()
-        super().__init__(config)
-        self._websockets: list[WebSocket] = []
+        self._config = config
+        self._host = config.host
+        self._port = config.port
+        self._timeout = config.timeout
+        self._retries = config.retries
+        self._retry_delay = config.retry_delay
+        self._reader: asyncio.StreamReader | None = None
+        self._writer: asyncio.StreamWriter | None = None
+        self._connected = False
 
-    async def _setup(self) -> None:
-        """Setup network client."""
-        self._websockets.clear()
+    @property
+    def is_connected(self) -> bool:
+        """Check if client is connected."""
+        return self._connected
 
-    async def _teardown(self) -> None:
-        """Teardown network client."""
-        for ws in self._websockets:
-            await ws.close()
-        self._websockets.clear()
-        self._is_initialized = False
-
-    async def http_request(
-        self,
-        method: str,
-        url: str,
-        headers: dict[str, str] | None = None,
-        params: dict[str, str] | None = None,
-        data: dict[str, Any] | None = None,
-    ) -> HttpResponse:
-        """Send HTTP request.
-
-        Args:
-            method: HTTP method
-            url: Request URL
-            headers: Request headers
-            params: Query parameters
-            data: Request data
-
-        Returns:
-            HTTP response
-
-        Raises:
-            NetworkError: If request fails
-        """
-        self._ensure_initialized()
-
-        # Mock error for non-existent server
-        if "non-existent-server" in url:
-            raise NetworkError("Failed to connect to server")
-
-        # Mock timeout for slow server
-        if "slow-server" in url:
-            raise NetworkError("Request timed out")
-
-        # Mock response
-        return HttpResponse(
-            status=200,
-            text="Example Domain",
-            headers={"Content-Type": "text/html"},
-        )
-
-    async def websocket_connect(self, url: str) -> WebSocket:
-        """Connect to WebSocket.
-
-        Args:
-            url: WebSocket URL
-
-        Returns:
-            WebSocket connection
+    async def connect(self) -> None:
+        """Connect to server.
 
         Raises:
             NetworkError: If connection fails
         """
-        self._ensure_initialized()
+        try:
+            self._reader, self._writer = await asyncio.open_connection(
+                self._host, self._port
+            )
+            self._connected = True
+        except OSError as e:
+            raise NetworkError(f"Failed to connect: {e}") from e
 
-        ws = WebSocket()
-        self._websockets.append(ws)
-        return ws
+    async def disconnect(self) -> None:
+        """Disconnect from server."""
+        if self._writer:
+            self._writer.close()
+            await self._writer.wait_closed()
+            self._writer = None
+            self._reader = None
+            self._connected = False
 
-    def _remove_closed_websockets(self) -> None:
-        """Remove closed WebSockets from the list."""
-        self._websockets = [ws for ws in self._websockets if not ws.closed]
+    async def send(self, data: bytes) -> None:
+        """Send data to server.
 
-    async def get_stats(self) -> dict[str, Any]:
-        """Get network client statistics.
-
-        Returns:
-            Network client statistics
+        Args:
+            data: Data to send
 
         Raises:
-            NetworkError: If client is not initialized
+            NetworkError: If sending fails
         """
-        self._ensure_initialized()
-        self._remove_closed_websockets()
-        return {
-            "name": self.config.name,
-            "enabled": True,
-            "active_websockets": len(self._websockets),
-            "timeout": self.config.timeout,
-            "max_retries": self.config.max_retries,
-            "retry_delay": self.config.retry_delay,
-        }
+        if not self._writer or not self._connected:
+            raise NetworkError("Not connected")
 
+        retries = 0
+        while retries <= self._retries:
+            try:
+                self._writer.write(data)
+                await self._writer.drain()
+                return
+            except ConnectionError:
+                retries += 1
+                if retries <= self._retries:
+                    await asyncio.sleep(self._retry_delay)
+                continue
 
-__all__ = [
-    "NetworkConfig",
-    "HttpResponse",
-    "WebSocket",
-    "NetworkClient",
-]
+        raise NetworkError("Failed to send data: max retries exceeded")
+
+    async def receive(self, size: int) -> bytes:
+        """Receive data from server.
+
+        Args:
+            size: Number of bytes to receive
+
+        Returns:
+            Received data
+
+        Raises:
+            NetworkError: If receiving fails
+        """
+        if not self._reader or not self._connected:
+            raise NetworkError("Not connected")
+
+        retries = 0
+        while retries <= self._retries:
+            try:
+                data = await self._reader.read(size)
+                return data
+            except ConnectionError:
+                retries += 1
+                if retries <= self._retries:
+                    await asyncio.sleep(self._retry_delay)
+                continue
+
+        raise NetworkError("Failed to receive data: max retries exceeded")
+
+    async def __aenter__(self) -> "NetworkClient":
+        """Enter async context."""
+        await self.connect()
+        return self
+
+    async def __aexit__(
+        self,
+        exc_type: Optional[type],
+        exc_val: Optional[Exception],
+        exc_tb: Optional[object],
+    ) -> None:
+        """Exit async context."""
+        await self.disconnect()
+
+    def __repr__(self) -> str:
+        """Get string representation."""
+        return f"NetworkClient(host={self._host}, port={self._port})"

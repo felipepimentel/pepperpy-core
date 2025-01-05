@@ -1,10 +1,9 @@
 """Event handling module."""
 
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Awaitable, Callable, Dict, List, Optional
 
 from pepperpy_core.exceptions import EventError
-from pepperpy_core.module import BaseModule
-from pepperpy_core.types import BaseConfig
+from pepperpy_core.module import BaseModule, ModuleConfig
 
 
 class Event:
@@ -12,44 +11,41 @@ class Event:
 
     def __init__(
         self,
-        name: str,
         data: Optional[Any] = None,
         metadata: Optional[Dict[str, Any]] = None,
     ) -> None:
         """Initialize event.
 
         Args:
-            name: Event name
             data: Event data
             metadata: Event metadata
         """
-        self.name = name
         self.data = data
         self.metadata = metadata or {}
 
 
 class EventListener:
-    """Event listener class."""
+    """Event listener."""
 
     def __init__(
         self,
-        event_name: str,
-        handler: Callable[[Event], None],
+        event_type: type[Event],
+        handler: Callable[[Event], None | Awaitable[None]],
         priority: int = 0,
     ) -> None:
         """Initialize event listener.
 
         Args:
-            event_name: Event name to listen for
-            handler: Event handler function
-            priority: Handler priority (higher priority handlers run first)
+            event_type: Event type
+            handler: Event handler
+            priority: Handler priority (higher priority handlers are called first)
         """
-        self.event_name = event_name
+        self.event_type = event_type
         self.handler = handler
         self.priority = priority
 
 
-class EventBusConfig(BaseConfig):
+class EventBusConfig(ModuleConfig):
     """Event bus configuration."""
 
     def __init__(self) -> None:
@@ -65,7 +61,7 @@ class EventBus(BaseModule[EventBusConfig]):
         """Initialize event bus."""
         config = EventBusConfig()
         super().__init__(config)
-        self._listeners: Dict[str, List[EventListener]] = {}
+        self._listeners: Dict[type[Event], List[EventListener]] = {}
         self._stats = {
             "total_events": 0,
             "total_listeners": 0,
@@ -88,18 +84,22 @@ class EventBus(BaseModule[EventBusConfig]):
 
         Args:
             event: Event to emit
+
+        Raises:
+            EventError: If event handling fails
         """
         if not self.is_initialized:
             raise EventError("Event bus not initialized")
 
         self._stats["total_events"] += 1
 
-        if event.name not in self._listeners:
+        event_type = type(event)
+        if event_type not in self._listeners:
             return
 
         # Sort listeners by priority
         listeners = sorted(
-            self._listeners[event.name],
+            self._listeners[event_type],
             key=lambda x: x.priority,
             reverse=True,
         )
@@ -107,76 +107,73 @@ class EventBus(BaseModule[EventBusConfig]):
         # Call handlers
         for listener in listeners:
             try:
-                await listener.handler(event)
+                result = listener.handler(event)
+                if result is not None and hasattr(result, "__await__"):
+                    await result
             except Exception as e:
-                raise EventError(f"Failed to handle event {event.name}: {e}") from e
+                raise EventError(
+                    f"Failed to handle event {event_type.__name__}: {e}"
+                ) from e
 
     def add_listener(
         self,
-        event_name: str,
-        handler: Callable[[Event], None],
+        event_type: type[Event],
+        handler: Callable[[Event], None | Awaitable[None]],
         priority: int = 0,
     ) -> None:
         """Add event listener.
 
         Args:
-            event_name: Event name to listen for
-            handler: Event handler function
-            priority: Handler priority (higher priority handlers run first)
+            event_type: Event type
+            handler: Event handler
+            priority: Handler priority (higher priority handlers are called first)
 
         Raises:
-            EventError: If event bus not initialized or max listeners reached
+            EventError: If max listeners exceeded
         """
         if not self.is_initialized:
             raise EventError("Event bus not initialized")
 
-        if event_name not in self._listeners:
-            self._listeners[event_name] = []
+        total_listeners = sum(len(listeners) for listeners in self._listeners.values())
+        if total_listeners >= self.config.max_listeners:
+            raise EventError(f"Max listeners ({self.config.max_listeners}) exceeded")
 
-        # Check max listeners
-        if len(self._listeners[event_name]) >= self.config.max_listeners:
-            raise EventError(f"Max listeners ({self.config.max_listeners}) reached")
+        if event_type not in self._listeners:
+            self._listeners[event_type] = []
 
-        # Add listener
-        listener = EventListener(event_name, handler, priority)
-        self._listeners[event_name].append(listener)
+        listener = EventListener(event_type, handler, priority)
+        self._listeners[event_type].append(listener)
         self._stats["total_listeners"] += 1
         self._stats["active_listeners"] += 1
 
     def remove_listener(
         self,
-        event_name: str,
-        handler: Callable[[Event], None],
+        event_type: type[Event],
+        listener: Callable[[Event], Awaitable[None] | None],
     ) -> None:
         """Remove event listener.
 
         Args:
-            event_name: Event name
-            handler: Event handler function
-
-        Raises:
-            EventError: If event bus not initialized or listener not found
+            event_type: Event type
+            listener: Event listener
         """
-        if not self.is_initialized:
-            raise EventError("Event bus not initialized")
-
-        if event_name not in self._listeners:
-            raise EventError(f"No listeners found for event {event_name}")
-
-        # Find and remove listener
-        for listener in self._listeners[event_name]:
-            if listener.handler == handler:
-                self._listeners[event_name].remove(listener)
+        if event_type in self._listeners:
+            listeners_to_remove = [
+                event_listener
+                for event_listener in self._listeners[event_type]
+                if event_listener.handler == listener
+            ]
+            for event_listener in listeners_to_remove:
+                self._listeners[event_type].remove(event_listener)
                 self._stats["active_listeners"] -= 1
-                return
+            if not self._listeners[event_type]:
+                del self._listeners[event_type]
 
-        raise EventError(f"Listener not found for event {event_name}")
-
-    def get_listeners(self, event_name: str) -> List[EventListener]:
+    def get_listeners(self, event_type: type[Event]) -> List[EventListener]:
         """Get event listeners.
 
         Args:
-            event_name: Event name
+            event_type: Event type
 
         Returns:
             List of event listeners
@@ -187,4 +184,4 @@ class EventBus(BaseModule[EventBusConfig]):
         if not self.is_initialized:
             raise EventError("Event bus not initialized")
 
-        return self._listeners.get(event_name, [])
+        return self._listeners.get(event_type, [])

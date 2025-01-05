@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any, Generic, TypeVar
 
-from .exceptions import PepperpyError
+from .exceptions import InitializationError, PepperpyError
 from .types import BaseConfig
 
 
@@ -50,10 +50,12 @@ class BaseModule(Generic[T], ABC):
         """Initialize module.
 
         Raises:
-            ModuleError: If module is already initialized
+            InitializationError: If module is already initialized
         """
         if self.is_initialized:
-            raise ModuleError(f"Module {self.config.name} is already initialized")
+            raise InitializationError(
+                f"Module {self.config.name} is already initialized"
+            )
 
         await self._setup()
         self._is_initialized = True

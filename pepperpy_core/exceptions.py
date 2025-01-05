@@ -4,70 +4,19 @@ from typing import Any
 
 
 class PepperpyError(Exception):
-    """Base exception for all pepperpy errors."""
+    """Base class for all pepperpy exceptions."""
 
-    def __init__(
-        self,
-        message: str,
-        cause: Exception | None = None,
-        details: dict[str, Any] | None = None,
-        error_code: str | None = None,
-    ) -> None:
-        """Initialize exception.
+    def __init__(self, message: str, cause: Exception | None = None) -> None:
+        """Initialize pepperpy error.
 
         Args:
             message: Error message
-            cause: Original exception that caused this error
-            details: Additional error details
-            error_code: Unique error code for this error
+            cause: Cause of the error
         """
         super().__init__(message)
-        self.cause = cause
-        self.details = details or {}
-        self.error_code = error_code
-
-    def __str__(self) -> str:
-        """Return string representation."""
-        parts = [self.args[0]]
-
-        if self.error_code:
-            parts.insert(0, f"[{self.error_code}]")
-
-        if self.cause:
-            parts.append(f"(caused by: {self.cause})")
-
-        if self.details:
-            parts.append(f"details: {self.details}")
-
-        return " - ".join(parts)
-
-    def get_full_details(self) -> dict[str, Any]:
-        """Get full error details including cause chain.
-
-        Returns:
-            Dictionary with all error details
-        """
-        details = {
-            "message": str(self.args[0]),
-            "type": self.__class__.__name__,
-        }
-
-        if self.error_code:
-            details["error_code"] = self.error_code
-
-        if self.details:
-            details["details"] = self.details
-
-        if self.cause:
-            if isinstance(self.cause, PepperpyError):
-                details["cause"] = self.cause.get_full_details()
-            else:
-                details["cause"] = {
-                    "message": str(self.cause),
-                    "type": self.cause.__class__.__name__,
-                }
-
-        return details
+        if cause:
+            self.__cause__ = cause
+            self.__traceback__ = cause.__traceback__
 
 
 # Configuration Errors
@@ -87,9 +36,7 @@ class ConfigError(PepperpyError):
             cause: Original exception that caused this error
             config_name: Name of the configuration that caused the error
         """
-        super().__init__(
-            message, cause, {"config_name": config_name} if config_name else None
-        )
+        super().__init__(message, cause)
         self.config_name = config_name
 
 
@@ -118,7 +65,7 @@ class ValidationError(PepperpyError):
         if invalid_value is not None:
             details["invalid_value"] = str(invalid_value)
             details["invalid_value_type"] = type(invalid_value).__name__
-        super().__init__(message, cause, details or None)
+        super().__init__(message, cause)
         self.field_name = field_name
         self.invalid_value = invalid_value
 
@@ -140,9 +87,7 @@ class ResourceError(PepperpyError):
             cause: Original exception that caused this error
             resource_name: Name of the resource that caused the error
         """
-        super().__init__(
-            message, cause, {"resource_name": resource_name} if resource_name else None
-        )
+        super().__init__(message, cause)
         self.resource_name = resource_name
 
 
@@ -163,9 +108,7 @@ class StateError(PepperpyError):
             cause: Original exception that caused this error
             current_state: Current state when the error occurred
         """
-        super().__init__(
-            message, cause, {"current_state": current_state} if current_state else None
-        )
+        super().__init__(message, cause)
         self.current_state = current_state
 
 
@@ -186,9 +129,7 @@ class ModuleError(PepperpyError):
             cause: Original exception that caused this error
             module_name: Name of the module that caused the error
         """
-        super().__init__(
-            message, cause, {"module_name": module_name} if module_name else None
-        )
+        super().__init__(message, cause)
         self.module_name = module_name
 
 
@@ -218,7 +159,7 @@ class CacheError(PepperpyError):
             cause: Original exception that caused this error
             key: Cache key that caused the error
         """
-        super().__init__(message, cause, {"cache_key": key} if key else None)
+        super().__init__(message, cause)
         self.key = key
 
 
@@ -236,9 +177,7 @@ class SecurityError(PepperpyError):
             cause: Original exception that caused this error
             operation: Security operation that failed
         """
-        super().__init__(
-            message, cause, {"operation": operation} if operation else None
-        )
+        super().__init__(message, cause)
         self.operation = operation
 
 
@@ -280,7 +219,7 @@ class TaskError(PepperpyError):
             cause: Original exception that caused this error
             task_id: ID of the task that failed
         """
-        super().__init__(message, cause, {"task_id": task_id} if task_id else None)
+        super().__init__(message, cause)
         self.task_id = task_id
 
 
@@ -320,7 +259,7 @@ class EventError(PepperpyError):
             details["event_type"] = event_type
         if event_id:
             details["event_id"] = event_id
-        super().__init__(message, cause, details or None)
+        super().__init__(message, cause)
         self.event_type = event_type
         self.event_id = event_id
 
@@ -346,9 +285,10 @@ class EventHandlerError(EventError):
             handler_name: Name of handler that failed
         """
         super().__init__(message, cause, event_type, event_id)
+        self.handler_name = handler_name
+        self.details: dict[str, str] = {}
         if handler_name:
             self.details["handler_name"] = handler_name
-        self.handler_name = handler_name
 
 
 class EventMiddlewareError(EventError):
@@ -374,12 +314,13 @@ class EventMiddlewareError(EventError):
             stage: Stage where middleware failed (before/after)
         """
         super().__init__(message, cause, event_type, event_id)
+        self.middleware_name = middleware_name
+        self.stage = stage
+        self.details: dict[str, str] = {}
         if middleware_name:
             self.details["middleware_name"] = middleware_name
         if stage:
             self.details["stage"] = stage
-        self.middleware_name = middleware_name
-        self.stage = stage
 
 
 # Network Errors

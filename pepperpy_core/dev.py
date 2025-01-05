@@ -1,124 +1,76 @@
-"""Development tools for testing, debugging and profiling."""
+"""Development utilities."""
 
 import asyncio
-import cProfile
-import functools
-import json
-import pstats
 import time
-import unittest
-from collections.abc import Awaitable, Callable
-from dataclasses import dataclass, field
-from pathlib import Path
-from typing import Any, Protocol, TypeVar, cast
+from dataclasses import dataclass
+from enum import Enum
+from typing import Any, Callable, Coroutine, Optional, Protocol, TypeVar
+
+T = TypeVar("T")
+
+
+class LogLevel(Enum):
+    """Log level enumeration."""
+
+    DEBUG = "debug"
+    INFO = "info"
+    WARNING = "warning"
+    ERROR = "error"
+    CRITICAL = "critical"
 
 
 class LoggerProtocol(Protocol):
-    """Protocol for logger interface."""
+    """Logger protocol."""
+
+    def log(self, level: LogLevel, message: str, **kwargs: Any) -> None:
+        """Log a message."""
+        ...
 
     def debug(self, message: str, **kwargs: Any) -> None:
-        """Log debug message."""
+        """Log a debug message."""
         ...
 
     def info(self, message: str, **kwargs: Any) -> None:
-        """Log info message."""
+        """Log an info message."""
+        ...
+
+    def warning(self, message: str, **kwargs: Any) -> None:
+        """Log a warning message."""
+        ...
+
+    def error(self, message: str, **kwargs: Any) -> None:
+        """Log an error message."""
+        ...
+
+    def critical(self, message: str, **kwargs: Any) -> None:
+        """Log a critical message."""
         ...
 
 
 @dataclass
 class Timer:
-    """Simple timer for benchmarking."""
+    """Timer context manager."""
 
     name: str
-    logger: LoggerProtocol | None = None
-    _start: float = field(default=0.0, init=False)
-    _end: float = field(default=0.0, init=False)
+    logger: Optional[LoggerProtocol] = None
 
     def __enter__(self) -> "Timer":
-        """Start timer."""
+        """Enter context."""
         self._start = time.perf_counter()
+        if self.logger:
+            self.logger.info(f"Timer {self.name} started")
         return self
 
-    def __exit__(self, *args: Any) -> None:
-        """Stop timer and log result."""
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+        """Exit context."""
         self._end = time.perf_counter()
-        duration = self._end - self._start
-
         if self.logger:
+            duration = self._end - self._start
             self.logger.info(
-                f"{self.name} took {duration:.4f} seconds",
+                f"Timer {self.name} stopped after {duration:.3f} seconds",
                 timer=self.name,
                 duration=duration,
             )
-
-
-@dataclass
-class Profiler:
-    """Simple profiler for performance analysis."""
-
-    name: str
-    logger: LoggerProtocol | None = None
-    output_path: Path | None = None
-    _profiler: cProfile.Profile = field(default_factory=cProfile.Profile, init=False)
-
-    def __enter__(self) -> "Profiler":
-        """Start profiling."""
-        self._profiler.enable()
-        return self
-
-    def __exit__(self, *args: Any) -> None:
-        """Stop profiling and save results."""
-        self._profiler.disable()
-
-        stats = pstats.Stats(self._profiler)
-        stats.sort_stats("cumulative")
-
-        if self.output_path:
-            stats.dump_stats(self.output_path)
-
-        if self.logger:
-            # Log top 10 functions
-            self.logger.info(
-                f"Profile results for {self.name}",
-                profiler=self.name,
-                stats=str(stats.print_stats(10)),
-            )
-
-
-@dataclass
-class MockResponse:
-    """Mock HTTP response for testing."""
-
-    status: int = 200
-    data: str | bytes | dict[str, Any] | None = None
-    headers: dict[str, str] | None = field(default_factory=dict)
-
-    async def json(self) -> dict[str, Any]:
-        """Get JSON response data."""
-        if isinstance(self.data, (str, bytes)):
-            return cast(dict[str, Any], json.loads(self.data))
-        return cast(dict[str, Any], self.data or {})
-
-    async def text(self) -> str:
-        """Get text response data."""
-        if isinstance(self.data, bytes):
-            return self.data.decode()
-        if isinstance(self.data, dict):
-            return json.dumps(self.data)
-        return str(self.data or "")
-
-
-def mock_response(
-    status: int = 200,
-    data: str | bytes | dict[str, Any] | None = None,
-    headers: dict[str, str] | None = None,
-) -> Callable[..., MockResponse]:
-    """Create mock response factory."""
-
-    def factory(*args: Any, **kwargs: Any) -> MockResponse:
-        return MockResponse(status, data, headers)
-
-    return factory
 
 
 def debug_call(
@@ -127,7 +79,7 @@ def debug_call(
     *args: Any,
     **kwargs: Any,
 ) -> None:
-    """Log function call debug information."""
+    """Debug function call."""
     logger.debug(
         f"Calling {func_name}",
         args=args,
@@ -140,7 +92,7 @@ def debug_result(
     func_name: str,
     result: Any,
 ) -> None:
-    """Log function result debug information."""
+    """Debug function result."""
     logger.debug(
         f"Result from {func_name}",
         result=result,
@@ -152,7 +104,7 @@ def debug_error(
     func_name: str,
     error: Exception,
 ) -> None:
-    """Log function error debug information."""
+    """Debug function error."""
     logger.debug(
         f"Error in {func_name}",
         error=str(error),
@@ -160,105 +112,88 @@ def debug_error(
     )
 
 
-# Type variables for testing
-T = TypeVar("T", bound=Callable[..., Awaitable[Any]])
-
-
-def async_test(func: T) -> Callable[..., Any]:
-    """Decorator for running async test functions in a new event loop.
-
-    Args:
-        func: The async test function to decorate.
-
-    Returns:
-        A wrapped function that runs the async test in a new event loop.
-
-    Example:
-        @async_test
-        async def test_something():
-            result = await some_async_function()
-            assert result == expected
-    """
-
-    @functools.wraps(func)
-    def wrapper(*args: Any, **kwargs: Any) -> Any:
-        """Run async function in event loop."""
-        return asyncio.run(func(*args, **kwargs))
-
-    return cast(Callable[..., Any], wrapper)
-
-
-class AsyncTestCase(unittest.TestCase):
-    """Base class for async test cases.
-
-    Provides setup and teardown of an event loop for the test case,
-    and a helper method for running coroutines in tests.
-
-    Example:
-        class TestSomething(AsyncTestCase):
-            async def test_feature(self):
-                result = await self.run_async(some_async_function())
-                self.assertEqual(result, expected)
-    """
+class AsyncTestCase:
+    """Base class for async test cases."""
 
     def setUp(self) -> None:
         """Set up test case."""
-        super().setUp()
         self.loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self.loop)
 
     def tearDown(self) -> None:
         """Tear down test case."""
         self.loop.close()
-        asyncio.set_event_loop(None)
-        super().tearDown()
 
-    def run_async(self, coro: Awaitable[T]) -> T:
-        """Run a coroutine in the test loop.
-
-        Args:
-            coro: The coroutine to run.
-
-        Returns:
-            The result of the coroutine.
-        """
+    def run_async(self, coro: Any) -> Any:
+        """Run coroutine."""
         return self.loop.run_until_complete(coro)
 
 
-def run_async(coro: Awaitable[T]) -> T:
-    """Run a coroutine in a new event loop.
+def debug_decorator(
+    logger: LoggerProtocol,
+    func_name: Optional[str] = None,
+) -> Callable[[Callable[..., T]], Callable[..., T]]:
+    """Debug decorator."""
 
-    This is a standalone function for running coroutines outside of a test case.
-    It creates a new event loop, runs the coroutine, and cleans up the loop.
+    def decorator(func: Callable[..., T]) -> Callable[..., T]:
+        """Decorate function."""
+        nonlocal func_name
+        if func_name is None:
+            func_name = func.__name__
 
-    Args:
-        coro: The coroutine to run.
+        def wrapper(*args: Any, **kwargs: Any) -> T:
+            """Wrap function."""
+            debug_call(logger, func_name, *args, **kwargs)
+            try:
+                result = func(*args, **kwargs)
+                debug_result(logger, func_name, result)
+                return result
+            except Exception as e:
+                debug_error(logger, func_name, e)
+                raise
 
-    Returns:
-        The result of the coroutine.
+        return wrapper
 
-    Example:
-        result = run_async(some_async_function())
-    """
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    try:
-        return loop.run_until_complete(coro)
-    finally:
-        loop.close()
-        asyncio.set_event_loop(None)
+    return decorator
+
+
+def async_debug_decorator(
+    logger: LoggerProtocol,
+    func_name: Optional[str] = None,
+) -> Callable[
+    [Callable[..., Coroutine[Any, Any, T]]], Callable[..., Coroutine[Any, Any, T]]
+]:
+    """Async debug decorator."""
+
+    def decorator(
+        func: Callable[..., Coroutine[Any, Any, T]],
+    ) -> Callable[..., Coroutine[Any, Any, T]]:
+        """Decorate function."""
+        nonlocal func_name
+        if func_name is None:
+            func_name = func.__name__
+
+        async def wrapper(*args: Any, **kwargs: Any) -> T:
+            """Wrap function."""
+            debug_call(logger, func_name, *args, **kwargs)
+            try:
+                result = await func(*args, **kwargs)
+                debug_result(logger, func_name, result)
+                return result
+            except Exception as e:
+                debug_error(logger, func_name, e)
+                raise
+
+        return wrapper
+
+    return decorator
 
 
 __all__ = [
+    "LogLevel",
     "LoggerProtocol",
     "Timer",
-    "Profiler",
-    "MockResponse",
-    "mock_response",
-    "debug_call",
-    "debug_result",
-    "debug_error",
-    "async_test",
     "AsyncTestCase",
-    "run_async",
+    "debug_decorator",
+    "async_debug_decorator",
 ]

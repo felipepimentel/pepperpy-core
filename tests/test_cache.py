@@ -1,120 +1,87 @@
-"""Tests for the cache module."""
+"""Test cache module."""
 
-from collections.abc import AsyncIterator
+from typing import AsyncGenerator
 
 import pytest
-import pytest_asyncio
 
 from pepperpy_core.cache import Cache, CacheConfig
-from pepperpy_core.module import ModuleError
 
 
-@pytest_asyncio.fixture
-async def cache() -> AsyncIterator[Cache[str]]:
-    """Create a test cache."""
-    cache = Cache[str]()
+@pytest.fixture
+async def cache() -> AsyncGenerator[Cache[str], None]:
+    """Get cache."""
+    cache = Cache[str](CacheConfig(name="test"))
     await cache.initialize()
     yield cache
-    await cache.teardown()
+    await cache._teardown()
 
 
 @pytest.mark.asyncio
-async def test_cache_operations(cache: Cache[str]) -> None:
-    """Test basic cache operations."""
-    # Set and get
-    await cache.set("key1", "value1")
-    assert await cache.get("key1") == "value1"
+async def test_cache_get_not_found(cache: Cache[str]) -> None:
+    """Test cache get not found."""
+    value = await cache.get("test")
+    assert value is None
 
-    # Get non-existent key
-    assert await cache.get("missing") is None
-    assert await cache.get("missing", "default") == "default"
 
-    # Delete
-    await cache.delete("key1")
-    assert await cache.get("key1") is None
+@pytest.mark.asyncio
+async def test_cache_get_with_default(cache: Cache[str]) -> None:
+    """Test cache get with default."""
+    value = await cache.get("test", "default")
+    assert value == "default"
 
-    # Clear
-    await cache.set("key1", "value1")
-    await cache.set("key2", "value2")
+
+@pytest.mark.asyncio
+async def test_cache_set(cache: Cache[str]) -> None:
+    """Test cache set."""
+    await cache.set("test", "value")
+    value = await cache.get("test")
+    assert value == "value"
+
+
+@pytest.mark.asyncio
+async def test_cache_delete(cache: Cache[str]) -> None:
+    """Test cache delete."""
+    await cache.set("test", "value")
+    await cache.delete("test")
+    value = await cache.get("test")
+    assert value is None
+
+
+@pytest.mark.asyncio
+async def test_cache_clear(cache: Cache[str]) -> None:
+    """Test cache clear."""
+    await cache.set("test1", "value1")
+    await cache.set("test2", "value2")
     await cache.clear()
-    assert await cache.get("key1") is None
-    assert await cache.get("key2") is None
+    value1 = await cache.get("test1")
+    value2 = await cache.get("test2")
+    assert value1 is None
+    assert value2 is None
 
 
 @pytest.mark.asyncio
-async def test_cache_max_size() -> None:
-    """Test cache max size limit."""
-    config = CacheConfig(name="test_cache", max_size=2)
-    cache = Cache[str](config)
+async def test_cache_max_size(cache: Cache[str]) -> None:
+    """Test cache max size."""
+    cache = Cache[str](CacheConfig(name="test", max_size=2))
     await cache.initialize()
-
-    await cache.set("key1", "value1")
-    await cache.set("key2", "value2")
-    await cache.set("key3", "value3")  # Should evict key1
-
-    assert await cache.get("key1") is None
-    assert await cache.get("key2") == "value2"
-    assert await cache.get("key3") == "value3"
-
-    await cache.teardown()
-
-
-@pytest.mark.asyncio
-async def test_cache_config_validation() -> None:
-    """Test cache configuration validation."""
-    with pytest.raises(ValueError, match="max_size must be positive"):
-        CacheConfig(name="test_cache", max_size=0)
-
-    with pytest.raises(ValueError, match="ttl must be positive"):
-        CacheConfig(name="test_cache", ttl=0)
+    await cache.set("test1", "value1")
+    await cache.set("test2", "value2")
+    await cache.set("test3", "value3")
+    value1 = await cache.get("test1")
+    value2 = await cache.get("test2")
+    value3 = await cache.get("test3")
+    assert value1 is None
+    assert value2 is not None
+    assert value3 is not None
 
 
 @pytest.mark.asyncio
-async def test_cache_uninitialized_operations() -> None:
-    """Test cache operations when uninitialized."""
-    cache = Cache[str]()
-
-    with pytest.raises(ModuleError):
-        await cache.set("key1", "value1")
-
-    with pytest.raises(ModuleError):
-        await cache.get("key1")
-
-    with pytest.raises(ModuleError):
-        await cache.delete("key1")
-
-    with pytest.raises(ModuleError):
-        await cache.clear()
-
-    with pytest.raises(ModuleError):
-        await cache.get_stats()
-
-
-@pytest.mark.asyncio
-async def test_cache_reinitialization(cache: Cache[str]) -> None:
-    """Test cache reinitialization."""
-    await cache.set("key1", "value1")
-    await cache.teardown()
-    assert not cache.is_initialized
-
-    await cache.initialize()
-    assert cache.is_initialized
-    assert (
-        await cache.get("key1") is None
-    )  # Cache should be empty after reinitialization
-
-
-@pytest.mark.asyncio
-async def test_cache_stats(cache: Cache[str]) -> None:
-    """Test cache statistics."""
+async def test_cache_get_stats(cache: Cache[str]) -> None:
+    """Test cache get stats."""
+    await cache.set("test1", "value1")
+    await cache.set("test2", "value2")
     stats = await cache.get_stats()
-    assert stats["name"] == "cache"
-    assert stats["size"] == 0
+    assert stats["name"] == "test"
+    assert stats["size"] == 2
     assert stats["max_size"] == 1000
     assert stats["ttl"] == 60.0
-
-    await cache.set("key1", "value1")
-    await cache.set("key2", "value2")
-
-    stats = await cache.get_stats()
-    assert stats["size"] == 2

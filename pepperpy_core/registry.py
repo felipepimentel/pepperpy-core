@@ -1,179 +1,72 @@
-"""Registry implementation module."""
+"""Registry module."""
 
-from dataclasses import dataclass, field
-from typing import Any, Generic, TypeVar
-
-from .exceptions import PepperpyError
-from .module import BaseModule, ModuleConfig
-
-
-class RegistryError(PepperpyError):
-    """Registry specific error."""
-
-    pass
-
-
-@dataclass
-class RegistryConfig(ModuleConfig):
-    """Registry configuration."""
-
-    # Required fields (inherited from ModuleConfig)
-    name: str
-
-    # Optional fields
-    enabled: bool = True
-    max_items: int = 1000
-    metadata: dict[str, Any] = field(default_factory=dict)
-
-    def validate(self) -> None:
-        """Validate configuration."""
-        if self.max_items < 1:
-            raise ValueError("max_items must be greater than 0")
-
+from typing import Generic, List, TypeVar
 
 T = TypeVar("T")
 
 
-@dataclass
-class RegistryItem(Generic[T]):
-    """Registry item."""
+class Registry(Generic[T]):
+    """Registry for protocol implementations."""
 
-    name: str
-    value: T
-    metadata: dict[str, Any] = field(default_factory=dict)
-
-
-class Registry(Generic[T], BaseModule[RegistryConfig]):
-    """Registry implementation."""
-
-    def __init__(self) -> None:
-        """Initialize registry."""
-        config = RegistryConfig(name="registry")
-        super().__init__(config)
-        self._items: dict[str, RegistryItem[T]] = {}
-
-    async def _setup(self) -> None:
-        """Setup registry."""
-        self._items.clear()
-
-    async def _teardown(self) -> None:
-        """Teardown registry."""
-        self._items.clear()
-
-    async def get_stats(self) -> dict[str, Any]:
-        """Get registry statistics.
-
-        Returns:
-            Registry statistics
-        """
-        self._ensure_initialized()
-        return {
-            "name": self.config.name,
-            "enabled": self.config.enabled,
-            "total_items": len(self._items),
-            "item_names": list(self._items.keys()),
-            "max_items": self.config.max_items,
-        }
-
-    def register(
-        self, name: str, value: T, metadata: dict[str, Any] | None = None
-    ) -> None:
-        """Register item.
+    def __init__(self, protocol: type[T]) -> None:
+        """Initialize registry.
 
         Args:
-            name: Item name
-            value: Item value
-            metadata: Optional item metadata
-
-        Raises:
-            RegistryError: If registry is full or item already exists
+            protocol: Protocol to enforce
         """
-        self._ensure_initialized()
+        self._protocol = protocol
+        self._implementations: dict[str, T] = {}
 
-        if len(self._items) >= self.config.max_items:
-            raise RegistryError("Registry is full")
-
-        if name in self._items:
-            raise RegistryError(f"Item {name} already exists")
-
-        self._items[name] = RegistryItem(
-            name=name,
-            value=value,
-            metadata=metadata or {},
-        )
-
-    def unregister(self, name: str) -> None:
-        """Unregister item.
+    def register(self, name: str, implementation: T | type[T]) -> None:
+        """Register implementation.
 
         Args:
-            name: Item name
+            name: Implementation name
+            implementation: Implementation instance or class
 
         Raises:
-            KeyError: If item not found
+            TypeError: If implementation does not implement protocol
+            ValueError: If implementation name is already registered
         """
-        self._ensure_initialized()
+        if name in self._implementations:
+            raise ValueError(f"Implementation {name} already registered")
 
-        if name not in self._items:
-            raise KeyError(f"Item {name} not found")
+        # If we got a class, instantiate it
+        if isinstance(implementation, type):
+            impl = implementation()
+        else:
+            impl = implementation
 
-        del self._items[name]
+        # Check if implementation implements protocol
+        if not isinstance(impl, self._protocol):
+            raise TypeError(f"{impl.__class__.__name__} does not implement protocol")
+
+        self._implementations[name] = impl
 
     def get(self, name: str) -> T:
-        """Get item value.
+        """Get implementation.
 
         Args:
-            name: Item name
+            name: Implementation name
 
         Returns:
-            Item value
+            Implementation instance
 
         Raises:
-            KeyError: If item not found
+            KeyError: If implementation not found
         """
-        self._ensure_initialized()
+        if name not in self._implementations:
+            raise KeyError(f"Implementation {name} not found")
+        return self._implementations[name]
 
-        if name not in self._items:
-            raise KeyError(f"Item {name} not found")
-
-        return self._items[name].value
-
-    def get_item(self, name: str) -> RegistryItem[T]:
-        """Get item.
-
-        Args:
-            name: Item name
+    def list_implementations(self) -> List[str]:
+        """List registered implementations.
 
         Returns:
-            Registry item
-
-        Raises:
-            KeyError: If item not found
+            List of implementation names.
         """
-        self._ensure_initialized()
-
-        if name not in self._items:
-            raise KeyError(f"Item {name} not found")
-
-        return self._items[name]
-
-    def list_items(self) -> list[RegistryItem[T]]:
-        """List all items.
-
-        Returns:
-            List of registry items
-        """
-        self._ensure_initialized()
-        return list(self._items.values())
+        return list(self._implementations.keys())
 
     def clear(self) -> None:
-        """Clear registry."""
-        self._ensure_initialized()
-        self._items.clear()
-
-
-__all__ = [
-    "RegistryError",
-    "RegistryConfig",
-    "RegistryItem",
-    "Registry",
-]
+        """Clear all registered implementations."""
+        self._implementations.clear()

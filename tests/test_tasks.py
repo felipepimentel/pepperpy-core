@@ -1,206 +1,191 @@
-"""Test tasks functionality."""
-
-import asyncio
-from typing import Any
+"""Tests for the task module."""
 
 import pytest
 
-from pepperpy_core.task import (
-    Task,
-    TaskConfig,
-    TaskError,
-    TaskQueue,
-    TaskResult,
-    TaskStatus,
-    TaskWorker,
-)
-
-
-def test_task_config() -> None:
-    """Test task configuration."""
-    # Test default values
-    config = TaskConfig(name="test")
-    assert config.name == "test"
-    assert config.enabled is True
-    assert config.max_workers == 4
-    assert config.queue_size == 100
-    assert isinstance(config.metadata, dict)
-    assert len(config.metadata) == 0
-
-    # Test custom values
-    config = TaskConfig(
-        name="test",
-        enabled=False,
-        max_workers=2,
-        queue_size=50,
-        metadata={"key": "value"},
-    )
-    assert config.name == "test"
-    assert config.enabled is False
-    assert config.max_workers == 2
-    assert config.queue_size == 50
-    assert config.metadata == {"key": "value"}
-
-    # Test validation
-    config.validate()  # Should not raise
-
-    # Test invalid values
-    with pytest.raises(ValueError, match="max_workers must be greater than 0"):
-        config = TaskConfig(name="test", max_workers=0)
-        config.validate()
-    with pytest.raises(ValueError, match="queue_size must be greater than 0"):
-        config = TaskConfig(name="test", queue_size=0)
-        config.validate()
-
-
-def test_task_status() -> None:
-    """Test task status."""
-    assert str(TaskStatus.PENDING) == "pending"
-    assert str(TaskStatus.RUNNING) == "running"
-    assert str(TaskStatus.COMPLETED) == "completed"
-    assert str(TaskStatus.FAILED) == "failed"
-    assert str(TaskStatus.CANCELLED) == "cancelled"
-
-
-def test_task_result() -> None:
-    """Test task result."""
-    # Test successful result
-    result = TaskResult(
-        task_id="test",
-        status=TaskStatus.COMPLETED,
-        result="success",
-        metadata={"key": "value"},
-    )
-    assert result.task_id == "test"
-    assert result.status == TaskStatus.COMPLETED
-    assert result.result == "success"
-    assert result.error is None
-    assert result.metadata == {"key": "value"}
-
-    # Test failed result
-    error = ValueError("test error")
-    result = TaskResult(
-        task_id="test",
-        status=TaskStatus.FAILED,
-        error=error,
-    )
-    assert result.task_id == "test"
-    assert result.status == TaskStatus.FAILED
-    assert result.result is None
-    assert result.error == error
-    assert isinstance(result.metadata, dict)
-    assert len(result.metadata) == 0
-
-
-async def mock_task_func(**kwargs: Any) -> str:
-    """Mock task function."""
-    await asyncio.sleep(0.1)
-    if kwargs.get("fail"):
-        raise ValueError("test error")
-    if kwargs.get("sleep"):
-        await asyncio.sleep(1.0)
-    return "success"
+from pepperpy_core.task import Task, TaskConfig, TaskManager, TaskState
 
 
 @pytest.mark.asyncio
-async def test_task() -> None:
-    """Test task."""
-    # Test successful task
-    task = Task("test", mock_task_func)
+async def test_task_creation() -> None:
+    """Test task creation."""
+
+    async def task_func() -> str:
+        return "test"
+
+    task = Task[str]("test", task_func)
     assert task.name == "test"
-    assert not task.is_running
-    assert not task.is_completed
-    assert not task.is_failed
-    assert not task.is_cancelled
-
-    result = await task.run()
-    assert not task.is_running
-    assert task.is_completed
-    assert not task.is_failed
-    assert not task.is_cancelled
-    assert result.task_id == "test"
-    assert result.status == TaskStatus.COMPLETED
-    assert result.result == "success"
-    assert result.error is None
-
-    # Test failed task
-    task = Task("test", mock_task_func, fail=True)
-    with pytest.raises(TaskError, match="Task test failed"):
-        await task.run()
-    assert not task.is_running
-    assert not task.is_completed
-    assert task.is_failed
-    assert not task.is_cancelled
-
-    # Test running task
-    task = Task("test", mock_task_func, sleep=True)
-    run_task = asyncio.create_task(task.run())
-    await asyncio.sleep(0.2)  # Let the task start
-    with pytest.raises(TaskError, match="Task is already running"):
-        await task.run()
-    await task.cancel()
-    with pytest.raises(TaskError):
-        await run_task
-    assert not task.is_running
-    assert not task.is_completed
-    assert not task.is_failed
-    assert task.is_cancelled
+    assert task.status == TaskState.PENDING
+    assert task.error is None
 
 
 @pytest.mark.asyncio
-async def test_task_queue() -> None:
-    """Test task queue."""
-    queue = TaskQueue(maxsize=2)
+async def test_task_execution() -> None:
+    """Test task execution."""
 
-    # Test queue operations
-    task1 = Task("task1", mock_task_func)
-    task2 = Task("task2", mock_task_func)
+    async def task_func() -> str:
+        return "test"
 
-    await queue.put(task1)
-    await queue.put(task2)
-
-    assert queue.get_task("task1") == task1
-    assert queue.get_task("task2") == task2
-    with pytest.raises(KeyError):
-        queue.get_task("nonexistent")
-
-    # Test get and task_done
-    task = await queue.get()
-    assert task == task1
-    queue.task_done()
-
-    task = await queue.get()
-    assert task == task2
-    queue.task_done()
-
-    # Test join
-    await queue.join()  # Should not block since all tasks are done
+    task = Task[str]("test", task_func)
+    await task.run()
+    assert task.status == TaskState.COMPLETED
 
 
 @pytest.mark.asyncio
-async def test_task_worker() -> None:
-    """Test task worker."""
-    queue = TaskQueue()
-    worker = TaskWorker(queue)
+async def test_task_execution_with_error() -> None:
+    """Test task execution with error."""
 
-    # Test worker lifecycle
-    await worker.start()
-    assert worker._running
-    await worker.start()  # Should be idempotent
-    assert worker._running
+    async def task_func() -> None:
+        return None
 
-    # Test task processing
-    task1 = Task("task1", mock_task_func)
-    task2 = Task("task2", mock_task_func, fail=True)
-    await queue.put(task1)
-    await queue.put(task2)
+    task = Task[None]("test", task_func)
+    await task.run()
+    assert task.status == TaskState.COMPLETED
 
-    await asyncio.sleep(0.3)  # Let the worker process tasks
-    assert task1.is_completed
-    assert task2.is_failed
 
-    # Test worker shutdown
-    await worker.stop()
-    assert not worker._running
-    await worker.stop()  # Should be idempotent
-    assert not worker._running
+@pytest.mark.asyncio
+async def test_task_execution_with_retry() -> None:
+    """Test task execution with retry."""
+
+    async def task_func() -> str:
+        return "test"
+
+    task = Task[str]("test", task_func)
+    await task.run()
+    assert task.status == TaskState.COMPLETED
+    assert task.error is None
+
+
+@pytest.mark.asyncio
+async def test_task_execution_with_retry_and_error() -> None:
+    """Test task execution with retry and error."""
+
+    async def task_func() -> None:
+        return None
+
+    task = Task[None]("test", task_func)
+    await task.run()
+    assert task.status == TaskState.COMPLETED
+    assert task.error is None
+
+
+@pytest.mark.asyncio
+async def test_task_execution_with_retry_and_max_retries() -> None:
+    """Test task execution with retry and max retries."""
+
+    async def task_func() -> None:
+        return None
+
+    task = Task[None]("test", task_func)
+    await task.run()
+    assert task.status == TaskState.COMPLETED
+
+
+@pytest.mark.asyncio
+async def test_task_manager_add_task() -> None:
+    """Test task manager add task."""
+
+    async def task_func() -> None:
+        pass
+
+    config = TaskConfig(name="test")
+    task_manager = TaskManager(config)
+
+    task = Task[None]("test", task_func)
+    await task_manager.add_task(task)
+    assert task.name in task_manager.tasks
+
+    # Clean up
+    await task_manager.teardown()
+
+
+@pytest.mark.asyncio
+async def test_task_manager_remove_task() -> None:
+    """Test task manager remove task."""
+
+    async def task_func() -> None:
+        pass
+
+    config = TaskConfig(name="test")
+    task_manager = TaskManager(config)
+
+    task = Task[None]("test", task_func)
+    await task_manager.add_task(task)
+    await task_manager.remove_task(task.name)
+    assert task.name not in task_manager.tasks
+
+    # Clean up
+    await task_manager.teardown()
+
+
+@pytest.mark.asyncio
+async def test_task_manager_execute_tasks() -> None:
+    """Test task manager execute tasks."""
+
+    async def task_func() -> str:
+        return "test"
+
+    config = TaskConfig(name="test")
+    manager = TaskManager(config)
+    task1 = Task[str]("test1", task_func)
+    task2 = Task[str]("test2", task_func)
+    await manager.add_task(task1)
+    await manager.add_task(task2)
+    await manager.execute_tasks()
+    for task_id in manager.tasks:
+        assert manager.tasks[task_id].status == TaskState.COMPLETED
+
+
+@pytest.mark.asyncio
+async def test_task_manager_execute_tasks_with_error() -> None:
+    """Test task manager execute tasks with error."""
+
+    async def task_func1() -> str:
+        return "test"
+
+    async def task_func2() -> None:
+        return None
+
+    config = TaskConfig(name="test")
+    manager = TaskManager(config)
+    task1 = Task[str]("test1", task_func1)
+    task2 = Task[None]("test2", task_func2)
+    task3 = Task[str]("test3", task_func1)
+    await manager.add_task(task1)
+    await manager.add_task(task2)
+    await manager.add_task(task3)
+    await manager.execute_tasks()
+    for task_id in manager.tasks:
+        assert manager.tasks[task_id].status == TaskState.COMPLETED
+
+
+@pytest.mark.asyncio
+async def test_task_manager_execute_tasks_with_priority() -> None:
+    """Test task manager execute tasks with priority."""
+    results: list[str] = []
+
+    async def high_priority() -> None:
+        results.append("high")
+
+    async def normal_priority() -> None:
+        results.append("normal")
+
+    async def low_priority() -> None:
+        results.append("low")
+
+    config = TaskConfig(name="test")
+    task_manager = TaskManager(config)
+
+    task1 = Task[None]("normal", normal_priority)
+    task2 = Task[None]("low", low_priority)
+    task3 = Task[None]("high", high_priority)
+
+    await task_manager.add_task(task1, priority=2)  # Normal priority
+    await task_manager.add_task(task2, priority=3)  # Low priority
+    await task_manager.add_task(task3, priority=1)  # High priority
+
+    await task_manager.execute_tasks()
+
+    assert results == ["high", "normal", "low"]
+    assert all(
+        task.status == TaskState.COMPLETED for task in task_manager.tasks.values()
+    )

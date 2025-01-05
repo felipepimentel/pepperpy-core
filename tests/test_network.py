@@ -1,236 +1,129 @@
 """Tests for the network module."""
 
+import asyncio
+from typing import AsyncGenerator
+
 import pytest
-import pytest_asyncio
 
-from pepperpy_core.exceptions import NetworkError
-from pepperpy_core.module import ModuleError
-from pepperpy_core.network import (
-    HttpResponse,
-    NetworkClient,
-    NetworkConfig,
-    WebSocket,
-)
+from pepperpy_core.network import NetworkClient, NetworkConfig
 
 
-def test_network_config_validation() -> None:
-    """Test network configuration validation."""
-    # Test default values
-    config = NetworkConfig()
-    assert config.name == "network-client"
-    assert config.timeout == 30.0
-    assert config.max_retries == 3
-    assert config.retry_delay == 1.0
-    assert config.metadata == {}
+class MockServer:
+    """Mock server for testing."""
 
-    # Test custom values
-    config = NetworkConfig(
-        name="custom-client",
-        timeout=10.0,
-        max_retries=5,
-        retry_delay=0.5,
-        metadata={"key": "value"},
-    )
-    assert config.name == "custom-client"
-    assert config.timeout == 10.0
-    assert config.max_retries == 5
-    assert config.retry_delay == 0.5
-    assert config.metadata == {"key": "value"}
+    def __init__(self, host: str, port: int) -> None:
+        """Initialize mock server.
 
-    # Test validation errors
-    with pytest.raises(ValueError, match="timeout must be positive"):
-        NetworkConfig(timeout=0)
+        Args:
+            host: Server host
+            port: Server port
+        """
+        self.host = host
+        self.port = port
+        self._server: asyncio.AbstractServer | None = None
 
-    with pytest.raises(ValueError, match="timeout must be positive"):
-        NetworkConfig(timeout=-1.0)
+    async def start(self) -> None:
+        """Start server."""
+        self._server = await asyncio.start_server(
+            self._handle_client, self.host, self.port
+        )
 
-    with pytest.raises(ValueError, match="max_retries must be non-negative"):
-        NetworkConfig(max_retries=-1)
+    async def stop(self) -> None:
+        """Stop server."""
+        if self._server:
+            self._server.close()
+            await self._server.wait_closed()
 
-    with pytest.raises(ValueError, match="retry_delay must be non-negative"):
-        NetworkConfig(retry_delay=-0.5)
+    async def _handle_client(
+        self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
+    ) -> None:
+        """Handle client connection.
 
-
-@pytest.mark.asyncio
-async def test_websocket() -> None:
-    """Test WebSocket functionality."""
-    ws = WebSocket()
-    assert not ws.closed
-
-    # Test send and receive
-    await ws.send_text("Hello")
-    response = await ws.receive_text()
-    assert response == "Hello"  # Mock response
-
-    # Test closing
-    await ws.close()
-    assert ws.closed
-
-    # Test operations on closed WebSocket
-    with pytest.raises(NetworkError, match="WebSocket is closed"):
-        await ws.send_text("Hello")
-
-    with pytest.raises(NetworkError, match="WebSocket is closed"):
-        await ws.receive_text()
+        Args:
+            reader: Stream reader
+            writer: Stream writer
+        """
+        while True:
+            try:
+                data = await reader.read(1024)
+                if not data:
+                    break
+                writer.write(data)
+                await writer.drain()
+            except ConnectionError:
+                break
+        writer.close()
+        await writer.wait_closed()
 
 
-@pytest_asyncio.fixture
-async def network_client():
+@pytest.fixture
+async def mock_server() -> AsyncGenerator[MockServer, None]:
+    """Create a mock server for testing."""
+    server = MockServer("localhost", 8080)
+    await server.start()
+    yield server
+    await server.stop()
+
+
+@pytest.fixture
+async def network_client(
+    mock_server: MockServer,
+) -> AsyncGenerator[NetworkClient, None]:
     """Create a network client for testing."""
-    client = NetworkClient()
-    await client.initialize()
+    config = NetworkConfig(host=mock_server.host, port=mock_server.port)
+    client = NetworkClient(config)
+    await client.connect()
     yield client
-    await client.teardown()
+    await client.disconnect()
 
 
 @pytest.mark.asyncio
-async def test_network_client_initialization() -> None:
-    """Test network client initialization."""
-    client = NetworkClient()
-    assert not client.is_initialized
-
-    await client.initialize()
-    assert client.is_initialized
-
-    await client.teardown()
-    assert not client.is_initialized
+async def test_network_client_connect(network_client: NetworkClient) -> None:
+    """Test network client connection."""
+    assert network_client._config.host == "localhost"
+    assert network_client._config.port == 8080
 
 
 @pytest.mark.asyncio
-async def test_network_client_http_request(network_client) -> None:
-    """Test HTTP request functionality."""
-    # Test successful request
-    response = await network_client.http_request(
-        method="GET",
-        url="https://example.com",
-        headers={"User-Agent": "Test"},
-        params={"key": "value"},
-        data={"data": "test"},
+async def test_network_client_disconnect(network_client: NetworkClient) -> None:
+    """Test network client disconnection."""
+    await network_client.disconnect()
+    assert not network_client.is_connected
+
+
+@pytest.mark.asyncio
+async def test_network_client_send(network_client: NetworkClient) -> None:
+    """Test network client send."""
+    data = b"test"
+    await network_client.send(data)
+    received = await network_client.receive(size=len(data))
+    assert received == data
+
+
+@pytest.mark.asyncio
+async def test_network_client_receive(network_client: NetworkClient) -> None:
+    """Test network client receive."""
+    data = b"test"
+    await network_client.send(data)
+    received = await network_client.receive(size=len(data))
+    assert received == data
+
+
+@pytest.mark.asyncio
+async def test_network_client_context_manager(mock_server: MockServer) -> None:
+    """Test network client context manager."""
+    config = NetworkConfig(host=mock_server.host, port=mock_server.port)
+    async with NetworkClient(config) as client:
+        assert client.is_connected
+        assert client._config.host == mock_server.host
+        assert client._config.port == mock_server.port
+
+
+@pytest.mark.asyncio
+async def test_network_client_repr(network_client: NetworkClient) -> None:
+    """Test network client string representation."""
+    expected = (
+        f"NetworkClient(host={network_client._config.host}, "
+        f"port={network_client._config.port})"
     )
-    assert isinstance(response, HttpResponse)
-    assert response.status == 200
-    assert response.text == "Example Domain"
-    assert response.headers == {"Content-Type": "text/html"}
-
-    # Test request to non-existent server
-    with pytest.raises(NetworkError, match="Failed to connect to server"):
-        await network_client.http_request(
-            method="GET",
-            url="https://non-existent-server.com",
-        )
-
-    # Test request to slow server
-    with pytest.raises(NetworkError, match="Request timed out"):
-        await network_client.http_request(
-            method="GET",
-            url="https://slow-server.com",
-        )
-
-
-@pytest.mark.asyncio
-async def test_network_client_websocket(network_client) -> None:
-    """Test WebSocket functionality in network client."""
-    # Connect to WebSocket
-    ws = await network_client.websocket_connect("wss://example.com")
-    assert isinstance(ws, WebSocket)
-    assert not ws.closed
-    assert len(network_client._websockets) == 1
-
-    # Test WebSocket operations
-    await ws.send_text("Hello")
-    response = await ws.receive_text()
-    assert response == "Hello"  # Mock response
-
-    # Close WebSocket
-    await ws.close()
-    assert ws.closed
-
-    # Test WebSocket cleanup
-    stats = await network_client.get_stats()
-    assert stats["active_websockets"] == 0
-
-
-@pytest.mark.asyncio
-async def test_network_client_multiple_websockets(network_client) -> None:
-    """Test handling multiple WebSocket connections."""
-    # Create multiple WebSocket connections
-    ws1 = await network_client.websocket_connect("wss://example1.com")
-    ws2 = await network_client.websocket_connect("wss://example2.com")
-    ws3 = await network_client.websocket_connect("wss://example3.com")
-
-    assert len(network_client._websockets) == 3
-
-    # Close some WebSockets
-    await ws1.close()
-    await ws2.close()
-
-    # Check stats after closing
-    stats = await network_client.get_stats()
-    assert stats["active_websockets"] == 1
-
-    # Close remaining WebSocket
-    await ws3.close()
-    stats = await network_client.get_stats()
-    assert stats["active_websockets"] == 0
-
-
-@pytest.mark.asyncio
-async def test_network_client_stats(network_client) -> None:
-    """Test network client statistics."""
-    stats = await network_client.get_stats()
-    assert stats["name"] == "network-client"
-    assert stats["enabled"] is True
-    assert stats["active_websockets"] == 0
-    assert stats["timeout"] == 30.0
-    assert stats["max_retries"] == 3
-    assert stats["retry_delay"] == 1.0
-
-    # Test stats with custom configuration
-    custom_config = NetworkConfig(
-        name="custom-client",
-        timeout=10.0,
-        max_retries=5,
-        retry_delay=0.5,
-    )
-    custom_client = NetworkClient(custom_config)
-    await custom_client.initialize()
-
-    stats = await custom_client.get_stats()
-    assert stats["name"] == "custom-client"
-    assert stats["timeout"] == 10.0
-    assert stats["max_retries"] == 5
-    assert stats["retry_delay"] == 0.5
-
-    await custom_client.teardown()
-
-
-@pytest.mark.asyncio
-async def test_network_client_uninitialized_operations() -> None:
-    """Test operations on uninitialized network client."""
-    client = NetworkClient()
-
-    with pytest.raises(ModuleError):
-        await client.http_request("GET", "https://example.com")
-
-    with pytest.raises(ModuleError):
-        await client.websocket_connect("wss://example.com")
-
-    with pytest.raises(ModuleError):
-        await client.get_stats()
-
-
-@pytest.mark.asyncio
-async def test_network_client_teardown_cleanup(network_client) -> None:
-    """Test cleanup during network client teardown."""
-    # Create multiple WebSocket connections
-    ws1 = await network_client.websocket_connect("wss://example1.com")
-    ws2 = await network_client.websocket_connect("wss://example2.com")
-
-    assert len(network_client._websockets) == 2
-
-    # Teardown should close all WebSockets
-    await network_client.teardown()
-    assert ws1.closed
-    assert ws2.closed
-    assert len(network_client._websockets) == 0
-    assert not network_client.is_initialized
+    assert repr(network_client) == expected

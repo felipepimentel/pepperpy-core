@@ -30,12 +30,9 @@ async def test_module() -> AsyncGenerator[Any, None]:
     class TestConfig(ModuleConfig):
         """Test configuration."""
 
-        name: str = "test-module"
-        metadata: dict[str, Any] = {}
-
-        def validate(self) -> None:
-            """Validate configuration."""
-            pass
+        def __init__(self) -> None:
+            """Initialize test configuration."""
+            super().__init__(name="test-module")
 
     class TestModule(BaseModule[TestConfig]):
         """Test module implementation."""
