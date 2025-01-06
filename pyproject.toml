@@ -107,9 +107,3 @@ exclude_lines = [
 ]
 ignore_errors = true
 fail_under = 80
-
-[tool.semantic_release]
-version_source = "tag"
-upload_to_pypi = true
-branch = "main"
-repository = "https://upload.pypi.org/legacy/"
