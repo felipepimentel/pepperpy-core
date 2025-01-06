@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pepperpy-core"
-version = "3.1.1"
+version = "0.1.1"
 description = "Core package for PepperPy Framework"
 authors = ["Felipe Pimentel <fpimentel88@gmail.com>"]
 readme = "README.md"
@@ -107,3 +107,32 @@ exclude_lines = [
 ]
 ignore_errors = true
 fail_under = 80
+
+[tool.semantic_release]
+version_variables = ["pyproject.toml:version"]
+commit_author = "github-actions[bot] <github-actions[bot]@users.noreply.github.com>"
+commit_parser = "angular"
+branch = "main"
+upload_to_pypi = true
+build_command = "poetry build"
+repository = "pepperpy-core"
+repository_owner = "felipepimentel"
+
+[tool.semantic_release.remote]
+type = "github"
+token = "${GH_TOKEN}"
+
+[tool.semantic_release.publish]
+dist_glob_patterns = ["dist/*"]
+upload_to_vcs_release = true
+upload_to_repository = true
+
+[tool.semantic_release.branches.main]
+match = "main"
+prerelease_token = "rc"
+prerelease = false
+
+[tool.semantic_release.publish.pypi]
+build = true
+remove_dist = true
+token = "${POETRY_PYPI_TOKEN_PYPI}"

@@ -1,6 +1,17 @@
 # CHANGELOG
 
 
+## v0.1.1 (2025-01-06)
+
+### Chores
+
+- Remove semantic release configuration from pyproject.toml
+  ([`0456f53`](https://github.com/felipepimentel/pepperpy-core/commit/0456f53c6cd36b92f31034719b5b45b63c970bac))
+
+- Deleted the `[tool.semantic_release]` section from `pyproject.toml`, which included settings for
+  versioning and PyPI upload.
+
+
 ## v0.1.0 (2025-01-05)
 
 ### Bug Fixes
