@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pepperpy-core"
-version = "0.1.3"
+version = "0.1.4"
 description = "Core package for PepperPy Framework"
 authors = ["Felipe Pimentel <fpimentel88@gmail.com>"]
 readme = "README.md"
