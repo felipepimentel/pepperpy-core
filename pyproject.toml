@@ -5,10 +5,9 @@ description = "Core package for PepperPy Framework"
 authors = ["Felipe Pimentel <fpimentel88@gmail.com>"]
 readme = "README.md"
 packages = [{ include = "pepperpy_core" }]
-repository = "https://github.com/pimentel/pepperpy-core"
+repository = "https://github.com/felipepimentel/pepperpy-core"
 documentation = "https://pepperpy.readthedocs.io/"
 classifiers = [
-    "Development Status :: 4 - Beta",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3.12",
     "Topic :: Software Development :: Libraries :: Python Modules",
