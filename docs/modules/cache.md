@@ -1,258 +1,251 @@
-# Cache (Cache)
+# Cache Module
 
-O módulo de Cache do PepperPy Core fornece uma implementação genérica de cache em memória com suporte a TTL (Time To Live) e limite de tamanho.
+The PepperPy Core Cache module provides a generic in-memory cache implementation with support for TTL (Time To Live) and size limits.
 
-## Componentes Principais
+## Core Components
 
-### Cache
-
-Classe principal para gerenciamento de cache:
+### Cache Configuration
 
 ```python
-from pepperpy_core import Cache, CacheConfig
+from pepperpy_core.cache import Cache, CacheConfig
 
-# Criar cache
+# Create cache
+cache = Cache()
+
+# Configure cache
 config = CacheConfig(
-    name="app_cache",
-    max_size=1000,
-    ttl=60.0
+    max_size=1000,  # Maximum number of items
+    ttl=300,        # Time to live in seconds
+    cleanup_interval=60  # Cleanup interval in seconds
 )
-cache = Cache[str](config)  # Cache tipado para strings
 
-# Inicializar cache
-await cache.initialize()
-
-# Usar cache
-await cache.set("key", "value")
-value = await cache.get("key")
+cache.configure(config)
 ```
 
-### CacheConfig
+## Usage Examples
 
-Configuração do cache:
+### Basic Cache
 
 ```python
-from pepperpy_core import CacheConfig
+from pepperpy_core.cache import Cache
 
-# Configuração básica
-config = CacheConfig(
-    name="data_cache",
-    max_size=1000,  # Número máximo de itens
-    ttl=60.0,       # Tempo de vida em segundos
-    metadata={"type": "memory"}
-)
+# Create cache
+cache = Cache()
+
+# Store data
+await cache.set("user:123", {
+    "id": "123",
+    "name": "John"
+})
+
+# Get data
+cached_user = await cache.get("user:123")
+print(f"User: {cached_user['name']}")
 ```
 
-## Exemplos de Uso
-
-### Cache Básico
+### Cache with Generic Types
 
 ```python
-from pepperpy_core import Cache, CacheConfig
+from pepperpy_core.cache import Cache
+from typing import TypeVar, Generic
 
-async def exemplo_cache_basico():
-    # Criar e configurar cache
-    cache = Cache[dict](CacheConfig(
-        name="user_cache",
-        max_size=100,
-        ttl=300  # 5 minutos
-    ))
-    
-    # Inicializar
-    await cache.initialize()
-    
-    # Armazenar dados
-    user_data = {"id": 1, "name": "John"}
-    await cache.set("user:1", user_data)
-    
-    # Recuperar dados
-    cached_user = await cache.get("user:1")
-    if cached_user:
-        print(f"Usuário: {cached_user['name']}")
-    
-    # Limpar cache
-    await cache.clear()
-```
+T = TypeVar("T")
 
-### Cache com Tipos Genéricos
-
-```python
-from dataclasses import dataclass
-from pepperpy_core import Cache, CacheConfig
-
-@dataclass
-class UserProfile:
-    id: int
-    name: str
-    email: str
-
-async def exemplo_cache_tipado():
-    # Cache tipado para UserProfile
-    cache = Cache[UserProfile](CacheConfig(
-        name="profile_cache",
-        max_size=1000
-    ))
-    await cache.initialize()
+class TypedCache(Cache, Generic[T]):
+    async def get(self, key: str) -> T:
+        return await super().get(key)
     
-    # Armazenar perfil
-    profile = UserProfile(1, "John", "john@example.com")
-    await cache.set(f"profile:{profile.id}", profile)
-    
-    # Recuperar perfil
-    cached_profile = await cache.get(f"profile:1")
-    if cached_profile:
-        print(f"Nome: {cached_profile.name}")
-```
-
-## Recursos Avançados
-
-### Cache com Estatísticas
-
-```python
-class MonitoredCache(Cache[T]):
-    def __init__(self, config: CacheConfig):
-        super().__init__(config)
-        self.hits = 0
-        self.misses = 0
-    
-    async def get(self, key: str, default: T | None = None) -> T | None:
-        value = await super().get(key, default)
-        if value is not default:
-            self.hits += 1
-        else:
-            self.misses += 1
-        return value
-    
-    async def get_stats(self) -> dict[str, Any]:
-        stats = await super().get_stats()
-        stats.update({
-            "hits": self.hits,
-            "misses": self.misses,
-            "hit_ratio": self.hits / (self.hits + self.misses) if (self.hits + self.misses) > 0 else 0
-        })
-        return stats
-```
-
-### Cache com Eventos
-
-```python
-class EventCache(Cache[T]):
-    def __init__(self, config: CacheConfig):
-        super().__init__(config)
-        self.listeners = []
-    
-    def add_listener(self, listener: callable):
-        self.listeners.append(listener)
-    
-    async def set(self, key: str, value: T) -> None:
+    async def set(self, key: str, value: T):
         await super().set(key, value)
-        for listener in self.listeners:
-            await listener("set", key, value)
-    
-    async def delete(self, key: str) -> None:
-        await super().delete(key)
-        for listener in self.listeners:
-            await listener("delete", key, None)
 ```
 
-## Melhores Práticas
+## Advanced Features
 
-1. **Configuração**
-   - Defina tamanho máximo apropriado
-   - Configure TTL adequado
-   - Use nomes descritivos
-   - Documente configurações
+### Cache with Statistics
 
-2. **Uso de Memória**
-   - Monitore uso de memória
-   - Implemente limpeza periódica
-   - Use tipos apropriados
-   - Evite objetos muito grandes
+```python
+from pepperpy_core.cache import StatsCache
+
+class MonitoredCache(StatsCache):
+    def __init__(self):
+        super().__init__()
+        self.stats = {
+            "hits": 0,
+            "misses": 0,
+            "evictions": 0
+        }
+    
+    async def get(self, key: str) -> Any:
+        try:
+            value = await super().get(key)
+            self.stats["hits"] += 1
+            return value
+        except KeyError:
+            self.stats["misses"] += 1
+            raise
+    
+    def evict(self, key: str):
+        super().evict(key)
+        self.stats["evictions"] += 1
+    
+    def get_stats(self) -> dict:
+        return {
+            "hits": self.stats["hits"],
+            "misses": self.stats["misses"],
+            "hit_ratio": self._calculate_hit_ratio(),
+            "evictions": self.stats["evictions"],
+            "size": len(self),
+            "memory": self.memory_usage()
+        }
+```
+
+## Best Practices
+
+1. **Configuration**
+   - Set appropriate maximum size
+   - Configure TTL wisely
+   - Document settings
+   - Monitor usage
+
+2. **Memory Usage**
+   - Monitor memory usage
+   - Implement periodic cleanup
+   - Set size limits
+   - Use eviction policies
 
 3. **Performance**
-   - Monitore hit ratio
-   - Otimize chaves de cache
-   - Implemente warm-up
-   - Use batch operations
+   - Use appropriate data structures
+   - Implement efficient lookups
+   - Cache hot data
+   - Monitor hit rates
 
-4. **Manutenção**
-   - Monitore estatísticas
-   - Implemente logging
-   - Faça limpeza periódica
-   - Atualize configurações
+4. **Maintenance**
+   - Monitor statistics
+   - Track usage patterns
+   - Perform periodic cleanup
+   - Update configurations
 
-5. **Tipos**
-   - Use tipos genéricos
-   - Valide tipos de dados
-   - Documente tipos
-   - Mantenha consistência
+5. **Type Safety**
+   - Use generic types
+   - Validate data types
+   - Maintain consistency
+   - Handle type errors
 
-## Padrões Comuns
+## Common Patterns
 
-### Cache com Expiração
+### Cache with Expiration
 
 ```python
-class ExpiringCache(Cache[T]):
-    def __init__(self, config: CacheConfig):
-        super().__init__(config)
-        self.expiration = {}
+from pepperpy_core.cache import ExpiringCache
+
+class TimedCache(ExpiringCache):
+    def __init__(self, ttl: int = 300):
+        super().__init__()
+        self.ttl = ttl
     
-    async def set(self, key: str, value: T) -> None:
+    async def get(self, key: str) -> Any:
+        # Check expiration
+        if self.is_expired(key):
+            self.evict(key)
+            raise KeyError(key)
+        
+        return await super().get(key)
+    
+    async def set(self, key: str, value: Any):
         await super().set(key, value)
-        self.expiration[key] = time.time() + self.config.ttl
-    
-    async def get(self, key: str, default: T | None = None) -> T | None:
-        if key in self.expiration:
-            if time.time() > self.expiration[key]:
-                await self.delete(key)
-                return default
-        return await super().get(key, default)
+        self.set_expiration(key, self.ttl)
 ```
 
-### Cache com Fallback
+### Cache with Fallback
 
 ```python
-class FallbackCache(Cache[T]):
-    def __init__(
-        self,
-        config: CacheConfig,
-        fallback_func: callable
-    ):
-        super().__init__(config)
-        self.fallback = fallback_func
+from pepperpy_core.cache import Cache
+
+class FallbackCache(Cache):
+    def __init__(self, fallback: callable):
+        super().__init__()
+        self.fallback = fallback
     
-    async def get(self, key: str, default: T | None = None) -> T | None:
-        value = await super().get(key, default)
-        if value is default:
-            # Buscar do fallback
+    async def get(self, key: str) -> Any:
+        try:
+            return await super().get(key)
+        except KeyError:
+            # Get from fallback
             value = await self.fallback(key)
-            if value is not None:
-                await self.set(key, value)
-        return value
+            
+            # Cache value
+            await self.set(key, value)
+            
+            return value
 ```
 
-### Cache com Prefixo
+### Cache with Validation
 
 ```python
-class PrefixedCache(Cache[T]):
-    def __init__(
-        self,
-        config: CacheConfig,
-        prefix: str
-    ):
-        super().__init__(config)
-        self.prefix = prefix
+from pepperpy_core.cache import Cache
+
+class ValidatedCache(Cache):
+    def __init__(self, validator: callable):
+        super().__init__()
+        self.validator = validator
     
-    def _get_key(self, key: str) -> str:
-        return f"{self.prefix}:{key}"
-    
-    async def get(self, key: str, default: T | None = None) -> T | None:
-        return await super().get(self._get_key(key), default)
-    
-    async def set(self, key: str, value: T) -> None:
-        await super().set(self._get_key(key), value)
-    
-    async def delete(self, key: str) -> None:
-        await super().delete(self._get_key(key))
+    async def set(self, key: str, value: Any):
+        # Validate value
+        if not self.validator(value):
+            raise ValueError("Invalid value")
+        
+        await super().set(key, value)
+```
+
+## API Reference
+
+### Base Cache
+
+```python
+class Cache:
+    async def get(self, key: str) -> Any:
+        """Get value by key."""
+        
+    async def set(self, key: str, value: Any):
+        """Set value by key."""
+        
+    async def delete(self, key: str):
+        """Delete value by key."""
+        
+    def clear(self):
+        """Clear all values."""
+```
+
+### Cache Options
+
+```python
+class CacheOptions:
+    max_size: int = None
+    ttl: int = None
+    cleanup_interval: int = 60
+    eviction_policy: str = "lru"
+    validate: bool = False
+```
+
+### Cache Events
+
+The cache module emits the following events:
+
+- `cache.hit` - When a cache hit occurs
+- `cache.miss` - When a cache miss occurs
+- `cache.evict` - When an item is evicted
+- `cache.error` - When an error occurs
+
+### Error Handling
+
+```python
+try:
+    value = await cache.get(key)
+except KeyError:
+    logger.warning(f"Cache miss: {key}")
+except ValueError as e:
+    logger.error(f"Invalid value: {e}")
+except CacheError as e:
+    logger.error(f"Cache error: {e}")
 ```
 ``` 

@@ -1,321 +1,265 @@
-# Types (Tipos)
+# Types Module
 
-O módulo Types do PepperPy Core fornece definições de tipos e classes base para tipagem estática, incluindo tipos genéricos, protocolos, e utilitários para type hints.
+The PepperPy Core Types module provides type definitions and base classes for static typing, including generic types, protocols, and utilities for type hints.
 
-## Componentes Principais
+## Core Components
 
-### DataClass
-
-Classe base para dados:
+### Base Types
 
 ```python
-from pepperpy_core import DataClass
-from dataclasses import field
+from pepperpy_core.types import (
+    JsonDict,
+    JsonList,
+    PathLike,
+    Callback
+)
 
-@dataclass
-class User(DataClass):
-    id: str
-    name: str
-    email: str
-    active: bool = True
-    metadata: dict = field(default_factory=dict)
+# Type aliases
+Json = Union[str, int, float, bool, None, JsonDict, JsonList]
+Handler = Callable[[Event], Awaitable[None]]
 ```
 
-### Protocol
-
-Protocolos para interfaces:
+### Generic Types
 
 ```python
-from pepperpy_core import Protocol
-from typing import Any
+from pepperpy_core.types import (
+    T,
+    K,
+    V,
+    Container,
+    Processor
+)
 
-class Serializable(Protocol):
-    def serialize(self) -> bytes:
-        ...
-    
-    def deserialize(self, data: bytes) -> Any:
-        ...
-```
-
-### TypeVar
-
-Tipos genéricos:
-
-```python
-from pepperpy_core import TypeVar, Generic
-
-T = TypeVar("T")
-
-class Container(Generic[T]):
-    def __init__(self, value: T):
-        self.value = value
-    
-    def get(self) -> T:
-        return self.value
-```
-
-## Exemplos de Uso
-
-### Dados Tipados
-
-```python
-from pepperpy_core import DataClass
-from typing import Optional, List
-
-@dataclass
-class Address(DataClass):
-    street: str
-    city: str
-    country: str
-    postal_code: str
-
-@dataclass
-class Contact(DataClass):
-    email: str
-    phone: Optional[str] = None
-    address: Optional[Address] = None
-
-@dataclass
-class Person(DataClass):
-    id: str
-    name: str
-    age: int
-    contacts: List[Contact] = field(default_factory=list)
-    metadata: dict = field(default_factory=dict)
-    
-    def add_contact(self, contact: Contact) -> None:
-        self.contacts.append(contact)
-    
-    def get_primary_email(self) -> Optional[str]:
-        return self.contacts[0].email if self.contacts else None
-```
-
-### Interfaces Tipadas
-
-```python
-from pepperpy_core import Protocol
-from typing import TypeVar, Generic
-
-T = TypeVar("T")
-
-class Repository(Protocol[T]):
-    async def get(self, id: str) -> T:
-        ...
-    
-    async def save(self, item: T) -> None:
-        ...
-    
-    async def delete(self, id: str) -> None:
-        ...
-    
-    async def list(self) -> list[T]:
-        ...
-
-class UserRepository(Repository[User]):
-    async def get(self, id: str) -> User:
-        # Implementação
+class Cache(Container[T]):
+    async def get(self, key: str) -> T:
+        # Implementation
         pass
     
-    async def save(self, user: User) -> None:
-        # Implementação
+    async def set(self, key: str, value: T):
+        # Implementation
         pass
-    
-    async def delete(self, id: str) -> None:
-        # Implementação
-        pass
-    
-    async def list(self) -> list[User]:
-        # Implementação
+
+class DataProcessor(Processor[T, V]):
+    async def process(self, data: T) -> V:
+        # Implementation
         pass
 ```
 
-## Recursos Avançados
+### Protocols
+
+```python
+from pepperpy_core.types import (
+    Serializable,
+    Validator,
+    Handler
+)
+
+class JsonSerializable(Protocol):
+    def to_json(self) -> str:
+        # Implementation
+        pass
+    
+    @classmethod
+    def from_json(cls, data: str) -> Self:
+        # Implementation
+        pass
+```
+
+## Advanced Features
 
 ### Type Guards
 
 ```python
-from pepperpy_core import TypeGuard
-from typing import Any
+from pepperpy_core.types import TypeGuard
 
-def is_user(obj: Any) -> TypeGuard[User]:
-    return (
-        isinstance(obj, dict) and
-        "id" in obj and
-        "name" in obj and
-        "email" in obj
-    )
-
-def process_user(data: Any) -> None:
-    if is_user(data):
-        # data é tipado como User
-        print(f"Usuário: {data['name']}")
-    else:
-        # data é tipado como Any
-        print("Dados inválidos")
+def is_user(data: Any) -> TypeGuard[User]:
+    try:
+        # data is typed as User
+        print(f"User: {data['name']}")
+        return True
+    except (KeyError, TypeError):
+        # data is typed as Any
+        print("Invalid data")
+        return False
 ```
 
-### Type Aliases
+### Type Registry
 
 ```python
-from pepperpy_core import TypeAlias
-from typing import Union, Dict, List
+from pepperpy_core.types import Registry
 
-# Tipos complexos
-JsonValue = Union[str, int, float, bool, None, Dict[str, Any], List[Any]]
-JsonObject = Dict[str, JsonValue]
-JsonArray = List[JsonValue]
+registry = Registry[Type[T]]()
 
-# Tipos de negócio
-UserId = str
-UserMap = Dict[UserId, User]
-UserList = List[User]
+# Business types
+registry.register("user", User)
+registry.register("order", Order)
 
-# Tipos de função
-Handler = Callable[[Event], Awaitable[None]]
-Middleware = Callable[[Request, Handler], Awaitable[Response]]
+# Function types
+registry.register("processor", Processor)
+registry.register("validator", Validator)
 ```
 
-## Melhores Práticas
+## Best Practices
 
-1. **Tipagem**
+1. **Type Hints**
    - Use type hints
-   - Defina protocolos
-   - Valide tipos
-   - Documente tipos
+   - Document types
+   - Check coverage
+   - Handle edge cases
 
-2. **Genéricos**
-   - Use TypeVar
-   - Restrinja tipos
-   - Defina bounds
-   - Documente variância
+2. **Generics**
+   - Keep simple
+   - Use constraints
+   - Document variance
+   - Test bounds
 
-3. **Validação**
-   - Use type guards
-   - Valide runtime
-   - Trate erros
-   - Documente checks
+3. **Validation**
+   - Validate types
+   - Check bounds
+   - Handle errors
+   - Log issues
 
-4. **Manutenção**
-   - Atualize tipos
-   - Refatore aliases
-   - Remova duplicação
-   - Mantenha coerência
+4. **Maintenance**
+   - Keep up to date
+   - Remove duplication
+   - Maintain consistency
+   - Test changes
 
-5. **Qualidade**
-   - Use mypy
-   - Teste tipos
-   - Verifique cobertura
-   - Documente mudanças
+5. **Documentation**
+   - Document types
+   - Include examples
+   - Document changes
+   - Keep updated
 
-## Padrões Comuns
+## Common Patterns
 
-### Builder Tipado
-
-```python
-from pepperpy_core import Builder
-from typing import TypeVar, Generic
-
-T = TypeVar("T")
-
-class TypedBuilder(Builder[T], Generic[T]):
-    def __init__(self, cls: Type[T]):
-        self.cls = cls
-        self.attrs = {}
-    
-    def set(
-        self,
-        name: str,
-        value: Any
-    ) -> "TypedBuilder[T]":
-        self.attrs[name] = value
-        return self
-    
-    def build(self) -> T:
-        return self.cls(**self.attrs)
-
-# Uso
-user_builder = TypedBuilder(User)
-user = (
-    user_builder
-    .set("id", "123")
-    .set("name", "John")
-    .set("email", "john@example.com")
-    .build()
-)
-```
-
-### Factory Tipado
+### Type Factory
 
 ```python
-from pepperpy_core import Factory
-from typing import TypeVar, Generic, Type
+from pepperpy_core.types import TypeFactory
 
-T = TypeVar("T")
-
-class TypedFactory(Factory[T], Generic[T]):
+class Factory(TypeFactory[T]):
     def __init__(self):
-        self.types: Dict[str, Type[T]] = {}
+        self.types: dict[str, Type[T]] = {}
     
     def register(
         self,
         name: str,
-        cls: Type[T]
-    ) -> None:
-        self.types[name] = cls
+        type_: Type[T]
+    ):
+        self.types[name] = type_
     
-    def create(
-        self,
-        name: str,
-        **kwargs
-    ) -> T:
+    def create(self, name: str, **kwargs) -> T:
         if name not in self.types:
-            raise ValueError(f"Tipo {name} não registrado")
+            raise ValueError(
+                f"Type {name} not registered"
+            )
         
         return self.types[name](**kwargs)
-
-# Uso
-factory = TypedFactory[User]()
-factory.register("admin", AdminUser)
-factory.register("customer", CustomerUser)
-
-user = factory.create(
-    "admin",
-    id="123",
-    name="John"
-)
 ```
 
-### Visitor Tipado
+### Type Converter
 
 ```python
-from pepperpy_core import Visitor
-from typing import TypeVar, Generic
+from pepperpy_core.types import TypeConverter
 
-T = TypeVar("T")
-R = TypeVar("R")
-
-class TypedVisitor(Visitor[T, R], Generic[T, R]):
+class Converter(TypeConverter):
     def __init__(self):
-        self.handlers: Dict[Type[T], Callable[[T], R]] = {}
+        self.converters = {}
     
     def register(
         self,
-        cls: Type[T],
-        handler: Callable[[T], R]
-    ) -> None:
-        self.handlers[cls] = handler
+        source: Type,
+        target: Type,
+        converter: Callable
+    ):
+        self.converters[(source, target)] = converter
     
-    def visit(self, obj: T) -> R:
-        for cls, handler in self.handlers.items():
-            if isinstance(obj, cls):
-                return handler(obj)
+    def convert(
+        self,
+        value: Any,
+        target: Type
+    ) -> Any:
+        source = type(value)
+        key = (source, target)
         
-        raise TypeError(f"Tipo não suportado: {type(obj)}")
+        if key not in self.converters:
+            raise TypeError(
+                f"Unsupported type: {type(obj)}"
+            )
+        
+        return self.converters[key](value)
+```
 
-# Uso
-visitor = TypedVisitor[Node, str]()
-visitor.register(TextNode, lambda n: n.text)
-visitor.register(LinkNode, lambda n: n.url)
+### Type Cache
 
-result = visitor.visit(node)
+```python
+from pepperpy_core.types import TypeCache
+
+class Cache(TypeCache[T]):
+    def __init__(self):
+        self.cache: dict[str, T] = {}
+    
+    def get(self, key: str) -> Optional[T]:
+        return self.cache.get(key)
+    
+    def set(self, key: str, value: T):
+        self.cache[key] = value
+    
+    def clear(self):
+        self.cache.clear()
+```
+
+## API Reference
+
+### Base Types
+
+```python
+class JsonDict(TypedDict):
+    """JSON object type."""
+
+class JsonList(List[Json]):
+    """JSON array type."""
+
+class PathLike(Protocol):
+    """Path-like object."""
+    
+    def __fspath__(self) -> str:
+        """Return file system path."""
+```
+
+### Generic Types
+
+```python
+T = TypeVar("T")
+K = TypeVar("K")
+V = TypeVar("V")
+
+class Container(Generic[T]):
+    """Generic container."""
+    
+    def get(self) -> T:
+        """Get value."""
+    
+    def set(self, value: T):
+        """Set value."""
+
+class Processor(Generic[T, V]):
+    """Generic processor."""
+    
+    def process(self, data: T) -> V:
+        """Process data."""
+```
+
+### Type Guards
+
+```python
+class TypeGuard(Generic[T]):
+    """Type guard protocol."""
+    
+    def check(self, value: Any) -> bool:
+        """Check if value is of type T."""
+    
+    def cast(self, value: Any) -> T:
+        """Cast value to type T."""
 ``` 

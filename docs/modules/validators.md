@@ -1,312 +1,270 @@
-# Validators (Validadores)
+# Validators Module
 
-O módulo de Validadores do PepperPy Core fornece um conjunto robusto de classes para validação de dados. Ele inclui validadores para tipos básicos e formatos comuns, com suporte a validação composicional e tipagem genérica.
+The PepperPy Core Validators module provides a robust set of classes for data validation. It includes validators for basic types and common formats, with support for compositional validation and generic typing.
 
-## Componentes Principais
+## Core Components
 
-### BaseValidator
-
-Classe base abstrata para todos os validadores:
+### Base Validator
 
 ```python
-from pepperpy_core import BaseValidator
-from typing import Any, TypeVar
+from pepperpy_core.validators import Validator
 
-T = TypeVar("T")
-
-class CustomValidator(BaseValidator[T]):
-    def validate(self, value: Any) -> T:
-        # Implementar lógica de validação
-        if not self.is_valid(value):
-            raise ValidationError("Valor inválido")
-        return value
+class CustomValidator(Validator):
+    def validate(self, value: Any) -> bool:
+        # Implement validation logic
+        if not self._is_valid(value):
+            raise ValidationError("Invalid value")
+        return True
 ```
 
-### Validadores Básicos
-
-Validadores para tipos de dados fundamentais:
+### Basic Validators
 
 ```python
-from pepperpy_core import (
+from pepperpy_core.validators import (
     StringValidator,
-    IntegerValidator,
-    ListValidator,
+    NumberValidator,
+    BooleanValidator,
     DictValidator
 )
 
-# Validador de strings
-string_validator = StringValidator()
-valid_string = string_validator.validate("texto")  # OK
-# string_validator.validate(123)  # Raises ValidationError
-
-# Validador de inteiros
-int_validator = IntegerValidator()
-valid_int = int_validator.validate(42)  # OK
-# int_validator.validate("42")  # Raises ValidationError
-
-# Validador de listas
-list_validator = ListValidator(StringValidator())
-valid_list = list_validator.validate(["a", "b", "c"])  # OK
-# list_validator.validate(["a", 1, "c"])  # Raises ValidationError
-
-# Validador de dicionários
-dict_validator = DictValidator(
-    key_validator=StringValidator(),
-    value_validator=IntegerValidator()
-)
-valid_dict = dict_validator.validate({"a": 1, "b": 2})  # OK
-# dict_validator.validate({"a": "1"})  # Raises ValidationError
+# Dictionary validator
+validator = DictValidator({
+    "name": StringValidator(),
+    "age": NumberValidator(),
+    "active": BooleanValidator()
+})
 ```
 
-### Validadores de Formato
+### Format Validators
 
-Validadores para formatos específicos:
+Validators for specific formats:
 
 ```python
-from pepperpy_core import (
+from pepperpy_core.validators import (
     EmailValidator,
     URLValidator,
-    IPAddressValidator,
-    PhoneNumberValidator
+    DateValidator,
+    PhoneValidator
 )
 
-# Validador de email
-email_validator = EmailValidator()
-valid_email = email_validator.validate("user@example.com")  # OK
-# email_validator.validate("invalid-email")  # Raises ValidationError
-
-# Validador de URL
-url_validator = URLValidator()
-valid_url = url_validator.validate("https://example.com")  # OK
-# url_validator.validate("not-a-url")  # Raises ValidationError
-
-# Validador de IP
-ip_validator = IPAddressValidator()
-valid_ip = ip_validator.validate("192.168.1.1")  # OK
-# ip_validator.validate("256.256.256.256")  # Raises ValidationError
-
-# Validador de telefone
-phone_validator = PhoneNumberValidator()
-valid_phone = phone_validator.validate("+1 234-567-8900")  # OK
-# phone_validator.validate("invalid-phone")  # Raises ValidationError
+email = EmailValidator()
+url = URLValidator()
+date = DateValidator()
+phone = PhoneValidator()
 ```
 
-## Exemplos de Uso
+## Usage Examples
 
-### Validação Básica
+### Basic Validation
 
 ```python
-from pepperpy_core import StringValidator, ValidationError
+from pepperpy_core.validators import StringValidator
 
-def validar_nome_usuario(nome: str) -> str:
-    validator = StringValidator()
-    try:
-        return validator.validate(nome)
-    except ValidationError as e:
-        print(f"Nome de usuário inválido: {e}")
-        raise
+validator = StringValidator(min_length=3, max_length=20)
+
+try:
+    validator.validate("user123")
+except ValidationError as e:
+    print(f"Invalid username: {e}")
 ```
 
-### Validação Composta
+### Composite Validation
 
 ```python
-from pepperpy_core import (
+from pepperpy_core.validators import (
     DictValidator,
     StringValidator,
-    EmailValidator,
-    PhoneNumberValidator
+    EmailValidator
 )
 
-def validar_contato(dados: dict) -> dict:
-    validator = DictValidator(
-        key_validator=StringValidator(),
-        value_validator=StringValidator()
-    )
-    
-    # Validadores específicos para campos
-    email_validator = EmailValidator()
-    phone_validator = PhoneNumberValidator()
-    
-    # Validar estrutura básica
-    dados_validados = validator.validate(dados)
-    
-    # Validar campos específicos
-    dados_validados["email"] = email_validator.validate(dados["email"])
-    dados_validados["telefone"] = phone_validator.validate(dados["telefone"])
-    
-    return dados_validados
+# Specific validators for fields
+user_validator = DictValidator({
+    "name": StringValidator(min_length=2),
+    "email": EmailValidator()
+})
+
+data = {"name": "John", "email": "john@example.com"}
+
+# Validate basic structure
+user_validator.validate(data)
+
+# Validate specific fields
+email_validator = user_validator.fields["email"]
+email_validator.validate(data["email"])
 ```
 
-### Validação de Lista
+### List Validation
 
 ```python
-from pepperpy_core import ListValidator, EmailValidator
+from pepperpy_core.validators import ListValidator, EmailValidator
 
-def validar_lista_emails(emails: list) -> list:
-    validator = ListValidator(EmailValidator())
-    try:
-        return validator.validate(emails)
-    except ValidationError as e:
-        print(f"Lista de emails inválida: {e}")
-        raise
+validator = ListValidator(EmailValidator())
+
+try:
+    validator.validate([
+        "user1@example.com",
+        "user2@example.com"
+    ])
+except ValidationError as e:
+    print(f"Invalid email list: {e}")
 ```
 
-## Recursos Avançados
+## Advanced Features
 
-### Validador Customizado
+### Custom Rules
 
 ```python
-from pepperpy_core import BaseValidator, ValidationError
+from pepperpy_core.validators import Validator, ValidationError
 import re
 
-class PasswordValidator(BaseValidator[str]):
-    def __init__(
-        self,
-        min_length: int = 8,
-        require_upper: bool = True,
-        require_number: bool = True,
-        require_special: bool = True
-    ):
-        self.min_length = min_length
-        self.require_upper = require_upper
-        self.require_number = require_number
-        self.require_special = require_special
+class PasswordValidator(Validator):
+    def __init__(self):
+        self.uppercase = re.compile(r'[A-Z]')
+        self.number = re.compile(r'[0-9]')
     
-    def validate(self, value: Any) -> str:
-        if not isinstance(value, str):
-            raise ValidationError("Senha deve ser uma string")
-        
-        if len(value) < self.min_length:
-            raise ValidationError(
-                f"Senha deve ter pelo menos {self.min_length} caracteres"
-            )
-        
-        if self.require_upper and not re.search(r"[A-Z]", value):
-            raise ValidationError("Senha deve conter letra maiúscula")
-        
-        if self.require_number and not re.search(r"\d", value):
-            raise ValidationError("Senha deve conter número")
-        
-        if self.require_special and not re.search(r"[!@#$%^&*]", value):
-            raise ValidationError("Senha deve conter caractere especial")
-        
-        return value
+    def validate(self, value: str) -> bool:
+        if not self.uppercase.search(value):
+            raise ValidationError("Password must contain uppercase letter")
+            
+        if not self.number.search(value):
+            raise ValidationError("Password must contain number")
+            
+        return True
 ```
 
-### Validador com Cache
+### Async Validation
 
 ```python
-class CachedValidator(BaseValidator[T]):
-    def __init__(self, validator: BaseValidator[T]):
-        self.validator = validator
-        self.cache = {}
-    
-    def validate(self, value: Any) -> T:
-        cache_key = str(value)
-        if cache_key in self.cache:
-            return self.cache[cache_key]
-        
-        result = self.validator.validate(value)
-        self.cache[cache_key] = result
-        return result
+from pepperpy_core.validators import AsyncValidator
+
+class DatabaseValidator(AsyncValidator):
+    async def validate(self, value: str) -> bool:
+        # Check database
+        exists = await self.db.exists(value)
+        return not exists
 ```
 
-## Melhores Práticas
+## Best Practices
 
-1. **Design de Validadores**
-   - Mantenha validadores simples
-   - Combine validadores para casos complexos
-   - Use mensagens de erro claras
-   - Implemente validação completa
+1. **Design**
+   - Keep validators simple
+   - Compose for complexity
+   - Implement complete validation
+   - Follow standards
 
-2. **Tratamento de Erros**
-   - Use exceções apropriadas
-   - Forneça mensagens úteis
-   - Capture erros adequadamente
-   - Mantenha rastreabilidade
+2. **Error Handling**
+   - Use appropriate exceptions
+   - Provide useful messages
+   - Handle edge cases
+   - Log validation failures
 
 3. **Performance**
-   - Cache resultados quando apropriado
-   - Otimize expressões regulares
-   - Evite validações redundantes
-   - Monitore tempo de validação
+   - Optimize regex patterns
+   - Avoid redundant validations
+   - Monitor validation time
+   - Cache when possible
 
-4. **Segurança**
-   - Valide entrada de usuário
-   - Evite injeção de código
-   - Limite tamanho de entrada
-   - Sanitize dados sensíveis
+4. **Security**
+   - Validate user input
+   - Prevent code injection
+   - Limit input size
+   - Sanitize sensitive data
 
-5. **Manutenção**
-   - Documente regras de validação
-   - Mantenha testes atualizados
-   - Revise regras regularmente
-   - Atualize padrões quando necessário
+5. **Maintenance**
+   - Document validation rules
+   - Keep rules consistent
+   - Update patterns when needed
+   - Monitor validation failures
 
-## Padrões Comuns
+## Common Patterns
 
-### Cadeia de Validação
+### Validation Chain
 
 ```python
-class ValidationChain:
+from pepperpy_core.validators import ValidationChain
+
+class UserValidation(ValidationChain):
     def __init__(self):
-        self.validators: list[BaseValidator] = []
+        super().__init__([
+            NotEmptyValidator(),
+            LengthValidator(min=2, max=50),
+            CharacterValidator(allowed="a-zA-Z0-9_"),
+            DatabaseValidator()
+        ])
     
-    def add_validator(self, validator: BaseValidator) -> "ValidationChain":
-        self.validators.append(validator)
-        return self
-    
-    def validate(self, value: Any) -> Any:
-        result = value
+    async def validate(self, value: str) -> bool:
         for validator in self.validators:
-            result = validator.validate(result)
-        return result
+            if asyncio.iscoroutinefunction(validator.validate):
+                await validator.validate(value)
+            else:
+                validator.validate(value)
+        return True
 ```
 
-### Validador Condicional
+### Validator with Transformation
 
 ```python
-class ConditionalValidator(BaseValidator[T]):
-    def __init__(
-        self,
-        condition: callable,
-        validator: BaseValidator[T],
-        else_validator: BaseValidator[T] | None = None
-    ):
-        self.condition = condition
-        self.validator = validator
-        self.else_validator = else_validator
+from pepperpy_core.validators import TransformValidator
+
+class EmailNormalizer(TransformValidator):
+    def transform(self, value: str) -> str:
+        # Normalize email
+        return value.lower().strip()
     
-    def validate(self, value: Any) -> T:
-        if self.condition(value):
-            return self.validator.validate(value)
-        elif self.else_validator:
-            return self.else_validator.validate(value)
-        return value
+    def validate(self, value: str) -> bool:
+        # Validate email format
+        if not re.match(self.email_pattern, value):
+            raise ValidationError("Invalid email format")
+        return True
 ```
 
-### Validador com Transformação
+## API Reference
+
+### Base Classes
 
 ```python
-class TransformingValidator(BaseValidator[T]):
+class Validator:
+    def validate(self, value: Any) -> bool:
+        """Validate value."""
+        
+    def is_valid(self, value: Any) -> bool:
+        """Check if value is valid."""
+
+class AsyncValidator:
+    async def validate(self, value: Any) -> bool:
+        """Validate value asynchronously."""
+        
+    async def is_valid(self, value: Any) -> bool:
+        """Check if value is valid asynchronously."""
+```
+
+### Common Validators
+
+```python
+class StringValidator(Validator):
     def __init__(
         self,
-        validator: BaseValidator[T],
-        transform_before: callable | None = None,
-        transform_after: callable | None = None
+        min_length: int = None,
+        max_length: int = None,
+        pattern: str = None
     ):
-        self.validator = validator
-        self.transform_before = transform_before
-        self.transform_after = transform_after
-    
-    def validate(self, value: Any) -> T:
-        if self.transform_before:
-            value = self.transform_before(value)
-        
-        result = self.validator.validate(value)
-        
-        if self.transform_after:
-            result = self.transform_after(result)
-        
-        return result
+        """Initialize string validator."""
+
+class NumberValidator(Validator):
+    def __init__(
+        self,
+        min_value: float = None,
+        max_value: float = None,
+        integer: bool = False
+    ):
+        """Initialize number validator."""
+
+class ListValidator(Validator):
+    def __init__(
+        self,
+        item_validator: Validator,
+        min_length: int = None,
+        max_length: int = None
+    ):
+        """Initialize list validator."""
 ``` 

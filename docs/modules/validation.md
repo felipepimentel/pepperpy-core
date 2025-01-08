@@ -1,396 +1,315 @@
-# Validation (Validação)
+# Validation Module
 
-O módulo Validation do PepperPy Core fornece um sistema flexível e extensível para validação de dados, com suporte a regras customizadas e validação assíncrona.
+The PepperPy Core Validation module provides a flexible and extensible system for data validation, with support for custom rules and asynchronous validation.
 
-## Componentes Principais
+## Core Components
 
 ### Validator
 
-Classe base para validadores:
-
 ```python
-from pepperpy_core import Validator, ValidationResult
+from pepperpy_core.validation import Validator
 
-class MyValidator(Validator[dict]):
-    async def validate(self, value: dict) -> ValidationResult:
-        if not isinstance(value, dict):
-            return ValidationResult(
-                valid=False,
-                errors=["Valor deve ser um dicionário"]
-            )
-        return ValidationResult(valid=True)
+# Create validator
+validator = Validator()
 
-# Usar validador
-validator = MyValidator()
-result = await validator.validate({"key": "value"})
+# Add rules
+validator.add_rule("name", str, required=True)
+validator.add_rule("age", int, min_value=0)
+
+# Validate data
+errors = validator.validate({
+    "name": "John",
+    "age": 30
+})
 ```
 
 ### ValidationRule
 
-Regra de validação:
-
 ```python
-from pepperpy_core import ValidationRule
+from pepperpy_core.validation import ValidationRule
 
-# Criar regra
+# Create rule
 rule = ValidationRule(
-    name="length",
-    validate=lambda x: len(x) >= 3,
-    message="Valor deve ter no mínimo 3 caracteres"
+    type=str,
+    min_length=3,
+    message="Value must have at least 3 characters"
 )
 ```
 
 ### ValidationSchema
 
-Schema para validação:
-
 ```python
-from pepperpy_core import ValidationSchema
+from pepperpy_core.validation import Schema
 
-# Criar schema
-schema = ValidationSchema({
-    "name": [
-        ValidationRule(
-            name="required",
-            validate=lambda x: x is not None,
-            message="Nome é obrigatório"
-        ),
-        ValidationRule(
-            name="length",
-            validate=lambda x: len(x) >= 3,
-            message="Nome deve ter no mínimo 3 caracteres"
-        )
-    ],
-    "age": [
-        ValidationRule(
-            name="range",
-            validate=lambda x: 0 <= x <= 120,
-            message="Idade deve estar entre 0 e 120"
-        )
-    ]
+# Create schema
+schema = Schema({
+    "name": {
+        "type": str,
+        "required": True,
+        "message": "Name is required"
+    },
+    "email": {
+        "type": str,
+        "pattern": r"^[\w\.-]+@[\w\.-]+\.\w+$",
+        "message": "Invalid email format"
+    },
+    "age": {
+        "type": int,
+        "min_value": 0,
+        "max_value": 120
+    }
 })
 ```
 
-## Exemplos de Uso
+## Usage Examples
 
-### Validação Básica
+### Basic Validation
 
 ```python
-from pepperpy_core import Validator, ValidationRule, ValidationResult
+from pepperpy_core.validation import Validator
 
-class UserValidator(Validator[dict]):
+# Create validator
+validator = Validator()
+
+# Add rules
+validator.add_rule(
+    "name",
+    str,
+    required=True,
+    message="Name is required"
+)
+
+# Validate data
+errors = validator.validate({
+    "name": "John",
+    "age": 30
+})
+
+if errors:
+    print(f"Validation errors: {errors}")
+```
+
+### Custom Rules
+
+```python
+from pepperpy_core.validation import Rule
+
+class EmailRule(Rule):
     def __init__(self):
-        super().__init__()
-        self.rules = {
-            "name": [
-                ValidationRule(
-                    name="required",
-                    validate=lambda x: x is not None,
-                    message="Nome é obrigatório"
-                ),
-                ValidationRule(
-                    name="length",
-                    validate=lambda x: len(x) >= 3,
-                    message="Nome deve ter no mínimo 3 caracteres"
-                )
-            ],
-            "email": [
-                ValidationRule(
-                    name="email",
-                    validate=lambda x: "@" in x,
-                    message="Email inválido"
-                )
-            ]
-        }
-    
-    async def validate(self, value: dict) -> ValidationResult:
-        errors = []
-        
-        for field, rules in self.rules.items():
-            field_value = value.get(field)
-            
-            for rule in rules:
-                if not rule.validate(field_value):
-                    errors.append(
-                        f"{field}: {rule.message}"
-                    )
-        
-        return ValidationResult(
-            valid=len(errors) == 0,
-            errors=errors
+        super().__init__(
+            pattern=r"^[\w\.-]+@[\w\.-]+\.\w+$",
+            message="Invalid email format"
         )
-
-async def exemplo_validacao_basica():
-    # Criar validador
-    validator = UserValidator()
     
-    # Validar dados
-    data = {
-        "name": "Jo",
-        "email": "invalid-email"
-    }
-    
-    result = await validator.validate(data)
-    if not result.valid:
-        print("Erros de validação:")
-        for error in result.errors:
-            print(f"- {error}")
+    def validate(self, value: str) -> bool:
+        if not isinstance(value, str):
+            return False
+        
+        return bool(self.pattern.match(value))
 ```
 
-### Validação Assíncrona
+### Async Validation
 
 ```python
-from pepperpy_core import Validator, ValidationResult
-import aiohttp
+from pepperpy_core.validation import AsyncValidator
 
-class AsyncValidator(Validator[str]):
-    async def validate(self, value: str) -> ValidationResult:
-        async with aiohttp.ClientSession() as session:
-            # Validar valor remotamente
-            async with session.post(
-                "https://api.validator.com/check",
-                json={"value": value}
-            ) as response:
-                result = await response.json()
-                
-                return ValidationResult(
-                    valid=result["valid"],
-                    errors=result.get("errors", [])
-                )
-
-async def exemplo_validacao_async():
-    validator = AsyncValidator()
-    result = await validator.validate("test@example.com")
+class DatabaseValidator(AsyncValidator):
+    def __init__(self, db):
+        self.db = db
     
-    if result.valid:
-        print("Valor válido")
-    else:
-        print("Erros:", result.errors)
+    async def validate(self, value: str) -> bool:
+        # Check database
+        exists = await self.db.exists(value)
+        return not exists
 ```
 
-## Recursos Avançados
+## Advanced Features
 
-### Validador com Cache
+### Validation Chain
 
 ```python
-class CachedValidator(Validator[T]):
+from pepperpy_core.validation import ValidationChain
+
+class UserValidation(ValidationChain):
+    def __init__(self):
+        super().__init__([
+            NotEmptyRule(),
+            LengthRule(min=2, max=50),
+            CharacterRule(allowed="a-zA-Z0-9_"),
+            DatabaseRule()
+        ])
+    
+    async def validate(self, value: str) -> bool:
+        for validator in self.validators:
+            if asyncio.iscoroutinefunction(validator.validate):
+                await validator.validate(value)
+            else:
+                validator.validate(value)
+        return True
+```
+
+### Validation with Transform
+
+```python
+from pepperpy_core.validation import TransformValidator
+
+class EmailValidator(TransformValidator):
+    def transform(self, value: str) -> str:
+        # Normalize email
+        return value.lower().strip()
+    
+    def validate(self, value: str) -> bool:
+        # Validate email format
+        if not re.match(self.email_pattern, value):
+            raise ValidationError("Invalid email format")
+        return True
+```
+
+## Best Practices
+
+1. **Rule Design**
+   - Keep rules simple
+   - Compose for complexity
+   - Document rules
+   - Handle edge cases
+
+2. **Error Handling**
+   - Use clear messages
+   - Include context
+   - Handle all cases
+   - Log failures
+
+3. **Performance**
+   - Optimize validation
+   - Cache results
+   - Batch operations
+   - Monitor timing
+
+4. **Security**
+   - Validate all input
+   - Sanitize data
+   - Limit input size
+   - Handle malicious input
+
+5. **Maintenance**
+   - Document rules
+   - Test edge cases
+   - Update patterns
+   - Monitor failures
+
+## Common Patterns
+
+### Rule Factory
+
+```python
+from pepperpy_core.validation import RuleFactory
+
+class Factory(RuleFactory):
+    def __init__(self):
+        self.rules = {}
+    
+    def register(self, name: str, rule: Rule):
+        self.rules[name] = rule
+    
+    def create(self, name: str, **kwargs) -> Rule:
+        if name not in self.rules:
+            raise ValueError(f"Rule not found: {name}")
+        
+        return self.rules[name](**kwargs)
+```
+
+### Rule Composition
+
+```python
+from pepperpy_core.validation import CompositeRule
+
+class UserRule(CompositeRule):
+    def __init__(self):
+        super().__init__([
+            NotEmptyRule(),
+            LengthRule(min=2),
+            EmailRule()
+        ])
+    
+    def validate(self, value: str) -> bool:
+        for rule in self.rules:
+            if not rule.validate(value):
+                return False
+        return True
+```
+
+### Rule with Cache
+
+```python
+from pepperpy_core.validation import CachedRule
+
+class CachedValidator(CachedRule):
     def __init__(self):
         super().__init__()
         self.cache = {}
     
-    async def validate(self, value: T) -> ValidationResult:
-        # Gerar chave de cache
-        key = str(value)
+    def validate(self, value: str) -> bool:
+        # Check cache
+        if value in self.cache:
+            return self.cache[value]
         
-        # Verificar cache
-        if key in self.cache:
-            return self.cache[key]
+        # Validate
+        result = super().validate(value)
         
-        # Validar e cachear
-        result = await self._do_validate(value)
-        self.cache[key] = result
+        # Update cache
+        self.cache[value] = result
         return result
-    
-    async def _do_validate(self, value: T) -> ValidationResult:
-        # Implementação específica
-        return ValidationResult(valid=True)
 ```
 
-### Validador com Dependências
+## API Reference
+
+### Validator
 
 ```python
-class DependentValidator(Validator[dict]):
-    def __init__(self):
-        super().__init__()
-        self.dependencies = {}
-    
-    def add_dependency(
+class Validator:
+    def add_rule(
         self,
         field: str,
-        depends_on: str,
-        validator: callable
+        rule: Rule
     ):
-        if field not in self.dependencies:
-            self.dependencies[field] = []
+        """Add validation rule."""
         
-        self.dependencies[field].append({
-            "field": depends_on,
-            "validator": validator
-        })
-    
-    async def validate(self, value: dict) -> ValidationResult:
-        errors = []
-        
-        for field, deps in self.dependencies.items():
-            field_value = value.get(field)
-            
-            for dep in deps:
-                dep_value = value.get(dep["field"])
-                if not dep["validator"](field_value, dep_value):
-                    errors.append(
-                        f"Validação falhou: {field} depende de {dep['field']}"
-                    )
-        
-        return ValidationResult(
-            valid=len(errors) == 0,
-            errors=errors
-        )
+    def validate(
+        self,
+        data: dict
+    ) -> List[str]:
+        """Validate data."""
 ```
 
-## Melhores Práticas
-
-1. **Regras**
-   - Mantenha simplicidade
-   - Documente regras
-   - Valide entrada
-   - Use mensagens claras
-
-2. **Performance**
-   - Use cache quando apropriado
-   - Otimize validações
-   - Agrupe regras
-   - Minimize I/O
-
-3. **Mensagens**
-   - Seja específico
-   - Use linguagem clara
-   - Forneça contexto
-   - Sugira correções
-
-4. **Segurança**
-   - Valide entrada
-   - Sanitize dados
-   - Limite tamanhos
-   - Proteja recursos
-
-5. **Manutenção**
-   - Documente regras
-   - Teste validações
-   - Monitore erros
-   - Atualize regras
-
-## Padrões Comuns
-
-### Validador com Rate Limit
+### Rule
 
 ```python
-class RateLimitedValidator(Validator[T]):
-    def __init__(
+class Rule:
+    def validate(
         self,
-        max_per_second: float = 100.0
-    ):
-        super().__init__()
-        self.max_per_second = max_per_second
-        self.last_validation = time.time()
-        self.current_count = 0
-    
-    async def validate(self, value: T) -> ValidationResult:
-        now = time.time()
-        elapsed = now - self.last_validation
+        value: Any
+    ) -> bool:
+        """Validate value."""
         
-        if elapsed >= 1.0:
-            self.current_count = 0
-            self.last_validation = now
-        
-        if self.current_count >= self.max_per_second:
-            return ValidationResult(
-                valid=False,
-                errors=["Taxa de validação excedida"]
-            )
-        
-        self.current_count += 1
-        return await self._do_validate(value)
-    
-    async def _do_validate(self, value: T) -> ValidationResult:
-        # Implementação específica
-        return ValidationResult(valid=True)
+    def get_message(self) -> str:
+        """Get error message."""
 ```
 
-### Validador com Retry
+### Schema
 
 ```python
-class RetryValidator(Validator[T]):
-    def __init__(
+class Schema:
+    def validate(
         self,
-        max_retries: int = 3,
-        retry_delay: float = 1.0
-    ):
-        super().__init__()
-        self.max_retries = max_retries
-        self.retry_delay = retry_delay
-    
-    async def validate(self, value: T) -> ValidationResult:
-        retries = 0
-        last_error = None
+        data: dict
+    ) -> List[str]:
+        """Validate against schema."""
         
-        while retries < self.max_retries:
-            try:
-                return await self._do_validate(value)
-            except Exception as e:
-                last_error = str(e)
-                retries += 1
-                if retries < self.max_retries:
-                    await asyncio.sleep(
-                        self.retry_delay * (2 ** retries)
-                    )
-        
-        return ValidationResult(
-            valid=False,
-            errors=[f"Falha após {retries} tentativas: {last_error}"]
-        )
-    
-    async def _do_validate(self, value: T) -> ValidationResult:
-        # Implementação específica
-        return ValidationResult(valid=True)
-```
-
-### Validador com Eventos
-
-```python
-class EventValidator(Validator[T]):
-    def __init__(self):
-        super().__init__()
-        self.listeners = []
-    
-    def add_listener(self, listener: callable):
-        self.listeners.append(listener)
-    
-    async def validate(self, value: T) -> ValidationResult:
-        # Notificar início
-        await self._notify("start", value)
-        
-        try:
-            result = await self._do_validate(value)
-            # Notificar resultado
-            await self._notify(
-                "complete",
-                value,
-                result=result
-            )
-            return result
-        except Exception as e:
-            # Notificar erro
-            await self._notify(
-                "error",
-                value,
-                error=str(e)
-            )
-            raise
-    
-    async def _notify(
+    def add_field(
         self,
-        event: str,
-        value: T,
-        **kwargs
+        name: str,
+        rules: dict
     ):
-        for listener in self.listeners:
-            try:
-                await listener(event, value, **kwargs)
-            except Exception as e:
-                print(f"Erro no listener: {e}")
-    
-    async def _do_validate(self, value: T) -> ValidationResult:
-        # Implementação específica
-        return ValidationResult(valid=True)
+        """Add field to schema."""
 ```
 ``` 

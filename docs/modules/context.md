@@ -1,256 +1,243 @@
-# Context (Contexto)
+# Context Module
 
-O módulo de Contexto do PepperPy Core fornece uma implementação flexível para gerenciamento de estado e contexto em aplicações, com suporte a tipos genéricos e metadados.
+The PepperPy Core Context module provides a flexible implementation for state and context management in applications, with support for generic types and metadata.
 
-## Componentes Principais
+## Core Components
 
 ### Context
 
-Classe principal para gerenciamento de contexto:
+Base class for context management:
 
 ```python
-from pepperpy_core import Context
+from pepperpy_core.context import Context
 
-# Criar contexto tipado
-context = Context[str]()
+# Create context
+context = Context()
 
-# Definir valores
-context.set("language", "pt-BR")
-context.set_context("main")
-context.set_state("active", user="admin")
+# Set value
+await context.set("user", {"id": 1})
 
-# Recuperar valores
-language = context.get("language")
-current = context.get_context()
-state = context.get_state()
+# Get value
+user = await context.get("user")
 ```
 
 ### State
 
-Container para estado com metadados:
+State management with validation:
 
 ```python
-from pepperpy_core import State
-
-# Criar estado
-state = State[str](
-    value="processing",
-    metadata={"timestamp": "2024-01-05"}
-)
-
-# Acessar valores
-value = state.value
-metadata = state.metadata
-```
-
-## Exemplos de Uso
-
-### Contexto Básico
-
-```python
-from pepperpy_core import Context
-
-async def exemplo_contexto_basico():
-    # Criar contexto
-    context = Context[dict]()
-    
-    # Definir dados
-    context.set("config", {
-        "debug": True,
-        "environment": "development"
-    })
-    
-    # Atualizar múltiplos valores
-    context.update({
-        "version": "1.0.0",
-        "api_key": "secret123"
-    })
-    
-    # Recuperar valores
-    config = context.get("config")
-    version = context.get("version")
-```
-
-### Contexto com Estado
-
-```python
+from pepperpy_core.context import State
 from dataclasses import dataclass
-from pepperpy_core import Context, State
 
 @dataclass
-class UserSession:
-    user_id: int
+class UserState:
     username: str
     role: str
 
-async def exemplo_contexto_estado():
-    # Criar contexto tipado
-    context = Context[UserSession]()
-    
-    # Definir sessão atual
-    session = UserSession(1, "admin", "admin")
-    context.set_state(
-        session,
-        login_time="2024-01-05 10:00:00"
-    )
-    
-    # Recuperar estado
-    state = context.get_state()
-    if state:
-        print(f"Usuário: {state.value.username}")
-        print(f"Login: {state.metadata['login_time']}")
+# Create state
+state = State[UserState]()
+
+# Set state
+await state.set(UserState(
+    username="john",
+    role="admin"
+))
 ```
 
-## Recursos Avançados
+### Session
 
-### Contexto Aninhado
+Session management:
 
 ```python
-class NestedContext(Context[T]):
-    def __init__(self, parent: Context[T] | None = None):
-        super().__init__()
-        self.parent = parent
-    
-    def get(self, key: str, default: T | None = None) -> T | None:
-        value = super().get(key)
-        if value is None and self.parent:
-            return self.parent.get(key, default)
-        return value or default
-    
-    def get_context(self) -> T | None:
-        value = super().get_context()
-        if value is None and self.parent:
-            return self.parent.get_context()
-        return value
+from pepperpy_core.context import Session
+
+# Create session
+session = Session()
+
+# Set multiple values
+await session.update({
+    "user_id": 1,
+    "role": "admin",
+    "permissions": ["read", "write"]
+})
 ```
 
-### Contexto com Validação
+## Usage Examples
+
+### Basic Context
 
 ```python
-class ValidatedContext(Context[T]):
-    def __init__(self):
-        super().__init__()
-        self.validators = {}
-    
-    def add_validator(self, key: str, validator: callable):
-        self.validators[key] = validator
-    
-    def set(self, key: str, value: T) -> None:
-        if key in self.validators:
-            validator = self.validators[key]
-            if not validator(value):
-                raise ContextError(
-                    f"Validação falhou para {key}"
+from pepperpy_core.context import Context
+
+# Create context
+context = Context()
+
+# Set current session
+await context.set(
+    "session",
+    {"user": "john"}
+)
+
+# Get value
+state = await context.get("session")
+print(f"User: {state.value.username}")
+```
+
+## Advanced Features
+
+### Validated Context
+
+```python
+from pepperpy_core.context import ValidatedContext
+from pydantic import BaseModel
+
+class Config(BaseModel):
+    host: str
+    port: int
+
+class AppContext(ValidatedContext):
+    async def validate(self, key: str, value: Any):
+        if key == "config":
+            if not isinstance(value, Config):
+                raise ValueError(
+                    f"Validation failed for {key}"
                 )
-        super().set(key, value)
 ```
 
-## Melhores Práticas
+## Best Practices
 
-1. **Tipos**
-   - Use tipos genéricos
-   - Defina tipos claros
-   - Valide tipos
-   - Mantenha consistência
+1. **Type Safety**
+   - Use generic types
+   - Validate inputs
+   - Maintain consistency
+   - Handle errors
 
-2. **Estado**
-   - Gerencie ciclo de vida
-   - Use metadados apropriados
-   - Implemente limpeza
-   - Documente estados
+2. **State Management**
+   - Keep state minimal
+   - Use immutable data
+   - Handle updates
+   - Monitor changes
 
-3. **Contexto**
-   - Defina escopo claro
-   - Use hierarquia apropriada
-   - Implemente validação
-   - Gerencie recursos
+3. **Validation**
+   - Implement validation
+   - Check types
+   - Validate format
+   - Handle errors
 
 4. **Performance**
-   - Otimize acessos
-   - Minimize estado
-   - Use cache quando apropriado
-   - Monitore uso
+   - Optimize access
+   - Use caching
+   - Monitor usage
+   - Handle cleanup
 
-5. **Segurança**
-   - Proteja dados sensíveis
-   - Valide entrada
-   - Controle acesso
-   - Limpe dados sensíveis
+5. **Security**
+   - Protect sensitive data
+   - Validate access
+   - Clean sensitive data
+   - Monitor usage
 
-## Padrões Comuns
+## Common Patterns
 
-### Contexto com Observadores
+### Context with Cache
 
 ```python
-class ObservableContext(Context[T]):
+from pepperpy_core.context import CachedContext
+
+class AppContext(CachedContext):
     def __init__(self):
         super().__init__()
-        self.observers = []
-    
-    def add_observer(self, observer: callable):
-        self.observers.append(observer)
-    
-    def set(self, key: str, value: T) -> None:
-        old_value = self.get(key)
-        super().set(key, value)
-        for observer in self.observers:
-            observer(key, old_value, value)
-    
-    def set_state(self, value: T, **metadata: Any) -> None:
-        old_state = self.get_state()
-        super().set_state(value, **metadata)
-        for observer in self.observers:
-            observer("state", old_state, value)
-```
-
-### Contexto com Histórico
-
-```python
-class HistoryContext(Context[T]):
-    def __init__(self, max_history: int = 10):
-        super().__init__()
-        self.history = []
-        self.max_history = max_history
-    
-    def set_state(self, value: T, **metadata: Any) -> None:
-        old_state = self.get_state()
-        if old_state:
-            self.history.append(old_state)
-            if len(self.history) > self.max_history:
-                self.history.pop(0)
-        super().set_state(value, **metadata)
-    
-    def undo(self) -> bool:
-        if not self.history:
-            return False
-        
-        state = self.history.pop()
-        super().set_state(state.value, **state.metadata)
-        return True
-```
-
-### Contexto com Cache
-
-```python
-class CachedContext(Context[T]):
-    def __init__(self, ttl: float = 60.0):
-        super().__init__()
         self.cache = {}
-        self.ttl = ttl
     
-    def get(self, key: str, default: T | None = None) -> T | None:
+    async def get(self, key: str) -> Any:
+        # Check cache
         if key in self.cache:
-            entry = self.cache[key]
-            if time.time() - entry["timestamp"] < self.ttl:
-                return entry["value"]
-            del self.cache[key]
+            return self.cache[key]
         
-        value = super().get(key, default)
-        if value is not None:
-            self.cache[key] = {
-                "value": value,
-                "timestamp": time.time()
-            }
+        # Get value
+        value = await super().get(key)
+        
+        # Update cache
+        self.cache[key] = value
         return value
 ```
+
+### Context with History
+
+```python
+from pepperpy_core.context import HistoryContext
+
+class AppContext(HistoryContext):
+    def __init__(self):
+        super().__init__()
+        self.history = []
+    
+    async def set(self, key: str, value: Any):
+        # Record change
+        self.history.append({
+            "key": key,
+            "value": value,
+            "timestamp": time.time()
+        })
+        
+        await super().set(key, value)
+```
+
+## API Reference
+
+### Context
+
+```python
+class Context:
+    async def get(
+        self,
+        key: str
+    ) -> Any:
+        """Get value by key."""
+        
+    async def set(
+        self,
+        key: str,
+        value: Any
+    ):
+        """Set value by key."""
+        
+    async def delete(
+        self,
+        key: str
+    ):
+        """Delete value by key."""
+```
+
+### State
+
+```python
+class State[T]:
+    async def get(self) -> T:
+        """Get current state."""
+        
+    async def set(
+        self,
+        value: T
+    ):
+        """Set new state."""
+        
+    async def update(
+        self,
+        updater: Callable[[T], T]
+    ):
+        """Update state."""
+```
+
+### Session
+
+```python
+class Session:
+    async def start(self):
+        """Start session."""
+        
+    async def end(self):
+        """End session."""
+        
+    async def clear(self):
+        """Clear session data."""
 ``` 

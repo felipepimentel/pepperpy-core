@@ -1,320 +1,303 @@
-# Configuration (Configuração)
+# Configuration Module
 
-O módulo de Configuração do PepperPy Core fornece uma estrutura flexível para gerenciamento de configurações, suportando múltiplos formatos, validação e carregamento dinâmico.
+## Overview
 
-## Componentes Principais
+The configuration module provides a flexible and robust system for managing application configurations, with support for multiple sources, validation, environment variable substitution, and dynamic loading.
 
-### Config
+## Core Components
 
-Classe base para configurações:
+### ConfigManager
 
 ```python
-from pepperpy_core import Config
+from pepperpy_core.config import ConfigManager
 
-# Criar configuração
-config = Config(
-    name="app_config",
-    data={
-        "debug": True,
-        "host": "localhost",
-        "port": 8080
-    }
-)
+# Create manager
+manager = ConfigManager()
 
-# Acessar valores
-debug = config.get("debug")
-host = config.get("host")
-port = config.get("port", default=8000)
+# Add sources
+manager.add_source("config.yaml")
+manager.add_source("secrets.yaml")
+manager.add_source(env_prefix="APP_")
+
+# Load configuration
+config = await manager.load()
 ```
 
-### ConfigLoader
-
-Carregador de configurações de diferentes fontes:
+### ConfigBuilder
 
 ```python
-from pepperpy_core import ConfigLoader
+from pepperpy_core.config import ConfigBuilder
 
-# Criar loader
-loader = ConfigLoader()
+# Build configuration
+builder = ConfigBuilder()
+builder.set_defaults({
+    "app": {
+        "name": "myapp",
+        "port": 8000
+    }
+})
+builder.from_env(prefix="APP_")
+builder.from_file("config.yaml")
 
-# Carregar de arquivo
-config = await loader.load_file("config.json")
-
-# Carregar de ambiente
-config = await loader.load_env(prefix="APP_")
-
-# Carregar de string
-config = await loader.load_string('{"debug": true}')
+config = builder.build()
 ```
 
 ### ConfigValidator
 
-Validador de configurações:
-
 ```python
-from pepperpy_core import ConfigValidator
+from pepperpy_core.config import ConfigValidator
 
-class AppConfigValidator(ConfigValidator):
-    def validate(self, config: Config) -> bool:
-        # Validar valores obrigatórios
-        if not config.has("host"):
-            raise ValueError("Host é obrigatório")
-        
-        # Validar tipos
-        if not isinstance(config.get("port"), int):
-            raise TypeError("Port deve ser inteiro")
-        
-        return True
+validator = ConfigValidator({
+    "app.name": str,
+    "app.port": int,
+    "db.url": str
+})
+
+# Validate configuration
+validator.validate(config)
 ```
 
-## Exemplos de Uso
+## Usage Patterns
 
-### Configuração Básica
-
-```python
-from pepperpy_core import Config, ConfigLoader
-
-async def exemplo_config_basica():
-    # Criar configuração
-    config = Config("app")
-    
-    # Definir valores
-    config.set("debug", True)
-    config.set("database", {
-        "host": "localhost",
-        "port": 5432,
-        "name": "app_db"
-    })
-    
-    # Acessar valores
-    debug = config.get("debug")
-    db_host = config.get("database.host")
-    
-    # Salvar configuração
-    await config.save("config.json")
-```
-
-### Configuração Hierárquica
+### 1. Environment-based Configuration
 
 ```python
-from pepperpy_core import Config
+from pepperpy_core.config import EnvConfig
 
-async def exemplo_config_hierarquica():
-    # Configuração base
-    base_config = Config("base", {
-        "app": {
-            "name": "MyApp",
-            "version": "1.0.0"
-        },
-        "logging": {
-            "level": "INFO",
-            "format": "%(asctime)s - %(message)s"
-        }
-    })
-    
-    # Configuração específica
-    dev_config = Config("development", parent=base_config)
-    dev_config.set("app.debug", True)
-    dev_config.set("database.host", "localhost")
-    
-    # Acessar valores (herda da base)
-    app_name = dev_config.get("app.name")      # "MyApp"
-    debug = dev_config.get("app.debug")        # True
-    log_level = dev_config.get("logging.level") # "INFO"
-```
-
-## Recursos Avançados
-
-### Configuração com Validação
-
-```python
-from pepperpy_core import Config, ConfigValidator
-from pydantic import BaseModel
-
-class DatabaseConfig(BaseModel):
-    host: str
-    port: int
-    name: str
-    user: str
-    password: str
-
-class AppConfigValidator(ConfigValidator):
+class AppConfig(EnvConfig):
     def __init__(self):
-        self.models = {
-            "database": DatabaseConfig
+        super().__init__(prefix="APP_")
+        
+        # Define defaults
+        self.defaults = {
+            "debug": False,
+            "port": 8000,
+            "host": "localhost"
         }
     
-    def validate(self, config: Config) -> bool:
-        for key, model in self.models.items():
-            if config.has(key):
-                try:
-                    # Validar usando Pydantic
-                    model(**config.get(key))
-                except ValidationError as e:
-                    raise ConfigError(
-                        f"Erro na validação de {key}: {e}"
-                    )
-        return True
+    def load(self):
+        config = super().load()
+        
+        # Add computed values
+        config["url"] = f"http://{config['host']}:{config['port']}"
+        
+        return config
 ```
 
-### Configuração com Observadores
+### 2. Dynamic Configuration
 
 ```python
-class ObservableConfig(Config):
-    def __init__(self, name: str, data: dict | None = None):
-        super().__init__(name, data)
-        self.observers = []
+from pepperpy_core.config import DynamicConfig
+
+class ServiceConfig(DynamicConfig):
+    def __init__(self):
+        super().__init__()
+        self.watchers = []
     
-    def add_observer(self, observer: callable):
-        self.observers.append(observer)
+    def add_watcher(self, callback):
+        self.watchers.append(callback)
     
-    def set(self, key: str, value: Any):
-        old_value = self.get(key)
-        super().set(key, value)
+    async def update(self, changes):
+        # Apply changes
+        self.config.update(changes)
         
-        # Notificar observadores
-        for observer in self.observers:
-            observer(key, old_value, value)
+        # Notify watchers
+        for watcher in self.watchers:
+            await watcher(changes)
 ```
 
-## Melhores Práticas
-
-1. **Estrutura**
-   - Use hierarquia clara
-   - Agrupe configurações relacionadas
-   - Use nomes descritivos
-   - Mantenha consistência
-
-2. **Validação**
-   - Valide tipos de dados
-   - Verifique valores obrigatórios
-   - Implemente regras de negócio
-   - Forneça mensagens claras
-
-3. **Segurança**
-   - Proteja dados sensíveis
-   - Use variáveis de ambiente
-   - Implemente criptografia
-   - Controle acesso
-
-4. **Performance**
-   - Use cache apropriadamente
-   - Otimize carregamento
-   - Minimize operações de I/O
-   - Implemente lazy loading
-
-5. **Manutenção**
-   - Documente configurações
-   - Mantenha versionamento
-   - Implemente migração
-   - Faça backup regular
-
-## Padrões Comuns
-
-### Configuração com Cache
+### 3. Secure Configuration
 
 ```python
-class CachedConfig(Config):
-    def __init__(self, name: str, cache_time: int = 300):
-        super().__init__(name)
-        self.cache = {}
-        self.cache_time = cache_time
-    
-    def get(self, key: str, default: Any = None) -> Any:
-        # Verificar cache
-        if key in self.cache:
-            entry = self.cache[key]
-            if time.time() - entry["timestamp"] < self.cache_time:
-                return entry["value"]
-        
-        # Buscar valor
-        value = super().get(key, default)
-        
-        # Atualizar cache
-        self.cache[key] = {
-            "value": value,
-            "timestamp": time.time()
-        }
-        
-        return value
-```
+from pepperpy_core.config import SecureConfig
 
-### Configuração com Encriptação
-
-```python
-from cryptography.fernet import Fernet
-
-class EncryptedConfig(Config):
-    def __init__(self, name: str, key: bytes):
-        super().__init__(name)
-        self.fernet = Fernet(key)
-    
-    def set(self, key: str, value: Any):
-        if self.is_sensitive(key):
-            # Encriptar valor
-            value = self.encrypt(value)
-        super().set(key, value)
-    
-    def get(self, key: str, default: Any = None) -> Any:
-        value = super().get(key, default)
-        if self.is_sensitive(key):
-            # Decriptar valor
-            value = self.decrypt(value)
-        return value
-    
-    def is_sensitive(self, key: str) -> bool:
-        return any(k in key.lower() for k in ["password", "secret", "key"])
-    
-    def encrypt(self, value: str) -> str:
-        return self.fernet.encrypt(value.encode()).decode()
-    
-    def decrypt(self, value: str) -> str:
-        return self.fernet.decrypt(value.encode()).decode()
-```
-
-### Configuração com Migração
-
-```python
-class VersionedConfig(Config):
-    def __init__(self, name: str, version: str):
-        super().__init__(name)
-        self.version = version
-        self.migrations = {}
-    
-    def register_migration(
-        self,
-        from_version: str,
-        to_version: str,
-        func: callable
-    ):
-        self.migrations[(from_version, to_version)] = func
-    
-    async def load(self, path: str):
-        data = await self.load_file(path)
-        
-        # Verificar versão
-        current_version = data.get("_version", "1.0.0")
-        if current_version != self.version:
-            # Aplicar migrações
-            data = await self.migrate(
-                data,
-                current_version,
-                self.version
-            )
-        
-        self.data = data
-    
-    async def migrate(
-        self,
-        data: dict,
-        from_version: str,
-        to_version: str
-    ) -> dict:
-        if (from_version, to_version) in self.migrations:
-            migration = self.migrations[(from_version, to_version)]
-            return await migration(data)
-        
-        raise ValueError(
-            f"Não há migração de {from_version} para {to_version}"
+class SecretsConfig(SecureConfig):
+    def __init__(self):
+        super().__init__(
+            encryption_key=os.environ["SECRET_KEY"]
         )
+    
+    def decrypt_value(self, value: str) -> str:
+        if self.is_encrypted(value):
+            return self.decrypt(value)
+        return value
+```
+
+## Best Practices
+
+1. **Sources**
+   - Use multiple sources
+   - Define clear hierarchy
+   - Handle conflicts
+   - Document sources
+
+2. **Validation**
+   - Validate all inputs
+   - Use schemas
+   - Check types
+   - Verify constraints
+
+3. **Security**
+   - Encrypt sensitive data
+   - Use environment variables
+   - Separate secrets
+   - Control access
+
+4. **Maintenance**
+   - Keep documentation updated
+   - Monitor changes
+   - Audit access
+   - Backup configs
+
+## Common Patterns
+
+### 1. Complete Configuration System
+
+```python
+from pepperpy_core.config import (
+    ConfigManager,
+    ConfigValidator,
+    ConfigWatcher
+)
+
+class ApplicationConfig:
+    def __init__(self):
+        self.manager = ConfigManager()
+        self.validator = ConfigValidator()
+        self.watcher = ConfigWatcher()
+    
+    async def initialize(self):
+        # Add sources
+        self.manager.add_source(
+            "config/default.yaml",
+            required=True
+        )
+        self.manager.add_source(
+            f"config/{env}.yaml",
+            required=False
+        )
+        self.manager.add_source(
+            env_prefix="APP_"
+        )
+        
+        # Add validation
+        self.validator.add_schema({
+            "app.name": str,
+            "app.port": int,
+            "db.url": str,
+            "redis.url": str
+        })
+        
+        # Load config
+        config = await self.manager.load()
+        
+        # Validate
+        self.validator.validate(config)
+        
+        # Watch for changes
+        self.watcher.watch(config, self.on_change)
+        
+        return config
+    
+    async def on_change(self, changes):
+        # Validate changes
+        self.validator.validate_changes(changes)
+        
+        # Apply changes
+        await self.apply_changes(changes)
+        
+        # Notify services
+        await self.notify_services(changes)
+```
+
+### 2. Service Configuration
+
+```python
+from pepperpy_core.config import ServiceConfig
+
+class DatabaseConfig(ServiceConfig):
+    def __init__(self):
+        super().__init__(name="database")
+        
+        # Define schema
+        self.schema = {
+            "url": str,
+            "pool_size": int,
+            "timeout": float
+        }
+        
+        # Set defaults
+        self.defaults = {
+            "pool_size": 10,
+            "timeout": 30.0
+        }
+    
+    def validate(self, config):
+        # Validate schema
+        super().validate(config)
+        
+        # Custom validation
+        if config["pool_size"] < 1:
+            raise ValueError("Pool size must be positive")
+        
+        if config["timeout"] <= 0:
+            raise ValueError("Timeout must be positive")
+    
+    async def apply(self, config):
+        # Apply configuration
+        await self.database.configure(
+            url=config["url"],
+            pool_size=config["pool_size"],
+            timeout=config["timeout"]
+        )
+```
+
+## API Reference
+
+### ConfigManager
+
+```python
+class ConfigManager:
+    def add_source(
+        self,
+        source: str | dict,
+        required: bool = True
+    ):
+        """Add configuration source."""
+        
+    async def load(self) -> dict:
+        """Load configuration from all sources."""
+        
+    def get(self, key: str, default: Any = None) -> Any:
+        """Get configuration value."""
+```
+
+### ConfigValidator
+
+```python
+class ConfigValidator:
+    def add_schema(self, schema: dict):
+        """Add validation schema."""
+        
+    def validate(self, config: dict):
+        """Validate configuration."""
+        
+    def validate_changes(self, changes: dict):
+        """Validate configuration changes."""
+```
+
+### ConfigWatcher
+
+```python
+class ConfigWatcher:
+    def watch(
+        self,
+        config: dict,
+        callback: callable
+    ):
+        """Watch for configuration changes."""
+        
+    def notify(self, changes: dict):
+        """Notify watchers of changes."""
+```
 ``` 

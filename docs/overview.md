@@ -1,168 +1,168 @@
-# PepperPy Core - Visão Geral
+# PepperPy Core - Overview
 
-O PepperPy Core é uma biblioteca de utilitários projetada para acelerar o desenvolvimento de aplicações Python, fornecendo componentes reutilizáveis e padrões comuns de desenvolvimento.
+PepperPy Core is a utility library designed to accelerate Python application development by providing reusable components and common development patterns.
 
-## Arquitetura
+## Architecture
 
-A biblioteca é organizada em módulos independentes mas integrados, cada um focado em uma área específica de funcionalidade:
+The library is organized into independent but integrated modules, each focused on a specific area of functionality:
 
-### Módulos Fundamentais
+### Core Modules
 
 1. **Types** (`types.py`)
-   - Definições de tipos base
-   - Classes genéricas
-   - Protocolos e interfaces
-   - Utilitários de tipagem
+   - Base type definitions
+   - Generic classes
+   - Protocols and interfaces
+   - Typing utilities
 
 2. **Config** (`config.py`)
-   - Gerenciamento de configurações
-   - Carregamento de configurações
-   - Validação de configurações
-   - Ambientes configuráveis
+   - Configuration management
+   - Configuration loading
+   - Configuration validation
+   - Configurable environments
 
 3. **Exceptions** (`exceptions.py`)
-   - Hierarquia de exceções
-   - Tratamento de erros
-   - Exceções customizadas
-   - Contexto de erro
+   - Exception hierarchy
+   - Error handling
+   - Custom exceptions
+   - Error context
 
-### Módulos de Infraestrutura
+### Infrastructure Modules
 
 4. **IO** (`io.py`)
-   - Operações de arquivo
-   - Streams assíncronos
-   - Buffers de dados
-   - Gerenciamento de recursos
+   - File operations
+   - Async streams
+   - Data buffers
+   - Resource management
 
 5. **Network** (`network.py`)
-   - Clientes HTTP
+   - HTTP clients
    - WebSockets
-   - Gerenciamento de conexões
-   - Protocolos de rede
+   - Connection management
+   - Network protocols
 
 6. **Storage** (`storage.py`)
-   - Armazenamento persistente
-   - Cache em memória
-   - Backends plugáveis
-   - Gerenciamento de dados
+   - Persistent storage
+   - Memory cache
+   - Pluggable backends
+   - Data management
 
-### Módulos de Estado e Dados
+### State and Data Modules
 
 7. **State** (`state.py`)
-   - Gerenciamento de estado
-   - Observadores de mudança
-   - Persistência de estado
-   - Sincronização
+   - State management
+   - Change observers
+   - State persistence
+   - Synchronization
 
 8. **Cache** (`cache.py`)
-   - Cache em memória
-   - Políticas de cache
-   - Invalidação
-   - Estatísticas
+   - Memory cache
+   - Cache policies
+   - Invalidations
+   - Statistics
 
 9. **Context** (`context.py`)
-   - Contexto de execução
-   - Escopo de dados
-   - Propagação de contexto
-   - Isolamento
+   - Execution context
+   - Data scope
+   - Context propagation
+   - Isolation
 
-### Módulos de Processamento
+### Processing Modules
 
 10. **Task** (`task.py`)
-    - Gerenciamento de tarefas
-    - Filas de trabalho
-    - Execução assíncrona
-    - Agendamento
+    - Task management
+    - Work queues
+    - Asynchronous execution
+    - Scheduling
 
 11. **Event** (`event.py`)
-    - Sistema de eventos
+    - Event system
     - Pub/Sub
-    - Handlers assíncronos
-    - Roteamento de eventos
+    - Asynchronous handlers
+    - Event routing
 
 12. **Pipeline** (`pipeline.py`)
-    - Processamento em pipeline
-    - Transformação de dados
-    - Composição de operações
-    - Fluxos de trabalho
+    - Pipeline processing
+    - Data transformation
+    - Operation composition
+    - Workflow
 
-### Módulos de Segurança
+### Security Modules
 
 13. **Security** (`security.py`)
-    - Autenticação
-    - Autorização
-    - Criptografia
-    - Proteção de dados
+    - Authentication
+    - Authorization
+    - Encryption
+    - Data protection
 
 14. **Validation** (`validation.py`)
-    - Validação de dados
+    - Data validation
     - Schemas
-    - Regras customizadas
-    - Sanitização
+    - Custom rules
+    - Sanitization
 
-### Módulos de Desenvolvimento
+### Development Modules
 
 15. **Testing** (`testing.py`)
-    - Testes assíncronos
-    - Mocks e stubs
+    - Asynchronous tests
+    - Mocks and stubs
     - Fixtures
-    - Asserções
+    - Assertions
 
 16. **Dev** (`dev.py`)
-    - Utilitários de desenvolvimento
+    - Development utilities
     - Debugging
     - Profiling
-    - Ferramentas
+    - Tools
 
-### Módulos de Monitoramento
+### Monitoring Modules
 
 17. **Logging** (`logging.py`)
-    - Logging estruturado
-    - Formatadores
+    - Structured logging
+    - Formatters
     - Handlers
-    - Níveis de log
+    - Log levels
 
 18. **Telemetry** (`telemetry.py`)
-    - Métricas
+    - Metrics
     - Tracing
-    - Monitoramento
-    - Alertas
+    - Monitoring
+    - Alerts
 
-### Módulos de Extensibilidade
+### Extensibility Modules
 
 19. **Plugin** (`plugin.py`)
-    - Sistema de plugins
-    - Carregamento dinâmico
+    - Plugin system
+    - Dynamic loading
     - Hooks
-    - Extensões
+    - Extensions
 
 20. **Registry** (`registry.py`)
-    - Registro de componentes
+    - Component registry
     - Service locator
-    - Injeção de dependência
-    - Gerenciamento de ciclo de vida
+    - Dependency injection
+    - Lifecycle management
 
-### Módulos de Utilidade
+### Utility Modules
 
 21. **Utils** (`utils.py`)
-    - Funções utilitárias
+    - Utility functions
     - Helpers
-    - Decoradores
-    - Conversões
+    - Decorators
+    - Conversions
 
 22. **Serialization** (`serialization.py`)
-    - Serialização de dados
-    - Formatos suportados
-    - Conversores
+    - Data serialization
+    - Supported formats
+    - Converters
     - Schemas
 
 23. **Resources** (`resources.py`)
-    - Gerenciamento de recursos
-    - Carregamento
+    - Resource management
+    - Loading
     - Cleanup
     - Pooling
 
-## Relações e Dependências
+## Relationships and Dependencies
 
 ### Core Dependencies
 
@@ -203,59 +203,59 @@ graph TD
     C --> D[State]
 ```
 
-## Padrões de Design
+## Design Patterns
 
-A biblioteca implementa vários padrões de design comuns:
+The library implements several common design patterns:
 
-1. **Criacionais**
+1. **Creational**
    - Factory Method
    - Builder
    - Singleton
    - Dependency Injection
 
-2. **Estruturais**
+2. **Structural**
    - Adapter
    - Bridge
    - Composite
    - Decorator
    - Facade
 
-3. **Comportamentais**
+3. **Behavioral**
    - Observer
    - Strategy
    - Command
    - Chain of Responsibility
    - Visitor
 
-## Melhores Práticas
+## Best Practices
 
-1. **Desenvolvimento**
+1. **Development**
    - Use type hints
-   - Documente código
-   - Escreva testes
-   - Siga PEP 8
+   - Document code
+   - Write tests
+   - Follow PEP 8
 
 2. **Performance**
    - Use async/await
-   - Implemente cache
-   - Otimize I/O
-   - Profile código
+   - Implement cache
+   - Optimize I/O
+   - Profile code
 
-3. **Segurança**
-   - Valide input
-   - Sanitize dados
+3. **Security**
+   - Validate input
+   - Sanitize data
    - Use HTTPS
-   - Encripte dados
+   - Encrypt data
 
-4. **Manutenção**
-   - Monitore erros
-   - Faça logging
-   - Atualize deps
-   - Documente mudanças
+4. **Maintenance**
+   - Monitor errors
+   - Do logging
+   - Update deps
+   - Document changes
 
-## Exemplos de Uso
+## Usage Examples
 
-### Aplicação Básica
+### Basic Application
 
 ```python
 from pepperpy_core import (
@@ -266,23 +266,23 @@ from pepperpy_core import (
 )
 
 async def main():
-    # Configuração
+    # Configuration
     config = Config.load("config.yaml")
     
-    # Estado
+    # State
     state = StateManager()
     await state.initialize()
     
-    # Eventos
+    # Events
     events = EventManager()
     await events.start()
     
-    # Tarefas
+    # Tasks
     tasks = TaskManager()
     await tasks.start()
     
     try:
-        # Lógica principal
+        # Main logic
         await run_application(
             config=config,
             state=state,
@@ -296,7 +296,7 @@ async def main():
         await state.cleanup()
 ```
 
-### Processamento de Dados
+### Data Processing
 
 ```python
 from pepperpy_core import (
@@ -306,7 +306,7 @@ from pepperpy_core import (
 )
 
 async def process_data():
-    # Validação
+    # Validation
     validator = Validation.create_schema({
         "name": str,
         "age": int,
@@ -324,11 +324,11 @@ async def process_data():
         .add_step(storage.save)
     )
     
-    # Processar
+    # Process
     result = await pipeline.process(data)
 ```
 
-### API Segura
+### Secure API
 
 ```python
 from pepperpy_core import (
@@ -338,39 +338,39 @@ from pepperpy_core import (
 )
 
 async def secure_endpoint():
-    # Segurança
+    # Security
     security = Security()
     
-    # Validação
+    # Validation
     validator = Validation()
     
     # Logging
     logger = Logging.get_logger()
     
     try:
-        # Autenticar
+        # Authenticate
         user = await security.authenticate(token)
         
-        # Validar
+        # Validate
         data = await validator.validate(request.data)
         
-        # Processar
+        # Process
         result = await process_data(user, data)
         
         # Log
-        await logger.info("Operação sucesso", extra={
+        await logger.info("Operation successful", extra={
             "user": user.id,
             "operation": "process"
         })
         
         return result
     except Exception as e:
-        # Log erro
-        await logger.error("Operação falhou", exc_info=e)
+        # Log error
+        await logger.error("Operation failed", exc_info=e)
         raise
 ```
 
-## Contribuindo
+## Contributing
 
 1. **Setup**
    ```bash
@@ -385,21 +385,21 @@ async def secure_endpoint():
    ```
 
 2. **Guidelines**
-   - Siga o estilo do código
-   - Adicione testes
-   - Documente mudanças
-   - Faça PRs pequenos
+   - Follow code style
+   - Add tests
+   - Document changes
+   - Make small PRs
 
 3. **Workflow**
-   - Fork o repo
-   - Crie uma branch
-   - Faça mudanças
-   - Submeta PR
+   - Fork the repo
+   - Create a branch
+   - Make changes
+   - Submit PR
 
-## Recursos
+## Resources
 
-- [Documentação](docs/)
-- [Exemplos](examples/)
-- [Testes](tests/)
+- [Documentation](docs/)
+- [Examples](examples/)
+- [Tests](tests/)
 - [Changelog](CHANGELOG.md)
 ``` 

@@ -1,260 +1,217 @@
-# Dev (Desenvolvimento)
+# Development Module
 
-O módulo Dev do PepperPy Core fornece utilitários para desenvolvimento, incluindo ferramentas de logging, timing, debugging e testes assíncronos.
+The PepperPy Core Dev module provides utilities for development, including tools for logging, timing, debugging, and asynchronous testing.
 
-## Componentes Principais
+## Core Components
 
 ### LogLevel
 
-Enumeração para níveis de log:
+Enumeration for log levels:
 
 ```python
-from pepperpy_core import LogLevel
+from pepperpy_core.dev import LogLevel
 
-# Níveis disponíveis
-level = LogLevel.DEBUG    # debug
-level = LogLevel.INFO     # info
-level = LogLevel.WARNING  # warning
-level = LogLevel.ERROR    # error
-level = LogLevel.CRITICAL # critical
+# Available levels
+class LogLevel(Enum):
+    DEBUG = 10
+    INFO = 20
+    WARNING = 30
+    ERROR = 40
+    CRITICAL = 50
 ```
 
 ### Timer
 
-Context manager para medição de tempo:
+Context manager for time measurement:
 
 ```python
-from pepperpy_core import Timer
+from pepperpy_core.dev import Timer
 
-# Usar timer
-with Timer("operation") as timer:
-    # Operação a ser medida
-    process_data()
+async with Timer() as timer:
+    # Operation to be measured
+    await process_data()
 
-# Com logger
-with Timer("operation", logger=my_logger) as timer:
-    process_data()
+print(f"Duration: {timer.duration}ms")
 ```
 
 ### AsyncTestCase
 
-Classe base para testes assíncronos:
+Base class for asynchronous tests:
 
 ```python
-from pepperpy_core import AsyncTestCase
+from pepperpy_core.dev import AsyncTestCase
 
-class MyTests(AsyncTestCase):
-    async def test_async_operation(self):
-        result = await my_async_function()
-        self.assertEqual(result, expected)
+class TestExample(AsyncTestCase):
+    async def setUp(self):
+        self.data = await load_test_data()
     
-    def test_with_run_async(self):
-        result = self.run_async(my_async_function())
-        self.assertEqual(result, expected)
+    async def test_process(self):
+        result = await process_data(self.data)
+        self.assertEqual(result.status, "success")
+    
+    async def tearDown(self):
+        await cleanup_test_data()
 ```
 
-## Exemplos de Uso
-
-### Debug Decorators
+### Decorators
 
 ```python
-from pepperpy_core import debug_decorator, async_debug_decorator
+from pepperpy_core.dev import debug, async_debug
 
-# Criar logger
-logger = MyLogger()
-
-# Decorador para função síncrona
-@debug_decorator(logger)
+# Decorator for sync function
+@debug
 def process_data(data: dict) -> dict:
-    return {"processed": data}
+    return transform_data(data)
 
-# Decorador para função assíncrona
-@async_debug_decorator(logger)
-async def fetch_data(url: str) -> dict:
-    return {"url": url, "status": "ok"}
+# Decorator for async function
+@async_debug
+async def process_async(data: dict) -> dict:
+    return await transform_async(data)
 ```
 
-### Timer com Logger
+### Protocol
 
 ```python
-from pepperpy_core import Timer, LoggerProtocol
+from pepperpy_core.dev import Protocol
 
-class MyLogger(LoggerProtocol):
-    def info(self, message: str, **kwargs):
-        print(f"INFO: {message}")
-        if kwargs:
-            print(f"Extra: {kwargs}")
-    
-    # Implementar outros métodos do protocolo...
-
-async def exemplo_timer():
-    logger = MyLogger()
-    
-    # Usar timer com logger
-    with Timer("data_processing", logger=logger):
-        # Timer registrará início e fim
-        await process_large_dataset()
-```
-
-## Recursos Avançados
-
-### Logger Personalizado
-
-```python
-from pepperpy_core import LogLevel, LoggerProtocol
-
-class StructuredLogger(LoggerProtocol):
-    def log(self, level: LogLevel, message: str, **kwargs):
-        timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
-        log_entry = {
-            "timestamp": timestamp,
-            "level": level.value,
-            "message": message,
-            **kwargs
-        }
-        print(json.dumps(log_entry))
-    
-    def debug(self, message: str, **kwargs):
-        self.log(LogLevel.DEBUG, message, **kwargs)
-    
-    def info(self, message: str, **kwargs):
-        self.log(LogLevel.INFO, message, **kwargs)
-    
-    def warning(self, message: str, **kwargs):
-        self.log(LogLevel.WARNING, message, **kwargs)
-    
-    def error(self, message: str, **kwargs):
-        self.log(LogLevel.ERROR, message, **kwargs)
-    
-    def critical(self, message: str, **kwargs):
-        self.log(LogLevel.CRITICAL, message, **kwargs)
-```
-
-### Debug Utilitários
-
-```python
-from pepperpy_core import debug_call, debug_result, debug_error
-
-class DebugWrapper:
-    def __init__(self, logger: LoggerProtocol):
-        self.logger = logger
-    
-    async def execute(self, func: callable, *args, **kwargs):
-        # Registrar chamada
-        debug_call(self.logger, func.__name__, *args, **kwargs)
+class DataProcessor(Protocol):
+    async def process(self, data: dict) -> dict:
+        """Process data asynchronously."""
         
-        try:
-            # Executar função
-            result = await func(*args, **kwargs)
-            
-            # Registrar resultado
-            debug_result(self.logger, func.__name__, result)
-            return result
-        except Exception as e:
-            # Registrar erro
-            debug_error(self.logger, func.__name__, e)
-            raise
+    def validate(self, data: dict) -> bool:
+        """Validate data synchronously."""
+        
+    # Implement other protocol methods...
 ```
 
-## Melhores Práticas
+### Profiler
+
+```python
+from pepperpy_core.dev import Profiler
+
+async with Profiler() as profiler:
+    # Timer will record start and end
+    await process_data()
+```
+
+## Advanced Features
+
+### Memory Profiler
+
+```python
+from pepperpy_core.dev import MemoryProfiler
+
+profiler = MemoryProfiler()
+
+# Start tracking
+profiler.start()
+
+# Run operations
+await process_large_data()
+
+# Get memory usage
+usage = profiler.get_usage()
+print(f"Peak memory: {usage.peak_mb}MB")
+```
+
+### Debug Utilities
+
+```python
+from pepperpy_core.dev import DebugContext
+
+async with DebugContext() as ctx:
+    # Configure context
+    ctx.set_log_level(LogLevel.DEBUG)
+    ctx.enable_profiling()
+    
+    # Execute function
+    await process_data()
+    
+    # Get debug info
+    print(ctx.get_logs())
+    print(ctx.get_profile())
+```
+
+## Best Practices
 
 1. **Logging**
-   - Use níveis apropriados
-   - Inclua contexto relevante
-   - Estruture mensagens
-   - Implemente todos os métodos
+   - Use appropriate levels
+   - Include context
+   - Format messages
 
-2. **Timing**
-   - Use nomes descritivos
-   - Meça operações específicas
-   - Registre resultados
-   - Monitore performance
+2. **Testing**
+   - Implement all methods
+   - Mock dependencies
+   - Test edge cases
 
-3. **Debugging**
-   - Use decoradores apropriados
-   - Registre informações úteis
-   - Mantenha contexto
-   - Limpe logs de debug
+3. **Profiling**
+   - Measure specific operations
+   - Track memory usage
+   - Monitor performance
 
-4. **Testes**
-   - Use AsyncTestCase
-   - Implemente tearDown
-   - Limpe recursos
-   - Teste exceções
+4. **Debugging**
+   - Log useful information
+   - Use breakpoints
+   - Check variables
 
-5. **Performance**
-   - Minimize overhead
-   - Use sampling
-   - Otimize logging
-   - Monitore memória
+5. **Testing**
+   - Write unit tests
+   - Test exceptions
+   - Mock services
 
-## Padrões Comuns
+6. **Monitoring**
+   - Monitor memory
+   - Track performance
+   - Log errors
 
-### Timer com Métricas
+## Common Patterns
 
-```python
-class MetricsTimer(Timer):
-    def __init__(
-        self,
-        name: str,
-        logger: Optional[LoggerProtocol] = None
-    ):
-        super().__init__(name, logger)
-        self.metrics = []
-    
-    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any):
-        duration = time.perf_counter() - self._start
-        self.metrics.append(duration)
-        
-        if self.logger:
-            stats = {
-                "min": min(self.metrics),
-                "max": max(self.metrics),
-                "avg": sum(self.metrics) / len(self.metrics)
-            }
-            self.logger.info(
-                f"Timer {self.name} stats",
-                timer=self.name,
-                stats=stats
-            )
-```
-
-### Debug com Contexto
+### Timer with Metrics
 
 ```python
-class ContextLogger(LoggerProtocol):
+from pepperpy_core.dev import Timer, Metrics
+
+class TimedOperation:
     def __init__(self):
-        self.context = {}
+        self.metrics = Metrics()
     
-    def add_context(self, **kwargs):
-        self.context.update(kwargs)
-    
-    def log(self, level: LogLevel, message: str, **kwargs):
-        # Mesclar contexto com kwargs
-        context = {**self.context, **kwargs}
-        print(f"[{level.value}] {message} {context}")
-    
-    # Implementar outros métodos do protocolo...
+    async def execute(self, operation):
+        async with Timer() as timer:
+            try:
+                # Execute operation
+                result = await operation()
+                
+                # Record metrics
+                self.metrics.record_success(
+                    operation=operation.__name__,
+                    duration=timer.duration
+                )
+                
+                return result
+            except Exception as e:
+                # Record failure
+                self.metrics.record_failure(
+                    operation=operation.__name__,
+                    error=str(e)
+                )
+                raise
 ```
 
-### Teste com Recursos
+### Debug Protocol
 
 ```python
-class ResourceTestCase(AsyncTestCase):
-    async def asyncSetUp(self):
-        # Configurar recursos
-        self.resource = await create_resource()
+from pepperpy_core.dev import DebugProtocol
+
+class Debuggable(DebugProtocol):
+    def __init__(self):
+        self.debug_info = {}
     
-    async def asyncTearDown(self):
-        # Limpar recursos
-        await self.resource.cleanup()
+    def set_debug(self, key: str, value: Any):
+        self.debug_info[key] = value
     
-    def setUp(self):
-        super().setUp()
-        self.run_async(self.asyncSetUp())
+    def get_debug(self, key: str) -> Any:
+        return self.debug_info.get(key)
     
-    def tearDown(self):
-        self.run_async(self.asyncTearDown())
-        super().tearDown()
+    # Implement other protocol methods...
 ```
 ``` 

@@ -1,280 +1,199 @@
-# State (Estado)
+# State Module
 
-O módulo State do PepperPy Core fornece um sistema robusto para gerenciamento de estado da aplicação, incluindo persistência, sincronização e observabilidade de mudanças.
+The PepperPy Core State module provides a robust system for application state management, including persistence, synchronization, and change observability.
 
-## Componentes Principais
+## Core Components
 
-### StateManager
-
-Gerenciador central de estado:
+### State Manager
 
 ```python
-from pepperpy_core import StateManager
+from pepperpy_core.state import StateManager
 
-# Criar gerenciador
+# Create manager
 manager = StateManager()
 
-# Definir estado
-await manager.set("user.preferences", {
-    "theme": "dark",
-    "language": "pt"
-})
+# Set value
+await manager.set("config.debug", True)
 
-# Obter estado
-preferences = await manager.get("user.preferences")
+# Get value
+debug = await manager.get("config.debug")
 ```
 
-### StateStore
-
-Armazenamento de estado:
+### State Container
 
 ```python
-from pepperpy_core import StateStore
+from pepperpy_core.state import Container
+from dataclasses import dataclass
 
-# Criar store
-store = StateStore()
+@dataclass
+class AppState:
+    debug: bool
+    version: str
 
-# Registrar estado
-store.register("counter", initial_value=0)
+# Create container
+container = Container[AppState]()
 
-# Atualizar estado
-await store.update("counter", lambda x: x + 1)
+# Set state
+await container.set(AppState(
+    debug=True,
+    version="1.0.0"
+))
 ```
 
-### StateObserver
+### State Observer
 
-Observador de mudanças:
-
-```python
-from pepperpy_core import StateObserver
-
-# Criar observador
-observer = StateObserver()
-
-# Registrar handler
-@observer.on("counter.changed")
-async def handle_counter_change(value: int):
-    print(f"Contador: {value}")
-```
-
-## Exemplos de Uso
-
-### Gerenciamento de Estado
+Change observer:
 
 ```python
-from pepperpy_core import StateManager
-from typing import Any
+from pepperpy_core.state import Observer
 
-async def exemplo_estado():
-    # Criar gerenciador
-    manager = StateManager()
-    
-    # Definir estado inicial
-    await manager.initialize({
-        "app": {
-            "version": "1.0.0",
-            "debug": False
-        },
-        "user": {
-            "id": None,
-            "settings": {}
-        }
-    })
-    
-    # Atualizar estado
-    await manager.set("user.id", "123")
-    await manager.set("user.settings.theme", "dark")
-    
-    # Obter estado
-    user_id = await manager.get("user.id")
-    settings = await manager.get("user.settings")
-    
-    # Observar mudanças
-    @manager.on("user.settings.changed")
-    async def handle_settings_change(
+class ConfigObserver(Observer):
+    async def on_change(
+        self,
         path: str,
         value: Any
     ):
-        print(f"Configuração alterada: {path} = {value}")
+        # Observe changes
+        print(f"Config changed: {path} = {value}")
 ```
 
-### Persistência de Estado
+### State Persistence
 
 ```python
-from pepperpy_core import PersistentStore
-import json
+from pepperpy_core.state import PersistentState
 
-async def exemplo_persistencia():
-    # Criar store persistente
-    store = PersistentStore(
-        filename="state.json",
-        auto_save=True
-    )
+class AppState(PersistentState):
+    def __init__(self):
+        super().__init__("app.state")
+        self.config = {}
     
-    try:
-        # Carregar estado
-        await store.load()
-        
-        # Atualizar estado
-        await store.set("session.last_access", time.time())
-        await store.set("session.active", True)
-        
-        # Estado é salvo automaticamente
-    finally:
-        # Garantir que estado seja salvo
-        await store.save()
+    async def set_config(self, key: str, value: Any):
+        self.config[key] = value
+        # State is saved automatically
+        await self.save()
 ```
 
-## Recursos Avançados
+## Advanced Features
 
-### Estado com Histórico
+### State with History
 
 ```python
-class HistoryStore(StateStore):
-    def __init__(self, max_history: int = 100):
+from pepperpy_core.state import HistoryState
+
+class AppState(HistoryState):
+    def __init__(self):
         super().__init__()
-        self.max_history = max_history
         self.history = []
     
     async def set(self, path: str, value: Any):
-        # Registrar mudança
+        # Record change
         self.history.append({
             "path": path,
             "value": value,
             "timestamp": time.time()
         })
         
-        # Limitar histórico
-        if len(self.history) > self.max_history:
+        # Limit history
+        if len(self.history) > 1000:
             self.history.pop(0)
         
-        # Atualizar estado
         await super().set(path, value)
-    
-    def get_history(
-        self,
-        path: Optional[str] = None
-    ) -> list[dict]:
-        if path is None:
-            return self.history
-        
-        return [
-            entry for entry in self.history
-            if entry["path"].startswith(path)
-        ]
 ```
 
-### Estado com Validação
+### State with Validation
 
 ```python
-class ValidatedStore(StateStore):
+from pepperpy_core.state import ValidatedState
+
+class AppState(ValidatedState):
     def __init__(self):
         super().__init__()
         self.validators = {}
     
-    def register(
+    def add_validator(
         self,
         path: str,
-        validator: callable,
-        initial_value: Any = None
+        validator: Callable[[Any], bool]
     ):
         self.validators[path] = validator
-        if initial_value is not None:
-            self.set(path, initial_value)
     
-    async def set(self, path: str, value: Any):
-        # Verificar validador
+    async def validate(self, path: str, value: Any):
         if path in self.validators:
-            validator = self.validators[path]
-            if not await validator(value):
+            if not self.validators[path](value):
                 raise ValueError(
-                    f"Valor inválido para {path}: {value}"
+                    f"Invalid value for {path}: {value}"
                 )
-        
-        # Atualizar estado
-        await super().set(path, value)
 ```
 
-## Melhores Práticas
+## Best Practices
 
-1. **Estado**
-   - Defina schema
-   - Valide valores
-   - Use paths
-   - Documente campos
+1. **State Management**
+   - Keep state minimal
+   - Use immutable data
+   - Handle updates
+   - Monitor changes
 
-2. **Persistência**
-   - Backup regular
-   - Valide dados
-   - Trate corrupção
-   - Migre schema
+2. **Persistence**
+   - Handle failures
+   - Handle corruption
+   - Implement backup
+   - Monitor storage
 
 3. **Performance**
-   - Cache seletivo
+   - Optimize access
+   - Use caching
    - Batch updates
-   - Otimize queries
-   - Monitore uso
+   - Monitor usage
 
-4. **Segurança**
-   - Valide acesso
-   - Sanitize dados
-   - Proteja storage
-   - Audite mudanças
+4. **Security**
+   - Validate input
+   - Protect state
+   - Audit changes
+   - Monitor access
 
-5. **Manutenção**
-   - Limpe estado
-   - Monitore tamanho
-   - Arquive dados
-   - Atualize schema
+5. **Maintenance**
+   - Monitor changes
+   - Clean up state
+   - Document structure
+   - Handle migrations
 
-## Padrões Comuns
+## Common Patterns
 
-### Estado com Cache
+### State with Cache
 
 ```python
-class CachedStore(StateStore):
-    def __init__(self, ttl: float = 300.0):
+from pepperpy_core.state import CachedState
+
+class AppState(CachedState):
+    def __init__(self):
         super().__init__()
-        self.ttl = ttl
         self.cache = {}
     
     async def get(self, path: str) -> Any:
-        # Verificar cache
-        now = time.time()
+        # Check cache
         if path in self.cache:
-            entry = self.cache[path]
-            if now - entry["timestamp"] < self.ttl:
-                return entry["value"]
+            return self.cache[path]
         
-        # Buscar valor
+        # Get value
         value = await super().get(path)
         
-        # Atualizar cache
-        self.cache[path] = {
-            "value": value,
-            "timestamp": now
-        }
-        
+        # Update cache
+        self.cache[path] = value
         return value
-    
-    async def set(self, path: str, value: Any):
-        # Invalidar cache
-        self.cache.pop(path, None)
-        
-        # Atualizar estado
-        await super().set(path, value)
 ```
 
-### Estado com Transações
+### State with Transactions
 
 ```python
-class TransactionalStore(StateStore):
+from pepperpy_core.state import TransactionalState
+
+class AppState(TransactionalState):
     def __init__(self):
         super().__init__()
         self.transactions = {}
     
     async def begin(self) -> str:
-        # Criar transação
+        # Create transaction
         tx_id = str(uuid.uuid4())
         self.transactions[tx_id] = {
             "changes": {},
@@ -284,54 +203,84 @@ class TransactionalStore(StateStore):
     
     async def commit(self, tx_id: str):
         if tx_id not in self.transactions:
-            raise ValueError(f"Transação {tx_id} não existe")
+            raise ValueError(f"Transaction {tx_id} does not exist")
         
-        # Aplicar mudanças
-        tx = self.transactions[tx_id]
-        for path, value in tx["changes"].items():
+        # Apply changes
+        changes = self.transactions[tx_id]["changes"]
+        for path, value in changes.items():
             await super().set(path, value)
         
-        # Limpar transação
+        # Clear transaction
         del self.transactions[tx_id]
     
     async def rollback(self, tx_id: str):
         if tx_id not in self.transactions:
-            raise ValueError(f"Transação {tx_id} não existe")
+            raise ValueError(f"Transaction {tx_id} does not exist")
         
-        # Limpar transação
+        # Clear transaction
         del self.transactions[tx_id]
 ```
 
-### Estado com Eventos
+## API Reference
+
+### StateManager
 
 ```python
-class EventStore(StateStore):
-    def __init__(self):
-        super().__init__()
-        self.listeners = []
-    
-    def add_listener(self, listener: callable):
-        self.listeners.append(listener)
-    
-    async def set(self, path: str, value: Any):
-        # Obter valor anterior
-        old_value = await self.get(path)
+class StateManager:
+    async def get(
+        self,
+        path: str
+    ) -> Any:
+        """Get value by path."""
         
-        # Atualizar estado
-        await super().set(path, value)
+    async def set(
+        self,
+        path: str,
+        value: Any
+    ):
+        """Set value by path."""
         
-        # Notificar listeners
-        event = {
-            "type": "state.changed",
-            "path": path,
-            "old_value": old_value,
-            "new_value": value,
-            "timestamp": time.time()
-        }
+    async def delete(
+        self,
+        path: str
+    ):
+        """Delete value by path."""
+```
+
+### Container
+
+```python
+class Container[T]:
+    async def get(self) -> T:
+        """Get current state."""
         
-        for listener in self.listeners:
-            try:
-                await listener(event)
-            except Exception as e:
-                print(f"Erro no listener: {e}")
+    async def set(
+        self,
+        state: T
+    ):
+        """Set new state."""
+        
+    async def update(
+        self,
+        updater: Callable[[T], T]
+    ):
+        """Update state."""
+```
+
+### Observer
+
+```python
+class Observer:
+    async def on_change(
+        self,
+        path: str,
+        value: Any
+    ):
+        """Handle state change."""
+        
+    async def on_delete(
+        self,
+        path: str
+    ):
+        """Handle state deletion."""
 ``` 

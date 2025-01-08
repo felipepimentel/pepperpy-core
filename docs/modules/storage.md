@@ -1,385 +1,302 @@
-# Storage (Armazenamento)
+# Storage Module
 
-O módulo Storage do PepperPy Core fornece uma interface unificada para operações de armazenamento, suportando diferentes backends como sistema de arquivos, memória, e armazenamento em nuvem.
+The PepperPy Core Storage module provides a unified interface for storage operations, supporting different backends such as file system, memory, and cloud storage.
 
-## Componentes Principais
-
-### StorageManager
-
-Gerenciador central de armazenamento:
+## Basic Usage
 
 ```python
-from pepperpy_core import StorageManager
+from pepperpy_core.storage import Storage
 
-# Criar gerenciador
-manager = StorageManager()
+# Create storage instance
+storage = Storage()
 
-# Salvar dados
-await manager.put("config.json", '{"debug": true}')
+# Store data
+await storage.put("key", "value")
 
-# Carregar dados
-data = await manager.get("config.json")
+# Retrieve data
+value = await storage.get("key")
+
+# Delete data
+await storage.delete("key")
 ```
 
-### FileStorage
+## Storage Types
 
-Armazenamento em arquivo:
+### File System Storage
 
 ```python
-from pepperpy_core import FileStorage
+from pepperpy_core.storage import FileStorage
 
-# Criar storage
-storage = FileStorage(base_path="data")
+storage = FileStorage(base_path="/data")
 
-# Salvar arquivo
-await storage.write("logs/app.log", "log message")
+# Store file
+await storage.put("config.json", json_data)
 
-# Ler arquivo
-content = await storage.read("logs/app.log")
+# Read file
+content = await storage.get("config.json")
 ```
 
-### MemoryStorage
-
-Armazenamento em memória:
+### Memory Storage
 
 ```python
-from pepperpy_core import MemoryStorage
+from pepperpy_core.storage import MemoryStorage
 
-# Criar storage
 storage = MemoryStorage()
 
-# Armazenar dados
-await storage.set("cache:user:123", user_data)
+# Store in memory
+await storage.put("user", {"name": "John"})
 
-# Recuperar dados
-data = await storage.get("cache:user:123")
+# Check existence
+exists = await storage.exists("user")
+
+# Read from memory
+user = await storage.get("user")
+print(f"Content: {content}")
 ```
 
-## Exemplos de Uso
+## Advanced Features
 
-### Gerenciamento de Arquivos
+### Memory Cache
 
 ```python
-from pepperpy_core import StorageManager
-from typing import Optional
+from pepperpy_core.storage import CachedStorage
 
-async def exemplo_arquivos():
-    # Criar gerenciador
-    manager = StorageManager()
-    
-    try:
-        # Salvar arquivo
-        content = "Hello World"
-        await manager.put(
-            "hello.txt",
-            content,
-            encoding="utf-8"
-        )
-        
-        # Verificar existência
-        exists = await manager.exists("hello.txt")
-        
-        # Ler arquivo
-        if exists:
-            content = await manager.get(
-                "hello.txt",
-                encoding="utf-8"
-            )
-            print(f"Conteúdo: {content}")
-        
-        # Listar arquivos
-        files = await manager.list("*.txt")
-        for file in files:
-            print(f"Arquivo: {file}")
-    finally:
-        # Limpar recursos
-        await manager.cleanup()
+# Create cached storage
+storage = CachedStorage(
+    backend=FileStorage("/data"),
+    cache_size=1000
+)
+
+# Store with caching
+await storage.put("user", {"name": "John"})
+
+# Read from cache
+user = await storage.get("user")
+print(f"User: {user['name']}")
 ```
 
-### Cache em Memória
+## Advanced Features
+
+### Compressed Storage
 
 ```python
-from pepperpy_core import MemoryStorage
-import json
+from pepperpy_core.storage import CompressedStorage
 
-async def exemplo_cache():
-    # Criar storage
-    storage = MemoryStorage()
-    
-    # Dados para cache
-    user_data = {
-        "id": "123",
-        "name": "John"
-    }
-    
-    try:
-        # Salvar no cache
-        key = f"user:{user_data['id']}"
-        await storage.set(
-            key,
-            json.dumps(user_data)
-        )
-        
-        # Recuperar do cache
-        if await storage.exists(key):
-            data = await storage.get(key)
-            user = json.loads(data)
-            print(f"Usuário: {user['name']}")
-        
-        # Limpar cache
-        await storage.delete(key)
-    finally:
-        await storage.cleanup()
+# Create compressed storage
+storage = CompressedStorage(
+    backend=FileStorage("/data")
+)
+
+# Compress content
+await storage.put(
+    "data.txt",
+    large_content,
+    compression_level=9
+)
+
+# Auto-decompression on read
+content = await storage.get("data.txt")
 ```
 
-## Recursos Avançados
-
-### Storage com Compressão
+### Encrypted Storage
 
 ```python
-class CompressedStorage(StorageManager):
-    def __init__(self):
-        super().__init__()
-        self.compression = "gzip"
-    
-    async def put(
-        self,
-        path: str,
-        content: bytes,
-        **kwargs
-    ) -> None:
-        # Comprimir conteúdo
-        compressed = gzip.compress(content)
-        
-        # Salvar comprimido
-        await super().put(
-            path,
-            compressed,
-            **kwargs
-        )
-    
-    async def get(
-        self,
-        path: str,
-        **kwargs
-    ) -> bytes:
-        # Carregar comprimido
-        compressed = await super().get(
-            path,
-            **kwargs
-        )
-        
-        # Descomprimir
-        return gzip.decompress(compressed)
+from pepperpy_core.storage import EncryptedStorage
+
+# Create encrypted storage
+storage = EncryptedStorage(
+    backend=FileStorage("/data"),
+    key="secret-key"
+)
+
+# Encrypt content
+await storage.put(
+    "sensitive.dat",
+    secret_data
+)
+
+# Auto-decryption on read
+data = await storage.get("sensitive.dat")
 ```
 
-### Storage com Encriptação
+## Best Practices
 
-```python
-class EncryptedStorage(StorageManager):
-    def __init__(self, key: bytes):
-        super().__init__()
-        self.key = key
-        self.cipher = Fernet(key)
-    
-    async def put(
-        self,
-        path: str,
-        content: bytes,
-        **kwargs
-    ) -> None:
-        # Encriptar conteúdo
-        encrypted = self.cipher.encrypt(content)
-        
-        # Salvar encriptado
-        await super().put(
-            path,
-            encrypted,
-            **kwargs
-        )
-    
-    async def get(
-        self,
-        path: str,
-        **kwargs
-    ) -> bytes:
-        # Carregar encriptado
-        encrypted = await super().get(
-            path,
-            **kwargs
-        )
-        
-        # Desencriptar
-        return self.cipher.decrypt(encrypted)
-```
+1. **Data Validation**
+   - Validate extensions
+   - Check file sizes
+   - Verify data types
 
-## Melhores Práticas
-
-1. **Arquivos**
-   - Use paths relativos
-   - Valide extensões
-   - Limite tamanhos
-   - Limpe recursos
-
-2. **Cache**
-   - Defina TTL
-   - Limite tamanho
-   - Monitore uso
-   - Implemente LRU
+2. **Error Handling**
+   - Handle I/O errors
+   - Manage timeouts
+   - Retry operations
 
 3. **Performance**
-   - Use buffers
-   - Comprima dados
-   - Otimize I/O
-   - Cache seletivo
+   - Use caching
+   - Compress large data
+   - Batch operations
 
-4. **Segurança**
-   - Valide paths
-   - Encripte dados
-   - Controle acesso
-   - Backup regular
+4. **Security**
+   - Encrypt sensitive data
+   - Validate permissions
+   - Sanitize paths
 
-5. **Manutenção**
-   - Monitore espaço
-   - Limpe cache
-   - Arquive dados
-   - Verifique integridade
+5. **Maintenance**
+   - Monitor space
+   - Clean old data
+   - Backup regularly
 
-## Padrões Comuns
+## Common Patterns
 
-### Storage com Cache
+### Retry Pattern
 
 ```python
-class CachedStorage(StorageManager):
-    def __init__(self, ttl: float = 300.0):
-        super().__init__()
-        self.ttl = ttl
-        self.cache = {}
-    
-    async def get(
-        self,
-        path: str,
-        **kwargs
-    ) -> bytes:
-        # Verificar cache
-        now = time.time()
-        if path in self.cache:
-            entry = self.cache[path]
-            if now - entry["timestamp"] < self.ttl:
-                return entry["data"]
-        
-        # Carregar dados
-        data = await super().get(path, **kwargs)
-        
-        # Atualizar cache
-        self.cache[path] = {
-            "data": data,
-            "timestamp": now
-        }
-        
-        return data
-    
-    async def put(
-        self,
-        path: str,
-        content: bytes,
-        **kwargs
-    ) -> None:
-        # Invalidar cache
-        self.cache.pop(path, None)
-        
-        # Salvar dados
-        await super().put(path, content, **kwargs)
+from pepperpy_core.storage import RetryStorage
+
+storage = RetryStorage(
+    backend=FileStorage("/data"),
+    max_retries=3,
+    delay=1.0
+)
+
+try:
+    await storage.put("key", "value")
+except StorageError as e:
+    print(
+        f"Failed after {retries} attempts: {last_error}"
+    )
 ```
 
-### Storage com Retry
+### Storage with Metrics
 
 ```python
-class RetryStorage(StorageManager):
-    def __init__(
-        self,
-        max_retries: int = 3,
-        retry_delay: float = 1.0
-    ):
-        super().__init__()
-        self.max_retries = max_retries
-        self.retry_delay = retry_delay
-    
-    async def get(
-        self,
-        path: str,
-        **kwargs
-    ) -> bytes:
-        retries = 0
-        last_error = None
-        
-        while retries < self.max_retries:
-            try:
-                return await super().get(
-                    path,
-                    **kwargs
-                )
-            except Exception as e:
-                last_error = e
-                retries += 1
-                if retries < self.max_retries:
-                    await asyncio.sleep(
-                        self.retry_delay * (2 ** retries)
-                    )
-        
-        raise StorageError(
-            f"Falha após {retries} tentativas: {last_error}"
-        )
+from pepperpy_core.storage import MetricsStorage
+
+storage = MetricsStorage(
+    backend=FileStorage("/data")
+)
+
+# Operations are automatically measured
+await storage.put("key", "value")
+
+# Get metrics
+metrics = storage.get_metrics()
+print(metrics.operations_count)
+print(metrics.total_bytes)
+print(metrics.average_latency)
 ```
 
-### Storage com Métricas
+### Composite Storage
 
 ```python
-class MetricsStorage(StorageManager):
-    def __init__(self):
-        super().__init__()
-        self.metrics = {
-            "reads": 0,
-            "writes": 0,
-            "errors": 0,
-            "bytes_read": 0,
-            "bytes_written": 0
-        }
-    
-    async def get(
-        self,
-        path: str,
-        **kwargs
-    ) -> bytes:
-        try:
-            data = await super().get(path, **kwargs)
-            self.metrics["reads"] += 1
-            self.metrics["bytes_read"] += len(data)
-            return data
-        except Exception as e:
-            self.metrics["errors"] += 1
-            raise
-    
+from pepperpy_core.storage import CompositeStorage
+
+storage = CompositeStorage([
+    MemoryStorage(),  # Fast cache
+    FileStorage("/data"),  # Persistent
+    S3Storage("bucket")  # Backup
+])
+
+# Write to all storages
+await storage.put("key", "value")
+
+# Read from first available
+value = await storage.get("key")
+```
+
+## API Reference
+
+### Base Storage
+
+```python
+class Storage:
+    async def get(self, key: str) -> Any:
+        """Get value by key."""
+        
     async def put(
         self,
-        path: str,
-        content: bytes,
-        **kwargs
+        key: str,
+        value: Any,
+        **options
     ) -> None:
-        try:
-            await super().put(path, content, **kwargs)
-            self.metrics["writes"] += 1
-            self.metrics["bytes_written"] += len(content)
-        except Exception as e:
-            self.metrics["errors"] += 1
-            raise
-    
-    def get_metrics(self) -> dict:
-        return {
-            "total_reads": self.metrics["reads"],
-            "total_writes": self.metrics["writes"],
-            "total_errors": self.metrics["errors"],
-            "total_bytes_read": self.metrics["bytes_read"],
-            "total_bytes_written": self.metrics["bytes_written"]
-        }
+        """Store value by key."""
+        
+    async def delete(self, key: str) -> None:
+        """Delete value by key."""
+        
+    async def exists(self, key: str) -> bool:
+        """Check if key exists."""
+        
+    async def list(
+        self,
+        prefix: str = ""
+    ) -> List[str]:
+        """List keys with prefix."""
+```
+
+### Storage Options
+
+```python
+class StorageOptions:
+    compression: bool = False
+    encryption: bool = False
+    cache: bool = False
+    retry: bool = False
+    timeout: float = 30.0
+    max_size: int = None
+```
+
+## Events
+
+The storage module emits the following events:
+
+- `storage.put` - When data is stored
+- `storage.get` - When data is retrieved  
+- `storage.delete` - When data is deleted
+- `storage.error` - When an error occurs
+
+## Error Handling
+
+```python
+try:
+    await storage.get("key")
+except StorageError as e:
+    logger.error(f"Storage error: {e}")
+except StorageNotFoundError as e:
+    logger.warning(f"Key not found: {e}")
+except StorageTimeoutError as e:
+    logger.error(f"Operation timeout: {e}")
+```
+
+## Configuration
+
+```yaml
+storage:
+  type: file
+  path: /data
+  options:
+    compression: true
+    encryption: false
+    cache:
+      enabled: true
+      size: 1000
+    retry:
+      max: 3
+      delay: 1.0
+```
+
+## Testing
+
+```python
+from pepperpy_core.testing import MockStorage
+
+# Create mock storage
+storage = MockStorage()
+
+# Configure mock
+storage.mock_get("key", "value")
+
+# Test code
+result = await storage.get("key")
+assert result == "value"
 ``` 

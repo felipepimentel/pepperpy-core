@@ -1,380 +1,551 @@
-# Security (Segurança)
+# Security Module
 
-O módulo Security do PepperPy Core fornece funcionalidades para segurança da aplicação, incluindo autenticação, autorização, criptografia e proteção contra ataques comuns.
+## Overview
 
-## Componentes Principais
+The security module provides a comprehensive security framework for your application, including authentication, authorization, encryption, and secure data handling. It implements industry best practices and follows security-first design principles.
+
+## Key Components
 
 ### SecurityManager
 
-Gerenciador central de segurança:
-
 ```python
-from pepperpy_core import SecurityManager
-
-# Criar gerenciador
-manager = SecurityManager()
-
-# Configurar
-await manager.configure(
-    secret_key="your-secret-key",
-    enable_audit=True
+from pepperpy_core.security import (
+    SecurityManager,
+    SecurityConfig
 )
 
-# Verificar permissão
-has_access = await manager.check_permission(
-    user_id="123",
-    resource="users",
-    action="read"
+# Create manager
+manager = SecurityManager(
+    config=SecurityConfig(
+        secret_key=os.getenv("SECRET_KEY"),
+        encryption_key=os.getenv("ENCRYPTION_KEY"),
+        auth_enabled=True,
+        ssl_verify=True
+    )
+)
+
+# Initialize security
+await manager.initialize()
+```
+
+### Authentication
+
+```python
+from pepperpy_core.security import (
+    AuthManager,
+    AuthConfig,
+    AuthProvider
+)
+
+# Configure auth
+auth = AuthManager(
+    config=AuthConfig(
+        providers=[
+            "jwt",
+            "oauth2",
+            "basic"
+        ],
+        token_ttl=3600,
+        refresh_ttl=86400
+    )
+)
+
+# Authenticate
+token = await auth.authenticate(
+    credentials={
+        "username": "user",
+        "password": "pass"
+    }
 )
 ```
 
-### Encryptor
-
-Serviço de criptografia:
+### Authorization
 
 ```python
-from pepperpy_core import Encryptor
-
-# Criar encryptor
-encryptor = Encryptor()
-
-# Criptografar dados
-encrypted = await encryptor.encrypt("dados sensíveis")
-
-# Descriptografar dados
-decrypted = await encryptor.decrypt(encrypted)
-```
-
-### TokenManager
-
-Gerenciador de tokens:
-
-```python
-from pepperpy_core import TokenManager
-
-# Criar gerenciador
-token_manager = TokenManager()
-
-# Gerar token
-token = await token_manager.generate(
-    user_id="123",
-    scope=["read", "write"]
+from pepperpy_core.security import (
+    AccessControl,
+    Permission,
+    Role
 )
 
-# Validar token
-payload = await token_manager.validate(token)
+# Create ACL
+acl = AccessControl()
+
+# Define roles
+admin = Role("admin", permissions=[
+    Permission("users", ["create", "read", "update", "delete"]),
+    Permission("settings", ["read", "update"])
+])
+
+user = Role("user", permissions=[
+    Permission("users", ["read"]),
+    Permission("settings", ["read"])
+])
+
+# Check access
+if await acl.has_permission(user, "users.read"):
+    # Allow access
+    pass
 ```
 
-## Exemplos de Uso
+## Usage Patterns
 
-### Autenticação de Usuário
+### 1. Secure Data Handling
 
 ```python
-from pepperpy_core import SecurityManager
-from typing import Optional
+from pepperpy_core.security import (
+    DataEncryption,
+    EncryptionConfig
+)
 
-async def autenticar_usuario(
-    username: str,
-    password: str
-) -> Optional[str]:
-    manager = SecurityManager()
-    
-    try:
-        # Verificar credenciais
-        user = await manager.authenticate(
-            username=username,
-            password=password
-        )
-        
-        if user:
-            # Gerar token
-            token = await manager.create_token(
-                user_id=user.id,
-                scope=user.permissions
+class SecureData:
+    def __init__(self):
+        self.encryption = DataEncryption(
+            config=EncryptionConfig(
+                algorithm="AES-256-GCM",
+                key_size=32,
+                iterations=100000
             )
-            return token
-    except Exception as e:
-        await manager.log_security_event(
-            "auth_failure",
-            username=username,
-            error=str(e)
         )
     
-    return None
-```
-
-### Proteção de Dados
-
-```python
-from pepperpy_core import Encryptor
-import json
-
-async def proteger_dados(data: dict) -> str:
-    # Criar encryptor
-    encryptor = Encryptor()
-    
-    try:
-        # Serializar e criptografar
-        json_data = json.dumps(data)
-        encrypted = await encryptor.encrypt(
-            json_data,
-            encoding="utf-8"
-        )
-        return encrypted
-    except Exception as e:
-        raise SecurityError(
-            f"Falha ao criptografar: {e}"
-        )
-
-async def recuperar_dados(encrypted: str) -> dict:
-    encryptor = Encryptor()
-    
-    try:
-        # Descriptografar e deserializar
-        decrypted = await encryptor.decrypt(
-            encrypted,
-            encoding="utf-8"
-        )
-        return json.loads(decrypted)
-    except Exception as e:
-        raise SecurityError(
-            f"Falha ao descriptografar: {e}"
-        )
-```
-
-## Recursos Avançados
-
-### Autenticação Multi-Fator
-
-```python
-class MFAManager:
-    def __init__(self):
-        self.providers = {}
-    
-    def register_provider(
-        self,
-        name: str,
-        provider: MFAProvider
-    ):
-        self.providers[name] = provider
-    
-    async def generate_code(
-        self,
-        user_id: str,
-        provider: str
-    ) -> str:
-        if provider not in self.providers:
-            raise SecurityError(
-                f"Provider {provider} não encontrado"
+    async def encrypt_data(self, data: dict):
+        try:
+            # Generate key
+            key = await self.encryption.generate_key()
+            
+            # Encrypt data
+            encrypted = await self.encryption.encrypt(
+                data=data,
+                key=key
             )
-        
-        return await self.providers[provider].generate(
-            user_id
-        )
+            
+            return encrypted
+            
+        except Exception as e:
+            raise SecurityError(f"Encryption failed: {e}")
     
-    async def verify_code(
+    async def decrypt_data(
         self,
-        user_id: str,
-        provider: str,
-        code: str
-    ) -> bool:
-        if provider not in self.providers:
-            raise SecurityError(
-                f"Provider {provider} não encontrado"
+        encrypted: bytes,
+        key: bytes
+    ):
+        try:
+            # Decrypt data
+            decrypted = await self.encryption.decrypt(
+                data=encrypted,
+                key=key
             )
-        
-        return await self.providers[provider].verify(
-            user_id,
-            code
-        )
+            
+            return decrypted
+            
+        except Exception as e:
+            raise SecurityError(f"Decryption failed: {e}")
 ```
 
-### Auditoria de Segurança
+### 2. Secure Communication
 
 ```python
-class SecurityAuditor:
+from pepperpy_core.security import (
+    SecureChannel,
+    ChannelConfig
+)
+
+class SecureCommunication:
     def __init__(self):
-        self.handlers = []
+        self.channel = SecureChannel(
+            config=ChannelConfig(
+                ssl_verify=True,
+                cert_file="certs/server.crt",
+                key_file="certs/server.key"
+            )
+        )
     
-    def add_handler(self, handler: callable):
-        self.handlers.append(handler)
-    
-    async def log_event(
+    async def send_secure(
         self,
-        event_type: str,
-        **details
+        data: dict,
+        recipient: str
     ):
-        event = {
-            "type": event_type,
-            "timestamp": time.time(),
-            "details": details
-        }
-        
-        for handler in self.handlers:
-            try:
-                await handler(event)
-            except Exception as e:
-                print(f"Erro no handler: {e}")
-```
-
-## Melhores Práticas
-
-1. **Autenticação**
-   - Use senhas fortes
-   - Implemente MFA
-   - Limite tentativas
-   - Expire sessões
-
-2. **Autorização**
-   - Defina papéis
-   - Valide permissões
-   - Implemente RBAC
-   - Audite acessos
-
-3. **Criptografia**
-   - Use algoritmos seguros
-   - Gerencie chaves
-   - Rotacione segredos
-   - Proteja dados
-
-4. **Proteção**
-   - Valide entrada
-   - Previna injeção
-   - Use HTTPS
-   - Monitore ataques
-
-5. **Auditoria**
-   - Registre eventos
-   - Monitore acessos
-   - Alerte anomalias
-   - Mantenha logs
-
-## Padrões Comuns
-
-### Rate Limiter
-
-```python
-class RateLimiter:
-    def __init__(
-        self,
-        max_attempts: int = 5,
-        window: float = 300.0
-    ):
-        self.max_attempts = max_attempts
-        self.window = window
-        self.attempts = {}
+        try:
+            # Establish secure channel
+            channel = await self.channel.connect(
+                recipient
+            )
+            
+            # Send data
+            await channel.send(data)
+            
+        except Exception as e:
+            raise SecurityError(f"Send failed: {e}")
     
-    async def check(self, key: str) -> bool:
-        now = time.time()
-        
-        # Limpar tentativas antigas
-        self.attempts = {
-            k: attempts for k, attempts in self.attempts.items()
-            if now - attempts["timestamp"] < self.window
-        }
-        
-        # Verificar tentativas
-        if key in self.attempts:
-            attempts = self.attempts[key]
-            if attempts["count"] >= self.max_attempts:
-                return False
-            attempts["count"] += 1
-        else:
-            self.attempts[key] = {
-                "count": 1,
-                "timestamp": now
-            }
-        
-        return True
+    async def receive_secure(self):
+        try:
+            # Accept connection
+            channel = await self.channel.accept()
+            
+            # Receive data
+            data = await channel.receive()
+            
+            return data
+            
+        except Exception as e:
+            raise SecurityError(f"Receive failed: {e}")
 ```
 
-### Token com Refresh
+### 3. Access Control
 
 ```python
-class RefreshTokenManager:
+from pepperpy_core.security import (
+    AccessControl,
+    Policy,
+    Resource
+)
+
+class SecurityControl:
     def __init__(self):
-        self.tokens = {}
+        self.acl = AccessControl()
     
-    async def generate_pair(
-        self,
-        user_id: str,
-        scope: list[str]
-    ) -> tuple[str, str]:
-        # Gerar tokens
-        access_token = await self._generate_access_token(
-            user_id,
-            scope
+    async def setup_policies(self):
+        # Define resources
+        users = Resource(
+            name="users",
+            actions=["create", "read", "update", "delete"]
         )
         
-        refresh_token = await self._generate_refresh_token(
-            user_id
+        settings = Resource(
+            name="settings",
+            actions=["read", "update"]
         )
         
-        # Armazenar
-        self.tokens[refresh_token] = {
-            "user_id": user_id,
-            "scope": scope,
-            "created_at": time.time()
-        }
-        
-        return access_token, refresh_token
-    
-    async def refresh(
-        self,
-        refresh_token: str
-    ) -> Optional[str]:
-        if refresh_token not in self.tokens:
-            return None
-        
-        token_data = self.tokens[refresh_token]
-        
-        # Gerar novo access token
-        return await self._generate_access_token(
-            token_data["user_id"],
-            token_data["scope"]
+        # Define policies
+        admin_policy = Policy(
+            name="admin",
+            resources=[users, settings],
+            effect="allow"
         )
-```
-
-### Proteção contra Ataques
-
-```python
-class SecurityMiddleware:
-    def __init__(self):
-        self.rules = []
-    
-    def add_rule(self, rule: SecurityRule):
-        self.rules.append(rule)
-    
-    async def process_request(
-        self,
-        request: Request
-    ) -> bool:
-        for rule in self.rules:
-            if not await rule.check(request):
-                await self.log_violation(
-                    rule.name,
-                    request
+        
+        user_policy = Policy(
+            name="user",
+            resources=[
+                Resource(
+                    name="users",
+                    actions=["read"]
+                ),
+                Resource(
+                    name="settings",
+                    actions=["read"]
                 )
-                return False
-        return True
-    
-    async def log_violation(
-        self,
-        rule: str,
-        request: Request
-    ):
-        # Registrar violação
-        event = {
-            "rule": rule,
-            "timestamp": time.time(),
-            "ip": request.client_ip,
-            "path": request.path,
-            "headers": dict(request.headers)
-        }
-        
-        await self.auditor.log_event(
-            "security_violation",
-            **event
+            ],
+            effect="allow"
         )
+        
+        # Apply policies
+        await self.acl.apply_policy(admin_policy)
+        await self.acl.apply_policy(user_policy)
+    
+    async def check_access(
+        self,
+        user: dict,
+        resource: str,
+        action: str
+    ):
+        try:
+            # Get user role
+            role = await self.get_user_role(user)
+            
+            # Check permission
+            allowed = await self.acl.check_permission(
+                role=role,
+                resource=resource,
+                action=action
+            )
+            
+            return allowed
+            
+        except Exception as e:
+            raise SecurityError(f"Access check failed: {e}")
+```
+
+## Best Practices
+
+### 1. Authentication
+
+```python
+from pepperpy_core.security import (
+    AuthManager,
+    AuthConfig
+)
+
+class SecureAuth:
+    def configure(self):
+        return AuthConfig(
+            # Providers
+            providers={
+                "jwt": {
+                    "secret": os.getenv("JWT_SECRET"),
+                    "algorithm": "HS256",
+                    "expires_in": 3600
+                },
+                "oauth2": {
+                    "client_id": os.getenv("OAUTH_CLIENT_ID"),
+                    "client_secret": os.getenv("OAUTH_CLIENT_SECRET"),
+                    "redirect_uri": "https://api.example.com/oauth/callback"
+                }
+            },
+            
+            # Settings
+            settings={
+                "token_ttl": 3600,
+                "refresh_ttl": 86400,
+                "max_attempts": 3,
+                "lockout_time": 300
+            },
+            
+            # Security
+            security={
+                "password_hash": "bcrypt",
+                "salt_rounds": 12,
+                "min_length": 12,
+                "require_special": True
+            }
+        )
+```
+
+### 2. Encryption
+
+```python
+from pepperpy_core.security import (
+    EncryptionManager,
+    EncryptionConfig
+)
+
+class SecureEncryption:
+    def configure(self):
+        return EncryptionConfig(
+            # Algorithms
+            algorithms={
+                "aes": {
+                    "mode": "GCM",
+                    "key_size": 32,
+                    "iv_size": 12
+                },
+                "chacha20": {
+                    "key_size": 32,
+                    "nonce_size": 12
+                }
+            },
+            
+            # Key derivation
+            kdf={
+                "algorithm": "PBKDF2",
+                "iterations": 100000,
+                "salt_size": 16
+            },
+            
+            # Storage
+            storage={
+                "key_store": "vault",
+                "vault_url": os.getenv("VAULT_URL"),
+                "vault_token": os.getenv("VAULT_TOKEN")
+            }
+        )
+```
+
+### 3. Access Control
+
+```python
+from pepperpy_core.security import (
+    AccessControl,
+    AccessConfig
+)
+
+class SecureAccess:
+    def configure(self):
+        return AccessConfig(
+            # Roles
+            roles={
+                "admin": {
+                    "permissions": ["*"],
+                    "priority": 100
+                },
+                "user": {
+                    "permissions": [
+                        "users.read",
+                        "settings.read"
+                    ],
+                    "priority": 10
+                }
+            },
+            
+            # Resources
+            resources={
+                "users": ["create", "read", "update", "delete"],
+                "settings": ["read", "update"],
+                "logs": ["read"]
+            },
+            
+            # Policies
+            policies={
+                "default": {
+                    "effect": "deny",
+                    "priority": 0
+                },
+                "admin": {
+                    "effect": "allow",
+                    "priority": 100
+                }
+            }
+        )
+```
+
+## Complete Examples
+
+### 1. Secure API Client
+
+```python
+from pepperpy_core.security import (
+    SecureClient,
+    ClientConfig,
+    AuthProvider
+)
+
+class APIClient:
+    def __init__(self):
+        self.client = SecureClient(
+            config=ClientConfig(
+                base_url="https://api.example.com",
+                timeout=30,
+                retries=3,
+                ssl_verify=True
+            )
+        )
+        
+        self.auth = AuthProvider(
+            client_id=os.getenv("CLIENT_ID"),
+            client_secret=os.getenv("CLIENT_SECRET")
+        )
+    
+    async def authenticate(self):
+        # Get token
+        token = await self.auth.get_token()
+        
+        # Set auth header
+        self.client.set_header(
+            "Authorization",
+            f"Bearer {token}"
+        )
+    
+    async def get_data(self, resource: str):
+        try:
+            # Send request
+            response = await self.client.get(
+                f"/api/{resource}",
+                headers={
+                    "Accept": "application/json"
+                }
+            )
+            
+            # Verify response
+            await self.verify_response(response)
+            
+            return response.data
+            
+        except Exception as e:
+            raise SecurityError(f"API request failed: {e}")
+    
+    async def verify_response(self, response):
+        # Verify status
+        if response.status != 200:
+            raise SecurityError(
+                f"API error: {response.status}"
+            )
+        
+        # Verify signature
+        if not await self.verify_signature(
+            response.data,
+            response.headers["X-Signature"]
+        ):
+            raise SecurityError("Invalid signature")
+```
+
+### 2. Secure Storage
+
+```python
+from pepperpy_core.security import (
+    SecureStorage,
+    StorageConfig,
+    Encryption
+)
+
+class DataStorage:
+    def __init__(self):
+        self.storage = SecureStorage(
+            config=StorageConfig(
+                path="data",
+                encryption=True,
+                compression=True
+            )
+        )
+        
+        self.encryption = Encryption(
+            algorithm="AES-256-GCM",
+            key_size=32
+        )
+    
+    async def store_data(
+        self,
+        key: str,
+        data: dict
+    ):
+        try:
+            # Encrypt data
+            encrypted = await self.encryption.encrypt(
+                data
+            )
+            
+            # Store data
+            await self.storage.put(
+                key,
+                encrypted
+            )
+            
+        except Exception as e:
+            raise SecurityError(f"Storage failed: {e}")
+    
+    async def retrieve_data(self, key: str):
+        try:
+            # Get data
+            encrypted = await self.storage.get(key)
+            
+            # Decrypt data
+            decrypted = await self.encryption.decrypt(
+                encrypted
+            )
+            
+            return decrypted
+            
+        except Exception as e:
+            raise SecurityError(f"Retrieval failed: {e}")
+    
+    async def rotate_keys(self):
+        try:
+            # Generate new key
+            new_key = await self.encryption.generate_key()
+            
+            # Get all data
+            data = await self.storage.list()
+            
+            # Re-encrypt with new key
+            for key in data:
+                # Get old data
+                old_data = await self.retrieve_data(key)
+                
+                # Store with new key
+                await self.store_data(
+                    key,
+                    old_data
+                )
+            
+        except Exception as e:
+            raise SecurityError(f"Key rotation failed: {e}")
 ```
 ``` 

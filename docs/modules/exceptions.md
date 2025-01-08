@@ -1,101 +1,91 @@
-# Exceptions (Exceções)
+# Exceptions Module
 
-O módulo de Exceções do PepperPy Core fornece uma hierarquia completa de exceções para tratamento de erros específicos da biblioteca.
+The PepperPy Core Exceptions module provides a complete hierarchy of exceptions for handling specific library errors.
 
-## Hierarquia de Exceções
+## Exception Hierarchy
 
-### PepperpyError
+### BaseException
 
-Classe base para todas as exceções:
+Base class for all exceptions:
 
 ```python
-from pepperpy_core import PepperpyError
+from pepperpy_core.exceptions import PepperPyException
 
 try:
-    # Operação que pode falhar
-    process_data()
-except PepperpyError as e:
-    print(f"Erro: {e}")
-    if e.__cause__:
-        print(f"Causa: {e.__cause__}")
+    # Operation that may fail
+    result = process_data()
+except PepperPyException as e:
+    print(f"Error: {e}")
 ```
 
-### Exceções de Configuração
+### Configuration Exceptions
 
 ```python
-from pepperpy_core import ConfigError
+from pepperpy_core.exceptions import ConfigError
 
 try:
-    load_config("config.json")
+    config.validate()
 except ConfigError as e:
-    print(f"Erro de configuração: {e}")
-    if e.config_name:
-        print(f"Configuração: {e.config_name}")
+    print(f"Configuration error: {e}")
+    print(f"Config: {e.config_name}")
 ```
 
-### Exceções de Validação
+### Validation Exceptions
 
 ```python
-from pepperpy_core import ValidationError
+from pepperpy_core.exceptions import ValidationError
 
 try:
-    validate_data(data)
+    validator.validate(data)
 except ValidationError as e:
-    print(f"Erro de validação: {e}")
-    if e.field_name:
-        print(f"Campo: {e.field_name}")
-    if e.invalid_value:
-        print(f"Valor inválido: {e.invalid_value}")
+    print(f"Validation error: {e}")
+    print(f"Invalid value: {e.invalid_value}")
 ```
 
-## Categorias de Exceções
+## Exception Categories
 
-### Exceções de Módulo
+### Module Exceptions
 
 ```python
-from pepperpy_core import (
+from pepperpy_core.exceptions import (
     ModuleError,
-    InitializationError,
+    ModuleInitError,
     ModuleNotFoundError
 )
 
 try:
-    module.initialize()
-except InitializationError as e:
-    print(f"Erro de inicialização: {e}")
-    if e.module_name:
-        print(f"Módulo: {e.module_name}")
+    await module.initialize()
+except ModuleInitError as e:
+    print(f"Initialization error: {e}")
+    print(f"Module: {e.module_name}")
 except ModuleNotFoundError as e:
-    print(f"Módulo não encontrado: {e}")
+    print(f"Module not found: {e}")
 ```
 
-### Exceções de Segurança
+### Security Exceptions
 
 ```python
-from pepperpy_core import (
+from pepperpy_core.exceptions import (
     SecurityError,
-    AuthError,
-    PermissionError,
-    TokenError,
-    CryptoError
+    AuthenticationError,
+    AuthorizationError,
+    InvalidTokenError
 )
 
 try:
-    authenticate_user(token)
-except AuthError as e:
-    print("Erro de autenticação")
-except PermissionError as e:
-    print("Erro de permissão")
-except TokenError as e:
-    print("Token inválido")
-except CryptoError as e:
-    print("Erro de criptografia")
+    await security.authenticate(token)
+except AuthenticationError:
+    print("Authentication error")
+except AuthorizationError:
+    print("Permission error")
+except InvalidTokenError:
+    print("Invalid token")
 ```
 
-### Exceções de Tarefa
+### Task Exceptions
 
 ```python
-from pepperpy_core import (
+from pepperpy_core.exceptions import (
     TaskError,
     TaskExecutionError,
     TaskNotFoundError
@@ -104,158 +94,226 @@ from pepperpy_core import (
 try:
     await task.execute()
 except TaskExecutionError as e:
-    print(f"Erro na execução da tarefa: {e}")
-    if e.task_id:
-        print(f"ID da tarefa: {e.task_id}")
+    print(f"Task execution error: {e}")
+    print(f"Task ID: {e.task_id}")
 except TaskNotFoundError as e:
-    print(f"Tarefa não encontrada: {e}")
+    print(f"Task not found: {e}")
 ```
 
-## Exemplos de Uso
+## Usage Examples
 
-### Tratamento Básico
+### Basic Error Handling
 
 ```python
-from pepperpy_core import PepperpyError, ValidationError
+from pepperpy_core.exceptions import (
+    ValidationError,
+    ProcessingError,
+    ResourceError
+)
 
-async def process_user_data(data: dict):
+async def process_data(data: dict) -> dict:
     try:
-        # Validar dados
-        validate_user_data(data)
-        
-        # Processar dados
-        result = await process_data(data)
+        # Validate data
+        if not is_valid(data):
+            raise ValidationError("Invalid data")
+            
+        # Process data
+        result = await process(data)
         
         return result
     except ValidationError as e:
-        print(f"Dados inválidos: {e}")
-        if e.field_name:
-            print(f"Campo com erro: {e.field_name}")
-        raise
-    except PepperpyError as e:
-        print(f"Erro no processamento: {e}")
+        print(f"Invalid data: {e}")
         raise
 ```
 
-### Encadeamento de Exceções
+### Exception Chaining
 
 ```python
-from pepperpy_core import ConfigError, ValidationError
+from pepperpy_core.exceptions import (
+    ConfigError,
+    ValidationError,
+    ProcessingError
+)
 
-def load_user_config(path: str):
+async def initialize_system():
     try:
-        # Carregar configuração
-        config = load_config(path)
+        # Load configuration
+        config = await load_config()
         
-        # Validar configuração
-        validate_config(config)
+        # Validate configuration
+        if not is_valid_config(config):
+            raise ConfigError(
+                "Invalid configuration",
+                config_name="system"
+            )
         
         return config
-    except ValidationError as e:
+    except FileNotFoundError as e:
         raise ConfigError(
-            "Configuração inválida",
-            cause=e,
-            config_name=path
-        )
+            "Configuration file not found"
+        ) from e
 ```
 
-## Melhores Práticas
-
-1. **Hierarquia**
-   - Use exceções específicas
-   - Mantenha hierarquia clara
-   - Documente exceções
-   - Preserve causa original
-
-2. **Contexto**
-   - Inclua informações úteis
-   - Mantenha mensagens claras
-   - Use atributos específicos
-   - Preserve stack trace
-
-3. **Tratamento**
-   - Trate exceções apropriadamente
-   - Não silencie erros
-   - Registre informações
-   - Propague quando necessário
-
-4. **Documentação**
-   - Documente exceções lançadas
-   - Explique condições
-   - Forneça exemplos
-   - Descreva atributos
-
-5. **Performance**
-   - Evite exceções para fluxo
-   - Minimize overhead
-   - Cache informações
-   - Otimize mensagens
-
-## Padrões Comuns
-
-### Exceção com Contexto
+### Custom Exceptions
 
 ```python
-class ContextualError(PepperpyError):
+from pepperpy_core.exceptions import PepperPyException
+
+class CustomError(PepperPyException):
     def __init__(
         self,
         message: str,
-        context: dict,
-        cause: Exception | None = None
+        code: int = None
     ):
-        super().__init__(message, cause)
-        self.context = context
-    
-    def __str__(self) -> str:
-        base = super().__str__()
-        if self.context:
-            return f"{base} (Contexto: {self.context})"
-        return base
+        super().__init__(message)
+        self.code = code
 ```
 
-### Exceção com Retry
+## Best Practices
+
+1. **Exception Design**
+   - Keep hierarchy clean
+   - Use descriptive names
+   - Include context
+   - Follow patterns
+
+2. **Error Handling**
+   - Handle specific errors
+   - Provide context
+   - Log appropriately
+   - Clean up resources
+
+3. **Documentation**
+   - Document exceptions
+   - Include examples
+   - Explain causes
+   - Suggest solutions
+
+4. **Testing**
+   - Test error cases
+   - Verify messages
+   - Check context
+   - Test cleanup
+
+## Common Patterns
+
+### Retry Pattern
 
 ```python
-class RetryableError(PepperpyError):
-    def __init__(
+from pepperpy_core.exceptions import RetryableError
+
+class RetryHandler:
+    async def execute(
         self,
-        message: str,
-        retry_count: int = 0,
-        max_retries: int = 3,
-        cause: Exception | None = None
+        operation: callable,
+        max_retries: int = 3
     ):
-        super().__init__(message, cause)
-        self.retry_count = retry_count
-        self.max_retries = max_retries
-    
-    @property
-    def can_retry(self) -> bool:
-        return self.retry_count < self.max_retries
-    
-    def increment_retry(self) -> None:
-        self.retry_count += 1
+        retries = 0
+        while True:
+            try:
+                return await operation()
+            except RetryableError as e:
+                retries += 1
+                if retries >= max_retries:
+                    raise
+                await self.wait(retries)
 ```
 
-### Exceção com Recovery
+### Context Exceptions
 
 ```python
-class RecoverableError(PepperpyError):
-    def __init__(
-        self,
-        message: str,
-        recovery_action: callable,
-        cause: Exception | None = None
-    ):
-        super().__init__(message, cause)
-        self.recovery_action = recovery_action
+from pepperpy_core.exceptions import ContextError
+
+class Context:
+    def __init__(self):
+        self.state = {}
     
-    async def recover(self) -> Any:
+    def get(self, key: str) -> Any:
         try:
-            return await self.recovery_action()
-        except Exception as e:
-            raise PepperpyError(
-                "Falha na recuperação",
-                cause=e
+            return self.state[key]
+        except KeyError:
+            raise ContextError(
+                f"Missing context: {key}"
             )
 ```
+
+### Exception Translation
+
+```python
+from pepperpy_core.exceptions import ExceptionTranslator
+
+class APITranslator(ExceptionTranslator):
+    def translate(self, error: Exception) -> dict:
+        if isinstance(error, ValidationError):
+            return {
+                "code": 400,
+                "error": "validation_error",
+                "message": str(error)
+            }
+        elif isinstance(error, AuthenticationError):
+            return {
+                "code": 401,
+                "error": "authentication_error",
+                "message": str(error)
+            }
+        else:
+            return {
+                "code": 500,
+                "error": "internal_error",
+                "message": "Internal server error"
+            }
+```
+
+## API Reference
+
+### Base Exceptions
+
+```python
+class PepperPyException(Exception):
+    """Base exception for all PepperPy errors."""
+
+class ConfigError(PepperPyException):
+    """Configuration related errors."""
+
+class ValidationError(PepperPyException):
+    """Validation related errors."""
+```
+
+### Error Context
+
+```python
+class ErrorContext:
+    def __init__(
+        self,
+        message: str,
+        code: str = None,
+        details: dict = None
+    ):
+        self.message = message
+        self.code = code
+        self.details = details or {}
+```
+
+### Exception Events
+
+The exceptions module emits the following events:
+
+- `error.raised` - When an error is raised
+- `error.handled` - When an error is handled
+- `error.logged` - When an error is logged
+
+### Error Handling
+
+```python
+try:
+    result = await process()
+except ValidationError as e:
+    logger.error(f"Validation error: {e}")
+    raise APIError(400, str(e))
+except ProcessingError as e:
+    logger.error(f"Processing error: {e}")
+    raise APIError(500, "Internal error")
+except Exception as e:
+    logger.error(f"Unexpected error: {e}")
+    raise APIError(500, "System error")
 ``` 

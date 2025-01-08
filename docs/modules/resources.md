@@ -1,305 +1,626 @@
-# Resources (Recursos)
+# Resources Module
 
-O módulo Resources do PepperPy Core fornece um sistema de gerenciamento de recursos, permitindo o controle e acesso a arquivos e recursos do sistema.
+## Overview
 
-## Componentes Principais
+The resources module provides a robust system for managing application resources such as files, configurations, templates, and assets. It supports loading, caching, validation, and lifecycle management of resources.
+
+## Key Components
 
 ### ResourceManager
 
-Gerenciador principal de recursos:
-
 ```python
-from pepperpy_core import ResourceManager
-
-# Criar gerenciador
-manager = ResourceManager()
-manager.initialize()
-
-# Adicionar recurso
-info = manager.add_resource(
-    "config",
-    "config.json",
-    metadata={"type": "config"}
+from pepperpy_core.resources import (
+    ResourceManager,
+    ResourceConfig
 )
 
-# Acessar recurso
-resource = manager.get_resource("config")
-print(f"Tamanho: {resource.size} bytes")
-```
-
-### ResourceInfo
-
-Informações sobre recursos:
-
-```python
-from pepperpy_core import ResourceInfo
-from pathlib import Path
-
-# Informações do recurso
-info = ResourceInfo(
-    name="data",
-    path=Path("data.json"),
-    size=1024,
-    metadata={"type": "data"}
-)
-```
-
-## Exemplos de Uso
-
-### Gerenciamento Básico
-
-```python
-from pepperpy_core import ResourceManager
-from pathlib import Path
-
-async def exemplo_recursos_basico():
-    # Criar gerenciador
-    manager = ResourceManager()
-    manager.initialize()
-    
-    try:
-        # Adicionar recursos
-        manager.add_resource(
-            "config",
-            "config.json",
-            metadata={"type": "config"}
-        )
-        
-        manager.add_resource(
-            "data",
-            "data/file.dat",
-            metadata={"type": "data"}
-        )
-        
-        # Listar recursos
-        resources = manager.list_resources()
-        for resource in resources:
-            print(f"Recurso: {resource.name}")
-            print(f"Caminho: {resource.path}")
-            print(f"Tamanho: {resource.size}")
-    finally:
-        # Limpar recursos
-        manager.cleanup()
-```
-
-### Gerenciamento de Arquivos
-
-```python
-from pepperpy_core import ResourceManager
-import json
-
-async def exemplo_arquivos():
-    manager = ResourceManager()
-    manager.initialize()
-    
-    # Adicionar arquivo de configuração
-    config_info = manager.add_resource(
-        "config",
-        "config.json"
+# Create manager
+manager = ResourceManager(
+    config=ResourceConfig(
+        base_path="resources",
+        cache_enabled=True,
+        validate=True
     )
-    
-    # Ler arquivo
-    with open(config_info.path) as f:
-        config = json.load(f)
-    
-    # Processar configuração
-    print(f"Host: {config['host']}")
-    print(f"Port: {config['port']}")
-    
-    # Remover recurso
-    manager.remove_resource("config")
+)
+
+# Initialize manager
+await manager.initialize()
 ```
 
-## Recursos Avançados
-
-### Gerenciador com Cache
+### Resource Loading
 
 ```python
-class CachedResourceManager(ResourceManager):
-    def __init__(self):
-        super().__init__()
-        self.cache = {}
-    
-    def get_resource(self, name: str) -> ResourceInfo | None:
-        # Verificar cache
-        if name in self.cache:
-            return self.cache[name]
-        
-        # Buscar recurso
-        resource = super().get_resource(name)
-        if resource:
-            self.cache[name] = resource
-        
-        return resource
-    
-    def cleanup(self) -> None:
-        self.cache.clear()
-        super().cleanup()
+from pepperpy_core.resources import (
+    ResourceLoader,
+    LoaderConfig
+)
+
+# Create loader
+loader = ResourceLoader(
+    config=LoaderConfig(
+        formats=["yaml", "json"],
+        encoding="utf-8"
+    )
+)
+
+# Load resource
+config = await loader.load(
+    path="config/app.yaml"
+)
 ```
 
-### Gerenciador com Validação
+### Resource Validation
 
 ```python
-class ValidatedResourceManager(ResourceManager):
+from pepperpy_core.resources import (
+    ResourceValidator,
+    ValidationConfig
+)
+
+# Create validator
+validator = ResourceValidator(
+    config=ValidationConfig(
+        schema_path="schemas",
+        strict=True
+    )
+)
+
+# Validate resource
+valid = await validator.validate(
+    resource=config,
+    schema="config.schema.json"
+)
+```
+
+## Usage Patterns
+
+### 1. Configuration Management
+
+```python
+from pepperpy_core.resources import (
+    ConfigManager,
+    ConfigFormat
+)
+
+class ApplicationConfig:
     def __init__(self):
-        super().__init__()
-        self.validators = {}
+        self.manager = ConfigManager(
+            base_path="config",
+            default_format=ConfigFormat.YAML
+        )
     
-    def add_validator(self, resource_type: str, validator: callable):
-        self.validators[resource_type] = validator
+    async def load_configs(self):
+        # Load app config
+        self.app_config = await self.manager.load(
+            "app.yaml"
+        )
+        
+        # Load database config
+        self.db_config = await self.manager.load(
+            "database.yaml"
+        )
+        
+        # Load service configs
+        self.service_configs = await self.manager.load_dir(
+            "services/*.yaml"
+        )
     
-    def add_resource(
+    async def get_config(
+        self,
+        path: str,
+        required: bool = True
+    ):
+        try:
+            # Get config
+            config = await self.manager.get(path)
+            
+            if not config and required:
+                raise ConfigError(
+                    f"Required config not found: {path}"
+                )
+            
+            return config
+            
+        except Exception as e:
+            raise ResourceError(
+                f"Failed to get config: {e}"
+            )
+    
+    async def validate_configs(self):
+        try:
+            # Validate all configs
+            await self.manager.validate_all()
+            
+        except Exception as e:
+            raise ConfigError(
+                f"Config validation failed: {e}"
+            )
+```
+
+### 2. Template Management
+
+```python
+from pepperpy_core.resources import (
+    TemplateManager,
+    TemplateConfig
+)
+
+class ApplicationTemplates:
+    def __init__(self):
+        self.manager = TemplateManager(
+            config=TemplateConfig(
+                path="templates",
+                cache_size=100
+            )
+        )
+    
+    async def initialize(self):
+        # Load templates
+        await self.manager.load_templates()
+        
+        # Register filters
+        self.register_filters()
+        
+        # Register functions
+        self.register_functions()
+    
+    def register_filters(self):
+        # Add custom filters
+        self.manager.add_filter(
+            "datetime",
+            self.format_datetime
+        )
+        
+        self.manager.add_filter(
+            "currency",
+            self.format_currency
+        )
+    
+    def register_functions(self):
+        # Add custom functions
+        self.manager.add_function(
+            "url_for",
+            self.generate_url
+        )
+        
+        self.manager.add_function(
+            "static_url",
+            self.generate_static_url
+        )
+    
+    async def render_template(
         self,
         name: str,
-        path: str | Path,
-        metadata: dict[str, Any] | None = None
-    ) -> ResourceInfo:
-        # Validar recurso
-        if metadata and "type" in metadata:
-            resource_type = metadata["type"]
-            if resource_type in self.validators:
-                validator = self.validators[resource_type]
-                if not validator(path):
-                    raise ResourceError(
-                        f"Validação falhou para {name}"
-                    )
-        
-        return super().add_resource(name, path, metadata)
+        context: dict
+    ):
+        try:
+            # Get template
+            template = await self.manager.get_template(
+                name
+            )
+            
+            # Render template
+            result = await template.render(
+                context
+            )
+            
+            return result
+            
+        except Exception as e:
+            raise TemplateError(
+                f"Template render failed: {e}"
+            )
 ```
 
-## Melhores Práticas
-
-1. **Recursos**
-   - Use nomes descritivos
-   - Adicione metadados
-   - Valide caminhos
-   - Gerencie ciclo de vida
-
-2. **Performance**
-   - Cache quando apropriado
-   - Otimize acessos
-   - Monitore uso
-   - Limpe recursos
-
-3. **Segurança**
-   - Valide caminhos
-   - Controle acesso
-   - Sanitize nomes
-   - Proteja recursos
-
-4. **Gerenciamento**
-   - Inicialize corretamente
-   - Faça cleanup
-   - Monitore recursos
-   - Trate erros
-
-5. **Manutenção**
-   - Documente recursos
-   - Monitore uso
-   - Atualize metadados
-   - Remova inativos
-
-## Padrões Comuns
-
-### Gerenciador com Monitoramento
+### 3. Asset Management
 
 ```python
-class MonitoredResourceManager(ResourceManager):
+from pepperpy_core.resources import (
+    AssetManager,
+    AssetConfig
+)
+
+class ApplicationAssets:
     def __init__(self):
-        super().__init__()
-        self.stats = {
-            "adds": 0,
-            "removes": 0,
-            "accesses": 0
-        }
+        self.manager = AssetManager(
+            config=AssetConfig(
+                path="static",
+                url_prefix="/static",
+                cache=True
+            )
+        )
     
-    def add_resource(
+    async def initialize(self):
+        # Load assets
+        await self.manager.load_assets()
+        
+        # Build manifest
+        await self.manager.build_manifest()
+        
+        # Start serving
+        await self.manager.start_server()
+    
+    async def get_asset_url(
         self,
-        name: str,
-        path: str | Path,
-        metadata: dict[str, Any] | None = None
-    ) -> ResourceInfo:
-        info = super().add_resource(name, path, metadata)
-        self.stats["adds"] += 1
-        return info
+        path: str
+    ):
+        try:
+            # Get asset
+            asset = await self.manager.get_asset(
+                path
+            )
+            
+            if not asset:
+                raise AssetError(
+                    f"Asset not found: {path}"
+                )
+            
+            # Get URL
+            return await self.manager.get_url(
+                asset
+            )
+            
+        except Exception as e:
+            raise ResourceError(
+                f"Failed to get asset URL: {e}"
+            )
     
-    def remove_resource(self, name: str) -> None:
-        super().remove_resource(name)
-        self.stats["removes"] += 1
-    
-    def get_resource(self, name: str) -> ResourceInfo | None:
-        resource = super().get_resource(name)
-        if resource:
-            self.stats["accesses"] += 1
-        return resource
-    
-    def get_stats(self) -> dict[str, int]:
-        return self.stats.copy()
+    async def process_assets(self):
+        try:
+            # Process all assets
+            await self.manager.process_all(
+                minify=True,
+                compress=True
+            )
+            
+        except Exception as e:
+            raise AssetError(
+                f"Asset processing failed: {e}"
+            )
 ```
 
-### Gerenciador com Backup
+## Best Practices
+
+### 1. Resource Configuration
 
 ```python
-class BackupResourceManager(ResourceManager):
-    def __init__(self, backup_dir: str | Path):
-        super().__init__()
-        self.backup_dir = Path(backup_dir)
-        self.backup_dir.mkdir(exist_ok=True)
-    
-    def add_resource(
-        self,
-        name: str,
-        path: str | Path,
-        metadata: dict[str, Any] | None = None
-    ) -> ResourceInfo:
-        info = super().add_resource(name, path, metadata)
-        
-        # Criar backup
-        backup_path = self.backup_dir / f"{name}.bak"
-        shutil.copy2(info.path, backup_path)
-        
-        return info
-    
-    def restore_backup(self, name: str) -> None:
-        backup_path = self.backup_dir / f"{name}.bak"
-        if not backup_path.exists():
-            raise ResourceError(f"Backup não encontrado: {name}")
-        
-        resource = self.get_resource(name)
-        if resource:
-            shutil.copy2(backup_path, resource.path)
+from pepperpy_core.resources import (
+    ResourceConfig,
+    CacheConfig
+)
+
+class ResourceSetup:
+    def configure(self):
+        return ResourceConfig(
+            # Basic settings
+            base_path="resources",
+            encoding="utf-8",
+            
+            # Loading
+            formats={
+                "yaml": {
+                    "loader": "yaml.safe_load",
+                    "dumper": "yaml.safe_dump"
+                },
+                "json": {
+                    "loader": "json.loads",
+                    "dumper": "json.dumps"
+                }
+            },
+            
+            # Validation
+            validation={
+                "enabled": True,
+                "schema_path": "schemas",
+                "strict": True
+            },
+            
+            # Caching
+            cache=CacheConfig(
+                enabled=True,
+                backend="memory",
+                max_size=1000,
+                ttl=3600
+            )
+        )
 ```
 
-### Gerenciador com Eventos
+### 2. Loading Configuration
 
 ```python
-class EventResourceManager(ResourceManager):
+from pepperpy_core.resources import (
+    LoaderConfig,
+    LoaderHooks
+)
+
+class LoaderSetup:
+    def configure(self):
+        return LoaderConfig(
+            # Basic settings
+            encoding="utf-8",
+            recursive=True,
+            
+            # Formats
+            formats=[
+                "yaml",
+                "json",
+                "toml"
+            ],
+            
+            # Processing
+            processing={
+                "interpolate": True,
+                "validate": True
+            },
+            
+            # Hooks
+            hooks=LoaderHooks(
+                before_load=self.before_load,
+                after_load=self.after_load,
+                on_error=self.on_error
+            )
+        )
+```
+
+### 3. Validation Configuration
+
+```python
+from pepperpy_core.resources import (
+    ValidationConfig,
+    SchemaConfig
+)
+
+class ValidationSetup:
+    def configure(self):
+        return ValidationConfig(
+            # Basic settings
+            enabled=True,
+            strict=True,
+            
+            # Schemas
+            schemas=SchemaConfig(
+                path="schemas",
+                format="json",
+                cache=True
+            ),
+            
+            # Rules
+            rules={
+                "config": {
+                    "required": True,
+                    "type": "object"
+                },
+                "template": {
+                    "required": False,
+                    "type": "string"
+                }
+            },
+            
+            # Custom
+            custom_validators={
+                "email": self.validate_email,
+                "url": self.validate_url
+            }
+        )
+```
+
+## Complete Examples
+
+### 1. Configuration System
+
+```python
+from pepperpy_core.resources import (
+    ConfigSystem,
+    ConfigFormat,
+    ConfigValidator
+)
+
+class ApplicationConfig:
     def __init__(self):
-        super().__init__()
-        self.listeners = []
+        self.system = ConfigSystem(
+            base_path="config"
+        )
+        
+        self.validator = ConfigValidator(
+            schema_path="schemas"
+        )
     
-    def add_listener(self, listener: callable):
-        self.listeners.append(listener)
+    async def initialize(self):
+        # Load configurations
+        await self.load_configs()
+        
+        # Validate configurations
+        await self.validate_configs()
+        
+        # Process configurations
+        await self.process_configs()
     
-    def _notify(self, event: str, resource: str):
-        for listener in self.listeners:
-            try:
-                listener(event, resource)
-            except Exception as e:
-                print(f"Erro no listener: {e}")
+    async def load_configs(self):
+        try:
+            # Load app config
+            self.app_config = await self.system.load(
+                "app.yaml",
+                format=ConfigFormat.YAML
+            )
+            
+            # Load database config
+            self.db_config = await self.system.load(
+                "database.yaml",
+                format=ConfigFormat.YAML
+            )
+            
+            # Load service configs
+            self.service_configs = await self.system.load_dir(
+                "services",
+                pattern="*.yaml",
+                format=ConfigFormat.YAML
+            )
+            
+        except Exception as e:
+            raise ConfigError(
+                f"Config loading failed: {e}"
+            )
     
-    def add_resource(
+    async def validate_configs(self):
+        try:
+            # Validate app config
+            await self.validator.validate(
+                self.app_config,
+                schema="app.schema.json"
+            )
+            
+            # Validate database config
+            await self.validator.validate(
+                self.db_config,
+                schema="database.schema.json"
+            )
+            
+            # Validate service configs
+            for config in self.service_configs:
+                await self.validator.validate(
+                    config,
+                    schema="service.schema.json"
+                )
+                
+        except Exception as e:
+            raise ConfigError(
+                f"Config validation failed: {e}"
+            )
+    
+    async def process_configs(self):
+        try:
+            # Process app config
+            self.app_config = await self.system.process(
+                self.app_config,
+                interpolate=True
+            )
+            
+            # Process database config
+            self.db_config = await self.system.process(
+                self.db_config,
+                interpolate=True
+            )
+            
+            # Process service configs
+            self.service_configs = await self.system.process_all(
+                self.service_configs,
+                interpolate=True
+            )
+            
+        except Exception as e:
+            raise ConfigError(
+                f"Config processing failed: {e}"
+            )
+```
+
+### 2. Template System
+
+```python
+from pepperpy_core.resources import (
+    TemplateSystem,
+    TemplateLoader,
+    TemplateCache
+)
+
+class ApplicationTemplates:
+    def __init__(self):
+        self.system = TemplateSystem(
+            path="templates"
+        )
+        
+        self.loader = TemplateLoader(
+            encoding="utf-8"
+        )
+        
+        self.cache = TemplateCache(
+            max_size=100
+        )
+    
+    async def initialize(self):
+        # Load templates
+        await self.load_templates()
+        
+        # Register extensions
+        self.register_extensions()
+        
+        # Register filters
+        self.register_filters()
+    
+    async def load_templates(self):
+        try:
+            # Load all templates
+            templates = await self.loader.load_dir(
+                "templates",
+                pattern="*.html"
+            )
+            
+            # Cache templates
+            for name, template in templates.items():
+                await self.cache.set(
+                    name,
+                    template
+                )
+                
+        except Exception as e:
+            raise TemplateError(
+                f"Template loading failed: {e}"
+            )
+    
+    def register_extensions(self):
+        # Add extensions
+        self.system.add_extension(
+            "jinja2.ext.do"
+        )
+        
+        self.system.add_extension(
+            "jinja2.ext.loopcontrols"
+        )
+    
+    def register_filters(self):
+        # Add filters
+        self.system.add_filter(
+            "datetime",
+            self.format_datetime
+        )
+        
+        self.system.add_filter(
+            "markdown",
+            self.render_markdown
+        )
+    
+    async def render(
         self,
-        name: str,
-        path: str | Path,
-        metadata: dict[str, Any] | None = None
-    ) -> ResourceInfo:
-        info = super().add_resource(name, path, metadata)
-        self._notify("add", name)
-        return info
-    
-    def remove_resource(self, name: str) -> None:
-        super().remove_resource(name)
-        self._notify("remove", name)
+        template: str,
+        context: dict
+    ):
+        try:
+            # Get from cache
+            template = await self.cache.get(
+                template
+            )
+            
+            if not template:
+                # Load template
+                template = await self.loader.load(
+                    template
+                )
+                
+                # Cache template
+                await self.cache.set(
+                    template.name,
+                    template
+                )
+            
+            # Render template
+            result = await template.render(
+                context
+            )
+            
+            return result
+            
+        except Exception as e:
+            raise TemplateError(
+                f"Template render failed: {e}"
+            )
 ```
 ``` 

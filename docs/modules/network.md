@@ -1,363 +1,353 @@
-# Network (Rede)
+# Network Module
 
-O módulo Network do PepperPy Core fornece uma interface assíncrona para operações de rede, incluindo requisições HTTP, WebSockets e gerenciamento de conexões.
+The PepperPy Core Network module provides an asynchronous interface for network operations, including HTTP requests, WebSockets, and connection management.
 
-## Componentes Principais
+## Core Components
 
-### HttpClient
+### AsyncHTTPClient
 
-Cliente HTTP assíncrono:
+Asynchronous HTTP client:
 
 ```python
-from pepperpy_core import HttpClient
+from pepperpy_core.network import AsyncHTTPClient
 
-# Criar cliente
-client = HttpClient()
+# Create client
+client = AsyncHTTPClient()
 
-# Fazer requisição
-response = await client.get("https://api.example.com/data")
+# Make request
+response = await client.get(
+    "https://api.example.com/data"
+)
+
+# Process response
 data = await response.json()
+```
 
-# Post com dados
+### AsyncWebSocket
+
+Asynchronous WebSocket client:
+
+```python
+from pepperpy_core.network import AsyncWebSocket
+
+async with AsyncWebSocket("wss://example.com") as ws:
+    # Send message
+    await ws.send({"type": "subscribe"})
+    
+    # Receive messages
+    async for message in ws:
+        await process_message(message)
+```
+
+### ConnectionManager
+
+Connection manager:
+
+```python
+from pepperpy_core.network import ConnectionManager
+
+manager = ConnectionManager()
+
+# Add connection
+conn = await manager.connect("example.com")
+
+# Monitor connection
+async for state in manager.watch(conn):
+    print(f"State: {state}")
+```
+
+## Usage Examples
+
+### HTTP Client
+
+```python
+from pepperpy_core.network import HTTPClient
+
+# Create client with configuration
+client = HTTPClient(
+    base_url="https://api.example.com",
+    timeout=30,
+    retries=3
+)
+
+# GET with parameters
+response = await client.get(
+    "/users",
+    params={"active": True}
+)
+
+# POST with JSON
 response = await client.post(
-    "https://api.example.com/users",
+    "/users",
     json={"name": "John"}
 )
 ```
 
-### WebSocket
-
-Cliente WebSocket assíncrono:
+### WebSocket Client
 
 ```python
-from pepperpy_core import WebSocket
+from pepperpy_core.network import WebSocket
 
-# Conectar ao servidor
-ws = WebSocket("wss://ws.example.com")
-await ws.connect()
-
-# Enviar mensagem
-await ws.send({"type": "hello"})
-
-# Receber mensagem
-message = await ws.receive()
-```
-
-### NetworkManager
-
-Gerenciador de conexões:
-
-```python
-from pepperpy_core import NetworkManager
-
-# Criar gerenciador
-manager = NetworkManager()
-await manager.initialize()
-
-# Verificar conectividade
-is_online = await manager.check_connection()
-
-# Monitorar conexão
-await manager.monitor_connection(
-    on_disconnect=lambda: print("Desconectado"),
-    on_reconnect=lambda: print("Reconectado")
-)
-```
-
-## Exemplos de Uso
-
-### Cliente HTTP
-
-```python
-from pepperpy_core import HttpClient
-from typing import Any
-
-async def exemplo_http():
-    # Criar cliente com configuração
-    client = HttpClient(
-        base_url="https://api.example.com",
-        timeout=30.0,
-        retries=3
-    )
+class ChatClient(WebSocket):
+    async def connect(self):
+        await super().connect()
+        await self.subscribe()
     
-    try:
-        # GET com parâmetros
-        response = await client.get(
-            "/users",
-            params={"page": 1, "limit": 10}
-        )
-        users = await response.json()
-        
-        # POST com JSON
-        response = await client.post(
-            "/users",
-            json={
-                "name": "John",
-                "email": "john@example.com"
-            }
-        )
-        
-        # Upload de arquivo
-        files = {"file": open("data.txt", "rb")}
-        response = await client.post(
-            "/upload",
-            files=files
-        )
-    finally:
-        await client.close()
-```
-
-### WebSocket com Eventos
-
-```python
-from pepperpy_core import WebSocket
-import json
-
-async def exemplo_websocket():
-    # Conectar ao servidor
-    ws = WebSocket("wss://ws.example.com")
-    
-    try:
-        await ws.connect()
-        
-        # Registrar handlers
-        @ws.on("message")
-        async def handle_message(data: dict):
-            print(f"Mensagem: {data}")
-        
-        @ws.on("error")
-        async def handle_error(error: Exception):
-            print(f"Erro: {error}")
-        
-        # Enviar mensagem
-        await ws.send({
+    async def subscribe(self):
+        await self.send({
             "type": "subscribe",
-            "channel": "updates"
+            "channel": "chat"
         })
-        
-        # Receber mensagens
-        async for message in ws:
-            print(f"Recebido: {message}")
-    finally:
-        await ws.close()
+    
+    async def on_message(self, message):
+        await self.process_message(message)
 ```
 
-## Recursos Avançados
-
-### Cliente com Rate Limit
+### Connection Pool
 
 ```python
-class RateLimitedClient(HttpClient):
-    def __init__(
-        self,
-        max_requests: int = 100,
-        window: float = 60.0
-    ):
-        super().__init__()
-        self.max_requests = max_requests
-        self.window = window
-        self.requests = []
-    
-    async def _send_request(self, *args, **kwargs):
-        # Limpar requisições antigas
-        now = time.time()
-        self.requests = [
-            t for t in self.requests
-            if now - t < self.window
-        ]
-        
-        # Verificar limite
-        if len(self.requests) >= self.max_requests:
-            raise RateLimitError(
-                f"Limite de {self.max_requests} "
-                f"requisições por {self.window}s excedido"
-            )
-        
-        # Registrar requisição
-        self.requests.append(now)
-        
-        return await super()._send_request(*args, **kwargs)
+from pepperpy_core.network import ConnectionPool
+
+pool = ConnectionPool(
+    max_size=10,
+    timeout=30
+)
+
+async with pool.acquire() as conn:
+    await conn.execute(query)
 ```
 
-### WebSocket com Retry
+## Advanced Features
+
+### Rate Limiter
 
 ```python
-class RetryWebSocket(WebSocket):
-    def __init__(
-        self,
-        url: str,
-        max_retries: int = 3,
-        retry_delay: float = 1.0
-    ):
-        super().__init__(url)
-        self.max_retries = max_retries
-        self.retry_delay = retry_delay
-    
-    async def connect(self) -> None:
-        retries = 0
-        last_error = None
-        
-        while retries < self.max_retries:
-            try:
-                await super().connect()
-                return
-            except Exception as e:
-                last_error = e
-                retries += 1
-                if retries < self.max_retries:
-                    await asyncio.sleep(
-                        self.retry_delay * (2 ** retries)
-                    )
-        
-        raise ConnectionError(
-            f"Falha após {retries} tentativas: {last_error}"
-        )
-```
+from pepperpy_core.network import RateLimiter
 
-## Melhores Práticas
-
-1. **HTTP**
-   - Use timeouts
-   - Implemente retry
-   - Valide respostas
-   - Feche conexões
-
-2. **WebSocket**
-   - Monitore conexão
-   - Implemente heartbeat
-   - Trate reconexão
-   - Valide mensagens
-
-3. **Segurança**
-   - Use HTTPS/WSS
-   - Valide certificados
-   - Proteja credenciais
-   - Sanitize dados
-
-4. **Performance**
-   - Use connection pool
-   - Implemente cache
-   - Otimize payloads
-   - Monitore latência
-
-5. **Resiliência**
-   - Trate erros
-   - Implemente fallback
-   - Monitore status
-   - Registre eventos
-
-## Padrões Comuns
-
-### Cliente com Cache
-
-```python
-class CachedClient(HttpClient):
-    def __init__(self, cache_ttl: float = 300.0):
-        super().__init__()
-        self.cache = {}
-        self.cache_ttl = cache_ttl
-    
-    async def get(self, url: str, **kwargs) -> Any:
-        # Verificar cache
-        cache_key = f"{url}:{json.dumps(kwargs)}"
-        now = time.time()
-        
-        if cache_key in self.cache:
-            entry = self.cache[cache_key]
-            if now - entry["timestamp"] < self.cache_ttl:
-                return entry["data"]
-        
-        # Fazer requisição
-        response = await super().get(url, **kwargs)
-        data = await response.json()
-        
-        # Atualizar cache
-        self.cache[cache_key] = {
-            "data": data,
-            "timestamp": now
-        }
-        
-        return data
-```
-
-### WebSocket com Batch
-
-```python
-class BatchWebSocket(WebSocket):
-    def __init__(
-        self,
-        url: str,
-        batch_size: int = 100,
-        flush_interval: float = 1.0
-    ):
-        super().__init__(url)
-        self.batch_size = batch_size
-        self.flush_interval = flush_interval
-        self.batch = []
-        self.last_flush = time.time()
-    
-    async def send(self, data: Any) -> None:
-        # Adicionar à batch
-        self.batch.append(data)
-        
-        # Verificar flush
-        now = time.time()
-        should_flush = (
-            len(self.batch) >= self.batch_size or
-            now - self.last_flush >= self.flush_interval
-        )
-        
-        if should_flush:
-            await self._flush()
-    
-    async def _flush(self) -> None:
-        if not self.batch:
-            return
-        
-        # Enviar batch
-        try:
-            await super().send(self.batch)
-        finally:
-            self.batch = []
-            self.last_flush = time.time()
-```
-
-### Cliente com Métricas
-
-```python
-class MetricsClient(HttpClient):
+class LimitedClient(HTTPClient):
     def __init__(self):
         super().__init__()
-        self.metrics = {
-            "requests": 0,
-            "errors": 0,
-            "latency": []
-        }
+        self.limiter = RateLimiter(
+            max_requests=100,
+            window=60
+        )
     
-    async def _send_request(self, *args, **kwargs):
-        start_time = time.time()
-        
-        try:
-            response = await super()._send_request(
-                *args,
-                **kwargs
+    async def cleanup(self):
+        # Clean up old requests
+        await self.limiter.cleanup()
+    
+    async def request(self, *args, **kwargs):
+        if not await self.limiter.allow():
+            raise RateLimitError(
+                f"requests per {self.window}s exceeded"
             )
-            self.metrics["requests"] += 1
-            return response
-        except Exception as e:
-            self.metrics["errors"] += 1
-            raise
-        finally:
-            latency = time.time() - start_time
-            self.metrics["latency"].append(latency)
+        
+        # Record request
+        self.limiter.record()
+        
+        return await super().request(
+            *args,
+            **kwargs
+        )
+```
+
+### Retry Handler
+
+```python
+from pepperpy_core.network import RetryHandler
+
+class RetryClient(HTTPClient):
+    def __init__(
+        self,
+        max_retries: int = 3,
+        delay: float = 1.0
+    ):
+        super().__init__()
+        self.max_retries = max_retries
+        self.delay = delay
     
-    def get_metrics(self) -> dict:
-        latency = self.metrics["latency"]
-        return {
-            "total_requests": self.metrics["requests"],
-            "total_errors": self.metrics["errors"],
-            "avg_latency": sum(latency) / len(latency)
-            if latency else 0
-        }
+    async def request(self, *args, **kwargs):
+        retries = 0
+        while True:
+            try:
+                return await super().request(
+                    *args,
+                    **kwargs
+                )
+            except RequestError as e:
+                retries += 1
+                if retries >= self.max_retries:
+                    raise RequestError(
+                        f"Failed after {retries} attempts: {last_error}"
+                    )
+                await asyncio.sleep(self.delay)
+```
+
+## Best Practices
+
+1. **Connection Management**
+   - Use connection pools
+   - Close connections
+   - Handle timeouts
+   - Monitor usage
+
+2. **WebSocket**
+   - Monitor connection
+   - Handle reconnection
+   - Implement heartbeat
+   - Handle backoff
+
+3. **Security**
+   - Use HTTPS
+   - Validate certificates
+   - Secure WebSockets
+   - Handle authentication
+
+4. **Performance**
+   - Monitor latency
+   - Use connection pooling
+   - Implement caching
+   - Handle backpressure
+
+5. **Resilience**
+   - Implement retry
+   - Handle failures
+   - Monitor health
+   - Use circuit breakers
+
+## Common Patterns
+
+### HTTP Client with Retry
+
+```python
+from pepperpy_core.network import RetryClient
+
+class APIClient(RetryClient):
+    def __init__(self):
+        super().__init__(
+            max_retries=3,
+            delay=1.0
+        )
+    
+    async def get_user(self, user_id: str):
+        # Make request
+        response = await self.get(
+            f"/users/{user_id}"
+        )
+        
+        return await response.json()
+```
+
+### Batch Request Handler
+
+```python
+from pepperpy_core.network import BatchHandler
+
+class BatchClient(HTTPClient):
+    def __init__(self):
+        super().__init__()
+        self.batch = BatchHandler(
+            max_size=100,
+            timeout=1.0
+        )
+    
+    async def request(self, *args, **kwargs):
+        # Add to batch
+        future = self.batch.add(
+            args,
+            kwargs
+        )
+        
+        # Wait for result
+        return await future
+```
+
+### Client with Metrics
+
+```python
+from pepperpy_core.network import MetricsClient
+
+class MonitoredClient(MetricsClient):
+    async def request(self, *args, **kwargs):
+        # Start timer
+        with self.timer("request"):
+            try:
+                # Make request
+                response = await super().request(
+                    *args,
+                    **kwargs
+                )
+                
+                # Record success
+                self.record_success()
+                
+                return response
+            except Exception as e:
+                # Record failure
+                self.record_failure(str(e))
+                raise
+```
+
+## API Reference
+
+### HTTPClient
+
+```python
+class HTTPClient:
+    async def request(
+        self,
+        method: str,
+        url: str,
+        **kwargs
+    ) -> Response:
+        """Make HTTP request."""
+        
+    async def get(
+        self,
+        url: str,
+        **kwargs
+    ) -> Response:
+        """Make GET request."""
+        
+    async def post(
+        self,
+        url: str,
+        **kwargs
+    ) -> Response:
+        """Make POST request."""
+```
+
+### WebSocket
+
+```python
+class WebSocket:
+    async def connect(self):
+        """Connect to server."""
+        
+    async def send(
+        self,
+        message: Any
+    ):
+        """Send message."""
+        
+    async def receive(self) -> Any:
+        """Receive message."""
+```
+
+### ConnectionPool
+
+```python
+class ConnectionPool:
+    async def acquire(self) -> Connection:
+        """Acquire connection."""
+        
+    async def release(
+        self,
+        conn: Connection
+    ):
+        """Release connection."""
+        
+    async def close(self):
+        """Close all connections."""
 ```
 ``` 

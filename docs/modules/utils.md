@@ -1,317 +1,230 @@
-# Utils (Utilitários)
+# Utilities Module
 
-O módulo Utils do PepperPy Core fornece uma coleção de funções e classes utilitárias para tarefas comuns, incluindo manipulação de strings, datas, arquivos e outros recursos.
+The PepperPy Core Utils module provides a collection of utility functions and classes for common tasks, including string manipulation, dates, files, and other resources.
 
-## Funções de String
+## Core Components
 
-### string_utils
-
-Funções para manipulação de strings:
+### String Utilities
 
 ```python
-from pepperpy_core.utils import (
-    slugify,
-    camel_to_snake,
-    snake_to_camel
-)
+from pepperpy_core.utils import strings
 
-# Criar slug
-text = "Hello World!"
-slug = slugify(text)  # "hello-world"
-
-# Converter casos
-camel = "myVariableName"
-snake = camel_to_snake(camel)  # "my_variable_name"
-
-snake = "my_variable_name"
-camel = snake_to_camel(snake)  # "myVariableName"
+# String manipulation
+text = strings.normalize("Hello World!")
+slug = strings.slugify("Hello World!")
+uuid = strings.generate_uuid()
 ```
 
-### text_utils
-
-Funções para processamento de texto:
+### Date Utilities
 
 ```python
-from pepperpy_core.utils import (
-    truncate,
-    word_wrap,
-    remove_accents
-)
+from pepperpy_core.utils import dates
 
-# Truncar texto
-text = "Lorem ipsum dolor sit amet"
-short = truncate(text, length=10)  # "Lorem ip..."
-
-# Quebrar texto
-wrapped = word_wrap(text, width=20)
-
-# Remover acentos
-text = "café"
-clean = remove_accents(text)  # "cafe"
+# Date operations
+now = dates.now()
+tomorrow = dates.add_days(now, 1)
+formatted = dates.format(now, "YYYY-MM-DD")
 ```
 
-## Funções de Data/Hora
-
-### date_utils
-
-Funções para manipulação de datas:
+### File Utilities
 
 ```python
-from pepperpy_core.utils import (
-    format_duration,
-    parse_duration,
-    to_local_time
-)
+from pepperpy_core.utils import files
 
-# Formatar duração
-seconds = 3665
-formatted = format_duration(seconds)  # "1h 1m 5s"
-
-# Converter duração
-duration = "2h 30m"
-seconds = parse_duration(duration)  # 9000
-
-# Converter timezone
-utc_time = datetime.now(timezone.utc)
-local = to_local_time(utc_time)
+# File operations
+exists = files.exists("data.txt")
+size = files.get_size("data.txt")
+mime = files.get_mime_type("image.png")
 ```
 
-## Funções de Arquivo
-
-### file_utils
-
-Funções para manipulação de arquivos:
+### Collection Utilities
 
 ```python
-from pepperpy_core.utils import (
-    ensure_dir,
-    safe_filename,
-    get_file_hash
-)
+from pepperpy_core.utils import collections
 
-# Garantir diretório
-path = "data/temp"
-ensure_dir(path)
-
-# Sanitizar nome de arquivo
-name = "My File (1).txt"
-safe = safe_filename(name)  # "my-file-1.txt"
-
-# Calcular hash
-file_path = "data.txt"
-hash_md5 = await get_file_hash(file_path)
+# Collection operations
+chunks = collections.chunk(data, size=100)
+unique = collections.unique(items)
+grouped = collections.group_by(items, key="type")
 ```
 
-## Funções de Rede
+## Advanced Features
 
-### network_utils
-
-Funções para operações de rede:
+### Path Utilities
 
 ```python
-from pepperpy_core.utils import (
-    is_valid_ip,
-    get_free_port,
-    wait_for_port
-)
+from pepperpy_core.utils import paths
 
-# Validar IP
-ip = "192.168.1.1"
-valid = is_valid_ip(ip)  # True
-
-# Obter porta livre
-port = await get_free_port()  # 8080
-
-# Esperar porta
-await wait_for_port("localhost", 5432, timeout=30.0)
+# Path operations
+normalized = paths.normalize("/path/to/file")
+relative = paths.make_relative(path, base)
+absolute = paths.make_absolute(path)
 ```
 
-## Funções de Sistema
-
-### system_utils
-
-Funções para operações do sistema:
+### Hash Utilities
 
 ```python
-from pepperpy_core.utils import (
-    get_memory_usage,
-    get_cpu_usage,
-    get_disk_usage
-)
+from pepperpy_core.utils import hashing
 
-# Uso de memória
-memory = await get_memory_usage()
-print(f"Memória: {memory}%")
-
-# Uso de CPU
-cpu = await get_cpu_usage()
-print(f"CPU: {cpu}%")
-
-# Uso de disco
-disk = await get_disk_usage("/")
-print(f"Disco: {disk}%")
+# Hash operations
+md5 = hashing.md5("data")
+sha256 = hashing.sha256("data")
+hash = hashing.hash_file("file.txt")
 ```
 
-## Classes Utilitárias
-
-### Singleton
-
-Base para classes singleton:
+### Validation Utilities
 
 ```python
-from pepperpy_core.utils import Singleton
+from pepperpy_core.utils import validation
 
-class MyService(Singleton):
+# Validation operations
+is_email = validation.is_email("user@example.com")
+is_url = validation.is_url("https://example.com")
+is_ip = validation.is_ip("192.168.1.1")
+```
+
+## Best Practices
+
+1. **String Operations**
+   - Use proper encoding
+   - Handle special chars
+   - Validate input
+   - Normalize output
+
+2. **Date Operations**
+   - Use UTC when possible
+   - Handle timezones
+   - Format consistently
+   - Validate dates
+
+3. **File Operations**
+   - Check permissions
+   - Handle errors
+   - Clean up resources
+   - Validate paths
+
+4. **Collections**
+   - Handle empty cases
+   - Check types
+   - Optimize operations
+   - Document usage
+
+5. **Security**
+   - Validate input
+   - Sanitize data
+   - Use secure hashes
+   - Handle errors
+
+## Common Patterns
+
+### String Processing
+
+```python
+from pepperpy_core.utils import strings
+
+class TextProcessor:
     def __init__(self):
-        self.initialized = False
+        self.processors = []
     
-    def initialize(self):
-        if not self.initialized:
-            # Inicialização
-            self.initialized = True
-
-# Usar singleton
-service1 = MyService()
-service2 = MyService()  # Mesma instância
+    def add_processor(self, func):
+        self.processors.append(func)
+    
+    def process(self, text: str) -> str:
+        result = text
+        for processor in self.processors:
+            result = processor(result)
+        return result
 ```
 
-### LRUCache
-
-Cache com política LRU:
+### File Processing
 
 ```python
-from pepperpy_core.utils import LRUCache
+from pepperpy_core.utils import files
 
-# Criar cache
-cache = LRUCache[str](max_size=1000)
-
-# Usar cache
-cache.set("key", "value")
-value = cache.get("key")  # "value"
-
-# Estatísticas
-stats = cache.get_stats()
-print(f"Hit ratio: {stats.hit_ratio}")
+class FileProcessor:
+    def __init__(self, chunk_size: int = 8192):
+        self.chunk_size = chunk_size
+    
+    async def process_file(self, path: str):
+        # Check file
+        if not files.exists(path):
+            raise FileNotFoundError(path)
+        
+        # Process chunks
+        async for chunk in files.read_chunks(
+            path,
+            self.chunk_size
+        ):
+            await self.process_chunk(chunk)
 ```
 
-## Decoradores
-
-### decorators
-
-Decoradores úteis:
+### Data Validation
 
 ```python
-from pepperpy_core.utils import (
-    retry,
-    timeout,
-    measure_time
-)
+from pepperpy_core.utils import validation
 
-# Retry em falhas
-@retry(max_retries=3, delay=1.0)
-async def fetch_data():
-    # Código que pode falhar
-    pass
-
-# Timeout
-@timeout(seconds=5.0)
-async def slow_operation():
-    # Operação lenta
-    pass
-
-# Medição de tempo
-@measure_time
-async def process_data():
-    # Código a ser medido
-    pass
+class DataValidator:
+    def __init__(self):
+        self.validators = {}
+    
+    def add_validator(self, field: str, func: callable):
+        self.validators[field] = func
+    
+    def validate(self, data: dict) -> bool:
+        for field, validator in self.validators.items():
+            if field in data:
+                if not validator(data[field]):
+                    return False
+        return True
 ```
 
-## Melhores Práticas
+## API Reference
 
-1. **Strings**
-   - Valide entrada
-   - Use codificação apropriada
-   - Trate caracteres especiais
-   - Normalize texto
-
-2. **Datas**
-   - Use UTC quando possível
-   - Valide formatos
-   - Considere timezones
-   - Trate exceções
-
-3. **Arquivos**
-   - Valide caminhos
-   - Use paths absolutos
-   - Trate permissões
-   - Limpe recursos
-
-4. **Rede**
-   - Valide endereços
-   - Use timeouts
-   - Trate erros
-   - Monitore conexões
-
-5. **Sistema**
-   - Monitore recursos
-   - Trate limites
-   - Cache resultados
-   - Otimize uso
-
-## Padrões Comuns
-
-### Retry com Backoff
+### String Utils
 
 ```python
-from pepperpy_core.utils import retry
-
-# Configurar retry
-@retry(
-    max_retries=3,
-    delay=1.0,
-    backoff=2.0,
-    exceptions=(ConnectionError,)
-)
-async def fetch_with_retry():
-    # Código com retry
-    pass
+class StringUtils:
+    def normalize(text: str) -> str:
+        """Normalize text."""
+        
+    def slugify(text: str) -> str:
+        """Create URL slug."""
+        
+    def truncate(
+        text: str,
+        length: int
+    ) -> str:
+        """Truncate text."""
 ```
 
-### Cache com TTL
+### Date Utils
 
 ```python
-from pepperpy_core.utils import TTLCache
-
-# Criar cache
-cache = TTLCache[str](
-    max_size=1000,
-    ttl=300.0  # 5 minutos
-)
-
-# Usar cache
-await cache.set("key", "value")
-value = await cache.get("key")
-
-# Limpar expirados
-await cache.cleanup()
+class DateUtils:
+    def now() -> datetime:
+        """Get current time."""
+        
+    def parse(text: str) -> datetime:
+        """Parse date string."""
+        
+    def format(
+        date: datetime,
+        format: str
+    ) -> str:
+        """Format date."""
 ```
 
-### Medição de Recursos
+### File Utils
 
 ```python
-from pepperpy_core.utils import ResourceMonitor
-
-# Criar monitor
-monitor = ResourceMonitor()
-
-# Iniciar monitoramento
-async with monitor:
-    # Código a ser monitorado
-    await process_data()
-
-# Obter métricas
-metrics = monitor.get_metrics()
-print(f"CPU Máximo: {metrics.max_cpu}%")
-print(f"Memória Média: {metrics.avg_memory}%")
+class FileUtils:
+    def exists(path: str) -> bool:
+        """Check if file exists."""
+        
+    def get_size(path: str) -> int:
+        """Get file size."""
+        
+    def get_mime(path: str) -> str:
+        """Get MIME type."""
 ```
 ``` 

@@ -1,360 +1,243 @@
-# Serialization (Serialização)
+# Serialization Module
 
-O módulo Serialization do PepperPy Core fornece utilitários para serialização e deserialização de objetos, com suporte especial para JSON e objetos personalizados.
+The PepperPy Core Serialization module provides utilities for object serialization and deserialization, with special support for JSON and custom objects.
 
-## Componentes Principais
+## Core Components
 
-### Serializable
+### Serializable Protocol
 
-Protocolo para objetos serializáveis:
+Protocol for serializable objects:
 
 ```python
-from pepperpy_core import Serializable
+from pepperpy_core.serialization import Serializable
 
 class User(Serializable):
-    def __init__(self, name: str, age: int):
+    def __init__(self, name: str, email: str):
         self.name = name
-        self.age = age
+        self.email = email
     
-    def to_dict(self) -> dict[str, Any]:
+    def serialize(self) -> dict:
         return {
             "name": self.name,
-            "age": self.age
+            "email": self.email
         }
     
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "User":
+    def deserialize(cls, data: dict) -> "User":
         return cls(
             name=data["name"],
-            age=data["age"]
+            email=data["email"]
         )
 ```
 
-### JsonSerializer
-
-Serializador JSON com suporte a objetos complexos:
+### Basic Serialization
 
 ```python
-from pepperpy_core import JsonSerializer
+from pepperpy_core.serialization import JsonSerializer
 
-# Criar serializador
+# Create serializer
 serializer = JsonSerializer()
 
-# Serializar objeto
-user = User("John", 30)
-json_str = serializer.serialize(user)
+# Serialize object
+data = {"name": "John", "age": 30}
+json_str = serializer.serialize(data)
 
-# Deserializar objeto
-user_copy = serializer.deserialize(json_str, User)
+# Deserialize object
+data = serializer.deserialize(json_str)
 ```
 
-## Exemplos de Uso
-
-### Serialização Básica
+### Complex Serialization
 
 ```python
-from pepperpy_core import Serializable, JsonSerializer
-from dataclasses import dataclass
+from pepperpy_core.serialization import (
+    Serializer,
+    Field,
+    serialize,
+    deserialize
+)
 
-@dataclass
-class Point(Serializable):
-    x: float
-    y: float
-    
-    def to_dict(self) -> dict[str, Any]:
-        return {
-            "x": self.x,
-            "y": self.y
-        }
-    
-    @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "Point":
-        return cls(
-            x=data["x"],
-            y=data["y"]
-        )
+@serialize
+class User:
+    name: str = Field()
+    email: str = Field()
+    age: int = Field(default=0)
+    active: bool = Field(default=True)
 
-async def exemplo_serializacao_basica():
-    # Criar objeto
-    point = Point(10.5, 20.3)
-    
-    # Serializar
-    serializer = JsonSerializer()
-    json_data = serializer.serialize(point)
-    
-    # Deserializar
-    point_copy = serializer.deserialize(
-        json_data,
-        Point
-    )
-    
-    print(f"X: {point_copy.x}, Y: {point_copy.y}")
+# Create object
+user = User(
+    name="John",
+    email="john@example.com"
+)
+
+# Serialize
+data = user.serialize()
+
+# Deserialize
+user = User.deserialize(data)
 ```
 
-### Serialização Complexa
+## Advanced Features
+
+### Serializer with Validation
 
 ```python
-from pepperpy_core import Serializable, JsonSerializer
-from typing import List
+from pepperpy_core.serialization import ValidatedSerializer
 
-class Address(Serializable):
-    def __init__(self, street: str, city: str):
-        self.street = street
-        self.city = city
-    
-    def to_dict(self) -> dict[str, Any]:
-        return {
-            "street": self.street,
-            "city": self.city
-        }
-    
-    @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "Address":
-        return cls(
-            street=data["street"],
-            city=data["city"]
-        )
-
-class Person(Serializable):
-    def __init__(
-        self,
-        name: str,
-        addresses: List[Address]
-    ):
-        self.name = name
-        self.addresses = addresses
-    
-    def to_dict(self) -> dict[str, Any]:
-        return {
-            "name": self.name,
-            "addresses": [
-                addr.to_dict()
-                for addr in self.addresses
-            ]
-        }
-    
-    @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "Person":
-        return cls(
-            name=data["name"],
-            addresses=[
-                Address.from_dict(addr)
-                for addr in data["addresses"]
-            ]
-        )
-
-async def exemplo_serializacao_complexa():
-    # Criar objeto complexo
-    person = Person(
-        "John",
-        [
-            Address("123 Main St", "New York"),
-            Address("456 Park Ave", "Boston")
-        ]
-    )
-    
-    # Serializar
-    serializer = JsonSerializer()
-    json_data = serializer.serialize(person)
-    
-    # Deserializar
-    person_copy = serializer.deserialize(
-        json_data,
-        Person
-    )
-```
-
-## Recursos Avançados
-
-### Serializador com Validação
-
-```python
-class ValidatedSerializer(JsonSerializer):
-    def __init__(self, schema: dict):
-        super().__init__()
-        self.schema = schema
-    
-    def serialize(self, obj: Any) -> str:
-        # Validar objeto
-        self._validate(obj)
-        return super().serialize(obj)
-    
-    def _validate(self, obj: Any) -> None:
-        if not hasattr(obj, "__annotations__"):
-            return
+class UserSerializer(ValidatedSerializer):
+    def validate(self, data: dict) -> bool:
+        # Validate required fields
+        if "name" not in data:
+            raise ValueError("Name is required")
         
-        for field, type_hint in obj.__annotations__.items():
-            value = getattr(obj, field)
-            if not isinstance(value, type_hint):
-                raise TypeError(
-                    f"Campo {field} deve ser do tipo {type_hint}"
-                )
+        if "email" not in data:
+            raise ValueError("Email is required")
+        
+        # Validate types
+        if not isinstance(data["name"], str):
+            raise ValueError("Name must be string")
+        
+        if not isinstance(data["email"], str):
+            raise ValueError("Email must be string")
+        
+        return True
 ```
 
-### Serializador com Cache
+## Best Practices
+
+1. **Serialization**
+   - Validate input
+   - Handle types
+   - Use schemas
+   - Document format
+
+2. **Deserialization**
+   - Validate data
+   - Handle errors
+   - Maintain consistency
+   - Check types
+
+3. **Performance**
+   - Optimize conversions
+   - Use caching
+   - Batch operations
+   - Monitor usage
+
+4. **Security**
+   - Validate input
+   - Sanitize data
+   - Protect sensitive data
+   - Monitor access
+
+5. **Maintenance**
+   - Document changes
+   - Test conversions
+   - Update schemas
+   - Monitor usage
+
+## Common Patterns
+
+### Versioned Serializer
 
 ```python
-class CachedSerializer(JsonSerializer):
+from pepperpy_core.serialization import VersionedSerializer
+
+class DataSerializer(VersionedSerializer):
+    def serialize(self, obj: Any) -> dict:
+        # Add version
+        data = super().serialize(obj)
+        data["_version"] = "1.0"
+        return data
+    
+    def deserialize(self, data: dict) -> Any:
+        # Extract and check version
+        version = data.get("_version")
+        if version != "1.0":
+            raise ValueError(
+                f"Incompatible version: {version}"
+            )
+        
+        return super().deserialize(data)
+```
+
+### Compressed Serializer
+
+```python
+from pepperpy_core.serialization import CompressedSerializer
+
+class DataSerializer(CompressedSerializer):
+    def serialize(self, obj: Any) -> bytes:
+        # Serialize and compress
+        data = super().serialize(obj)
+        return self.compress(data)
+    
+    def deserialize(self, data: bytes) -> Any:
+        # Decompress and deserialize
+        data = self.decompress(data)
+        return super().deserialize(data)
+```
+
+### Cached Serializer
+
+```python
+from pepperpy_core.serialization import CachedSerializer
+
+class DataSerializer(CachedSerializer):
     def __init__(self):
         super().__init__()
         self.cache = {}
     
     def serialize(self, obj: Any) -> str:
-        # Gerar chave de cache
-        cache_key = id(obj)
+        # Check cache
+        key = self.get_cache_key(obj)
+        if key in self.cache:
+            return self.cache[key]
         
-        # Verificar cache
-        if cache_key in self.cache:
-            return self.cache[cache_key]
+        # Serialize
+        data = super().serialize(obj)
         
-        # Serializar e cachear
-        result = super().serialize(obj)
-        self.cache[cache_key] = result
-        return result
-    
-    def clear_cache(self):
-        self.cache.clear()
+        # Update cache
+        self.cache[key] = data
+        return data
 ```
 
-## Melhores Práticas
+## API Reference
 
-1. **Serialização**
-   - Implemente to_dict
-   - Valide dados
-   - Trate tipos especiais
-   - Documente formato
-
-2. **Deserialização**
-   - Valide entrada
-   - Trate dados faltantes
-   - Converta tipos
-   - Mantenha consistência
-
-3. **Performance**
-   - Use cache quando apropriado
-   - Otimize conversões
-   - Minimize overhead
-   - Agrupe operações
-
-4. **Segurança**
-   - Valide entrada
-   - Sanitize dados
-   - Limite tamanho
-   - Proteja sensíveis
-
-5. **Manutenção**
-   - Versione formato
-   - Documente mudanças
-   - Teste conversões
-   - Monitore erros
-
-## Padrões Comuns
-
-### Serializador com Versão
+### Serializer
 
 ```python
-class VersionedSerializer(JsonSerializer):
-    def __init__(self, version: str = "1.0"):
-        super().__init__()
-        self.version = version
-    
-    def serialize(self, obj: Any) -> str:
-        # Adicionar versão
-        data = {
-            "_version": self.version,
-            "data": obj.to_dict()
-        }
-        return super().serialize(data)
-    
+class Serializer:
+    def serialize(
+        self,
+        obj: Any
+    ) -> Union[str, bytes, dict]:
+        """Serialize object."""
+        
     def deserialize(
         self,
-        data: str,
-        target_type: type[T] | None = None
+        data: Union[str, bytes, dict]
     ) -> Any:
-        # Extrair e verificar versão
-        parsed = json.loads(data)
-        version = parsed.get("_version", "1.0")
-        
-        if version != self.version:
-            raise ValueError(
-                f"Versão incompatível: {version}"
-            )
-        
-        # Deserializar dados
-        if target_type:
-            return target_type.from_dict(parsed["data"])
-        return parsed["data"]
+        """Deserialize object."""
 ```
 
-### Serializador com Compressão
+### Field
 
 ```python
-import zlib
-import base64
-
-class CompressedSerializer(JsonSerializer):
-    def serialize(self, obj: Any) -> str:
-        # Serializar normalmente
-        json_str = super().serialize(obj)
-        
-        # Comprimir e codificar
-        compressed = zlib.compress(json_str.encode())
-        return base64.b64encode(compressed).decode()
-    
-    def deserialize(
+class Field:
+    def __init__(
         self,
-        data: str,
-        target_type: type[T] | None = None
-    ) -> Any:
-        # Decodificar e descomprimir
-        decoded = base64.b64decode(data.encode())
-        json_str = zlib.decompress(decoded).decode()
-        
-        # Deserializar normalmente
-        return super().deserialize(json_str, target_type)
-```
-
-### Serializador com Logging
-
-```python
-class LoggedSerializer(JsonSerializer):
-    def __init__(self):
-        super().__init__()
-        self.logs = []
-    
-    def serialize(self, obj: Any) -> str:
-        try:
-            result = super().serialize(obj)
-            self._log("serialize", obj, None)
-            return result
-        except Exception as e:
-            self._log("serialize", obj, e)
-            raise
-    
-    def deserialize(
-        self,
-        data: str,
-        target_type: type[T] | None = None
-    ) -> Any:
-        try:
-            result = super().deserialize(data, target_type)
-            self._log("deserialize", result, None)
-            return result
-        except Exception as e:
-            self._log("deserialize", data, e)
-            raise
-    
-    def _log(
-        self,
-        operation: str,
-        data: Any,
-        error: Exception | None
+        type_: Type = None,
+        default: Any = None,
+        required: bool = True
     ):
-        self.logs.append({
-            "timestamp": time.time(),
-            "operation": operation,
-            "data_type": type(data).__name__,
-            "error": str(error) if error else None
-        })
+        """Initialize field."""
 ```
+
+### Decorators
+
+```python
+def serialize(cls: Type[T]) -> Type[T]:
+    """Add serialization to class."""
+    
+def deserialize(cls: Type[T]) -> Type[T]:
+    """Add deserialization to class."""
 ``` 

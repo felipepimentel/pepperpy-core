@@ -1,257 +1,294 @@
-# Logging (Logging)
+# Logging Module
 
-O módulo de Logging do PepperPy Core fornece uma implementação flexível e extensível para logging, com suporte a múltiplos handlers, formatação personalizada e níveis de log.
+The PepperPy Core Logging module provides a flexible and extensible implementation for logging, with support for multiple handlers, custom formatting, and log levels.
 
-## Componentes Principais
+## Core Components
 
 ### Logger
 
-Classe principal para logging:
-
 ```python
-from pepperpy_core import Logger
+from pepperpy_core.logging import Logger
 
-# Criar logger
+# Create logger
 logger = Logger("app")
 
-# Usar logger
-logger.info("Aplicação iniciada")
-logger.debug("Detalhes de debug", module="auth")
-logger.error("Erro encontrado", error="Connection failed")
+# Log messages
+logger.debug("Detailed information")
+logger.info("Application started")
+logger.warning("Resource near limit")
+logger.error("Operation failed")
 ```
 
 ### LogLevel
 
-Enumeração de níveis de log:
+Enumeration for log levels:
 
 ```python
-from pepperpy_core import LogLevel
+from pepperpy_core.logging import LogLevel
 
-# Níveis disponíveis
-level = LogLevel.DEBUG    # Informações detalhadas
-level = LogLevel.INFO     # Informações gerais
-level = LogLevel.WARNING  # Avisos
-level = LogLevel.ERROR    # Erros
-level = LogLevel.CRITICAL # Erros críticos
+# Available levels
+level = LogLevel.DEBUG    # Detailed information
+level = LogLevel.INFO     # General information
+level = LogLevel.WARNING  # Warnings
+level = LogLevel.ERROR    # Errors
+level = LogLevel.CRITICAL # Critical errors
 ```
 
-### LoggingConfig
+### LogConfig
 
-Configuração do sistema de logging:
+Logging system configuration:
 
 ```python
-from pepperpy_core import LoggingConfig
+from pepperpy_core.logging import LogConfig
 
-# Configuração básica
-config = LoggingConfig(
-    name="app_logger",
-    enabled=True,
-    level=LogLevel.DEBUG,
-    format="%(asctime)s - %(levelname)s - %(message)s"
+# Basic configuration
+config = LogConfig(
+    level=LogLevel.INFO,
+    format="{time} {level} {message}",
+    handlers=["console", "file"]
 )
 ```
 
-## Exemplos de Uso
-
-### Logger Básico
+### Basic Logger
 
 ```python
-from pepperpy_core import Logger, LogLevel
+from pepperpy_core.logging import Logger
 
-async def exemplo_logger_basico():
-    # Criar logger
-    logger = Logger("app")
-    
-    # Logs em diferentes níveis
-    logger.debug("Iniciando processamento")
-    logger.info("Processo em andamento")
-    logger.warning("Recurso próximo do limite")
-    logger.error("Falha no processo")
-    logger.critical("Sistema indisponível")
-    
-    # Log com metadados
-    logger.info(
-        "Usuário autenticado",
-        user_id=123,
-        ip="192.168.1.1"
-    )
-```
-
-### Handlers Personalizados
-
-```python
-from pepperpy_core import BaseHandler, HandlerConfig, LogRecord
-
-class FileHandler(BaseHandler):
-    def __init__(self, filename: str, config: HandlerConfig | None = None):
-        super().__init__(config)
-        self.filename = filename
-    
-    def emit(self, record: LogRecord) -> None:
-        message = self.format(record)
-        with open(self.filename, "a") as f:
-            f.write(message + "\n")
-
-# Usar handler personalizado
+# Create logger
 logger = Logger("app")
-handler = FileHandler(
-    "app.log",
-    HandlerConfig(level=LogLevel.INFO)
+
+# Logs at different levels
+logger.debug("Processing started")
+logger.warning("Resource near limit")
+logger.error("Operation failed")
+logger.critical("System unavailable")
+
+# Structured logging
+logger.info(
+    "User authenticated",
+    extra={
+        "user_id": "123",
+        "ip": "192.168.1.1"
+    }
 )
-logger.add_handler(handler)
 ```
 
-## Recursos Avançados
-
-### Logger com Contexto
+### Handler Configuration
 
 ```python
-class ContextLogger(Logger):
-    def __init__(self, name: str):
-        super().__init__(name)
-        self.context = {}
-    
-    def add_context(self, **kwargs):
-        self.context.update(kwargs)
-    
-    def log(self, level: LogLevel, message: str, **kwargs):
-        # Mesclar contexto com kwargs
-        context = {**self.context, **kwargs}
-        super().log(level, message, **context)
-
-# Usar logger com contexto
-logger = ContextLogger("app")
-logger.add_context(
-    environment="production",
-    version="1.0.0"
+from pepperpy_core.logging import (
+    FileHandler,
+    ConsoleHandler,
+    NetworkHandler
 )
-logger.info("Sistema iniciado")  # Inclui contexto
+
+# Configure handlers
+handlers = [
+    FileHandler("app.log"),
+    ConsoleHandler(),
+    NetworkHandler("logs.server.com")
+]
+
+# Create logger with handlers
+logger = Logger("app", handlers=handlers)
 ```
 
-### Logger com Formatação Avançada
+## Advanced Features
+
+### Custom Handler
 
 ```python
-class JsonHandler(BaseHandler):
+from pepperpy_core.logging import Handler
+
+class DatabaseHandler(Handler):
+    def __init__(self, connection):
+        super().__init__()
+        self.connection = connection
+    
+    async def emit(self, record: LogRecord):
+        await self.connection.execute(
+            "INSERT INTO logs VALUES (?, ?, ?)",
+            record.time,
+            record.level,
+            record.message
+        )
+```
+
+### Advanced Formatting
+
+```python
+from pepperpy_core.logging import Formatter
+
+class CustomFormatter(Formatter):
     def format(self, record: LogRecord) -> str:
-        return json.dumps({
-            "timestamp": time.time(),
-            "level": record.level.value,
-            "message": record.message,
-            "logger": record.logger_name,
-            "module": record.module,
-            "function": record.function,
-            "line": record.line,
-            "metadata": record.metadata
-        })
+        return (
+            f"[{record.time}] "
+            f"{record.level}: "
+            f"{record.message} "
+            f"({record.extra})"
+        )
 ```
 
-## Melhores Práticas
+## Best Practices
 
-1. **Níveis de Log**
-   - Use níveis apropriados
-   - Seja consistente
-   - Documente uso
-   - Evite logging excessivo
+1. **Log Levels**
+   - Use appropriate levels
+   - Be consistent
+   - Document usage
+   - Configure defaults
 
-2. **Formatação**
-   - Use formatos claros
-   - Inclua timestamp
-   - Adicione contexto
-   - Estruture dados
+2. **Formatting**
+   - Include timestamp
+   - Add context
+   - Use structured data
+   - Be consistent
 
 3. **Handlers**
-   - Configure apropriadamente
-   - Use múltiplos handlers
-   - Implemente rotação
-   - Gerencie recursos
+   - Use multiple handlers
+   - Implement rotation
+   - Configure levels
+   - Handle errors
 
 4. **Performance**
-   - Minimize overhead
-   - Use buffering
-   - Otimize formatação
-   - Monitore volume
+   - Optimize formatting
+   - Batch writes
+   - Configure buffers
+   - Monitor impact
 
-5. **Segurança**
-   - Sanitize dados sensíveis
-   - Controle acesso
-   - Valide entrada
-   - Proteja logs
+5. **Security**
+   - Sanitize sensitive data
+   - Control access
+   - Encrypt if needed
+   - Monitor usage
 
-## Padrões Comuns
+## Common Patterns
 
-### Logger com Métricas
+### Logger with Metrics
 
 ```python
-class MetricsLogger(Logger):
-    def __init__(self, name: str):
-        super().__init__(name)
-        self.metrics = {level: 0 for level in LogLevel}
+from pepperpy_core.logging import MetricsLogger
+
+class MonitoredLogger(MetricsLogger):
+    def __init__(self):
+        super().__init__()
+        self.metrics = {
+            "debug": 0,
+            "info": 0,
+            "warning": 0,
+            "error": 0
+        }
     
-    def log(self, level: LogLevel, message: str, **kwargs):
-        self.metrics[level] += 1
-        super().log(level, message, **kwargs)
+    async def log(
+        self,
+        level: LogLevel,
+        message: str,
+        **kwargs
+    ):
+        # Update metrics
+        self.metrics[level.name.lower()] += 1
+        
+        # Log message
+        await super().log(level, message, **kwargs)
     
-    def get_metrics(self) -> dict[str, int]:
+    def get_metrics(self) -> dict:
         return {
-            level.value: count
-            for level, count in self.metrics.items()
+            "total": sum(self.metrics.values()),
+            "by_level": self.metrics.copy()
         }
 ```
 
-### Logger com Rate Limiting
+### Logger with Aggregation
 
 ```python
-class RateLimitedLogger(Logger):
-    def __init__(self, name: str, rate_limit: float = 1.0):
-        super().__init__(name)
-        self.rate_limit = rate_limit
-        self.last_log = {}
+from pepperpy_core.logging import AggregateLogger
+
+class BatchLogger(AggregateLogger):
+    def __init__(
+        self,
+        batch_size: int = 100,
+        flush_interval: float = 1.0
+    ):
+        super().__init__()
+        self.batch = []
+        self.batch_size = batch_size
+        self.last_flush = time.time()
     
-    def log(self, level: LogLevel, message: str, **kwargs):
-        now = time.time()
-        key = (level, message)
+    async def log(
+        self,
+        level: LogLevel,
+        message: str,
+        **kwargs
+    ):
+        # Add to batch
+        self.batch.append({
+            "level": level,
+            "message": message,
+            "time": time.time(),
+            **kwargs
+        })
         
-        if key in self.last_log:
-            if now - self.last_log[key] < self.rate_limit:
-                return
-        
-        self.last_log[key] = now
-        super().log(level, message, **kwargs)
+        # Aggregate if needed
+        if len(self.batch) >= self.batch_size:
+            await self.flush()
 ```
 
-### Logger com Agregação
+## API Reference
+
+### Logger
 
 ```python
-class AggregatingLogger(Logger):
-    def __init__(self, name: str, window: float = 60.0):
-        super().__init__(name)
-        self.window = window
-        self.messages = []
-    
-    def log(self, level: LogLevel, message: str, **kwargs):
-        now = time.time()
-        self.messages.append((now, level, message, kwargs))
+class Logger:
+    async def log(
+        self,
+        level: LogLevel,
+        message: str,
+        **kwargs
+    ):
+        """Log a message."""
         
-        # Limpar mensagens antigas
-        cutoff = now - self.window
-        self.messages = [
-            m for m in self.messages
-            if m[0] > cutoff
-        ]
+    def set_level(
+        self,
+        level: LogLevel
+    ):
+        """Set logger level."""
         
-        # Agregar se necessário
-        if len(self.messages) > 100:
-            counts = {}
-            for _, lvl, msg, _ in self.messages:
-                key = (lvl, msg)
-                counts[key] = counts.get(key, 0) + 1
-            
-            # Log agregado
-            for (lvl, msg), count in counts.items():
-                super().log(
-                    lvl,
-                    f"[Agregado x{count}] {msg}"
-                )
-            
-            self.messages.clear()
+    def add_handler(
+        self,
+        handler: Handler
+    ):
+        """Add log handler."""
+```
+
+### Handler
+
+```python
+class Handler:
+    async def emit(
+        self,
+        record: LogRecord
+    ):
+        """Emit log record."""
+        
+    def set_formatter(
+        self,
+        formatter: Formatter
+    ):
+        """Set record formatter."""
+```
+
+### Formatter
+
+```python
+class Formatter:
+    def format(
+        self,
+        record: LogRecord
+    ) -> str:
+        """Format log record."""
+        
+    def format_time(
+        self,
+        time: float
+    ) -> str:
+        """Format timestamp."""
 ``` 

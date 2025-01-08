@@ -1,260 +1,277 @@
-# IO (Input/Output)
+# IO Module
 
-O módulo IO do PepperPy Core fornece uma interface assíncrona para operações de entrada e saída, incluindo leitura e escrita de arquivos, streams e buffers.
+The PepperPy Core IO module provides an asynchronous interface for input and output operations, including file reading and writing, streams, and buffers.
 
-## Componentes Principais
+## Core Components
 
 ### AsyncFile
 
-Classe para operações assíncronas em arquivos:
+Class for asynchronous file operations:
 
 ```python
-from pepperpy_core import AsyncFile
+from pepperpy_core.io import AsyncFile
 
-# Abrir arquivo
-async with AsyncFile("data.txt", "r") as file:
-    # Ler conteúdo
-    content = await file.read()
-    print(content)
-
-# Escrever em arquivo
-async with AsyncFile("output.txt", "w") as file:
-    await file.write("Hello World!")
+async with AsyncFile("data.txt", "r") as f:
+    # Read content
+    content = await f.read()
+    
+    # Process content
+    result = process_data(content)
 ```
 
 ### AsyncBuffer
 
-Buffer para operações assíncronas:
+Buffer for asynchronous operations:
 
 ```python
-from pepperpy_core import AsyncBuffer
+from pepperpy_core.io import AsyncBuffer
 
-# Criar buffer
 buffer = AsyncBuffer()
 
-# Escrever dados
-await buffer.write(b"Hello")
-await buffer.write(b" World!")
+# Write data
+await buffer.write(b"Hello ")
+await buffer.write(b"World!")
 
-# Ler dados
-data = await buffer.read()  # b"Hello World!"
+# Read data
+data = await buffer.read()
 ```
 
 ### AsyncStream
 
-Stream para operações assíncronas:
+Stream for asynchronous operations:
 
 ```python
-from pepperpy_core import AsyncStream
+from pepperpy_core.io import AsyncStream
 
-# Criar stream
-stream = AsyncStream()
-
-# Processar dados
-async for chunk in stream:
-    # Processar chunk
-    process_data(chunk)
+async with AsyncStream() as stream:
+    # Write data
+    await stream.write("data")
+    
+    # Seek to start
+    await stream.seek(0)
+    
+    # Read data
+    content = await stream.read()
+    print(f"Content: {content}")
 ```
 
-## Exemplos de Uso
-
-### Leitura de Arquivo
+### AsyncWriter
 
 ```python
-from pepperpy_core import AsyncFile
+from pepperpy_core.io import AsyncWriter
 
-async def exemplo_leitura():
-    # Abrir arquivo para leitura
-    async with AsyncFile("data.txt", "r") as file:
-        # Ler linha por linha
-        async for line in file:
-            print(f"Linha: {line.strip()}")
-        
-        # Voltar ao início
-        await file.seek(0)
-        
-        # Ler tudo
-        content = await file.read()
-        print(f"Conteúdo: {content}")
+writer = AsyncWriter("output.txt")
+
+# Write data
+await writer.write("line 1\n")
+await writer.write("line 2\n")
+
+# Force flush
+await writer.flush()
 ```
 
-### Escrita em Arquivo
+## Advanced Features
+
+### Compressed Buffer
 
 ```python
-from pepperpy_core import AsyncFile
-import json
+from pepperpy_core.io import CompressedBuffer
 
-async def exemplo_escrita():
-    # Dados para escrever
-    data = {
-        "name": "John",
-        "age": 30
-    }
-    
-    # Escrever JSON
-    async with AsyncFile("user.json", "w") as file:
-        # Converter e escrever
-        json_str = json.dumps(data)
-        await file.write(json_str)
-        
-        # Forçar flush
-        await file.flush()
+buffer = CompressedBuffer()
+
+# Write data
+await buffer.write(large_data)
+
+# Get compressed data
+compressed = await buffer.get_compressed()
+
+# Get original data
+original = await buffer.get_decompressed()
 ```
 
-## Recursos Avançados
-
-### Buffer com Compressão
+### Stream with Transformation
 
 ```python
-class CompressedBuffer(AsyncBuffer):
-    def __init__(self):
-        super().__init__()
-        self.compression = "gzip"
-    
-    async def write(self, data: bytes) -> None:
-        # Comprimir dados
-        compressed = gzip.compress(data)
-        await super().write(compressed)
-    
-    async def read(self) -> bytes:
-        # Ler e descomprimir
-        data = await super().read()
-        return gzip.decompress(data)
+from pepperpy_core.io import TransformStream
+
+class UpperStream(TransformStream):
+    async def transform(self, data: str) -> str:
+        return data.upper()
+
+stream = UpperStream()
+await stream.write("hello")
+result = await stream.read()  # "HELLO"
 ```
 
-### Stream com Transformação
+## Best Practices
 
-```python
-class TransformStream(AsyncStream):
-    def __init__(self, transform_func: callable):
-        super().__init__()
-        self.transform = transform_func
-    
-    async def process(self, chunk: bytes) -> bytes:
-        # Transformar chunk
-        return self.transform(chunk)
-    
-    async def __aiter__(self):
-        async for chunk in super().__aiter__():
-            # Transformar e yield
-            yield await self.process(chunk)
-```
-
-## Melhores Práticas
-
-1. **Arquivos**
+1. **Resource Management**
    - Use context managers
-   - Feche recursos
-   - Trate erros
-   - Valide paths
+   - Close resources properly
+   - Handle errors gracefully
+   - Clean up properly
 
-2. **Buffers**
-   - Gerencie memória
-   - Limite tamanho
-   - Implemente flush
-   - Otimize operações
+2. **Memory Management**
+   - Manage memory usage
+   - Use streaming for large files
+   - Implement chunking
+   - Monitor usage
 
-3. **Streams**
-   - Processe em chunks
-   - Controle fluxo
-   - Implemente backpressure
-   - Libere recursos
+3. **Performance**
+   - Optimize operations
+   - Use buffering
+   - Implement batching
+   - Monitor throughput
 
-4. **Performance**
-   - Use buffers apropriados
-   - Otimize tamanho de chunk
-   - Cache quando possível
-   - Monitore memória
+4. **Caching**
+   - Cache when possible
+   - Monitor memory usage
+   - Implement eviction
+   - Use appropriate sizes
 
-5. **Segurança**
-   - Valide paths
-   - Limite acesso
-   - Sanitize dados
-   - Proteja recursos
+5. **Security**
+   - Validate paths
+   - Handle permissions
+   - Sanitize inputs
+   - Secure sensitive data
 
-## Padrões Comuns
+## Common Patterns
 
-### Arquivo com Cache
-
-```python
-class CachedFile(AsyncFile):
-    def __init__(self, path: str, mode: str = "r"):
-        super().__init__(path, mode)
-        self.cache = {}
-    
-    async def read(self) -> str:
-        # Verificar cache
-        if self.name in self.cache:
-            return self.cache[self.name]
-        
-        # Ler e cachear
-        content = await super().read()
-        self.cache[self.name] = content
-        return content
-    
-    async def write(self, data: str) -> None:
-        # Escrever e invalidar cache
-        await super().write(data)
-        self.cache.pop(self.name, None)
-```
-
-### Buffer com Rate Limit
+### File Processing
 
 ```python
-class RateLimitedBuffer(AsyncBuffer):
-    def __init__(self, rate_limit: float = 1024):
-        super().__init__()
-        self.rate_limit = rate_limit
-        self.last_write = time.time()
+from pepperpy_core.io import AsyncFile, ChunkProcessor
+
+class FileProcessor:
+    def __init__(self, chunk_size: int = 8192):
+        self.chunk_size = chunk_size
     
-    async def write(self, data: bytes) -> None:
-        # Controlar taxa
-        now = time.time()
-        elapsed = now - self.last_write
-        
-        if len(data) / elapsed > self.rate_limit:
-            await asyncio.sleep(
-                len(data) / self.rate_limit - elapsed
+    async def process_file(self, path: str):
+        async with AsyncFile(path, "rb") as f:
+            processor = ChunkProcessor(
+                chunk_size=self.chunk_size
             )
-        
-        await super().write(data)
-        self.last_write = time.time()
+            
+            while True:
+                chunk = await f.read(
+                    self.chunk_size
+                )
+                if not chunk:
+                    break
+                    
+                await processor.process(chunk)
 ```
 
-### Stream com Retry
+### Stream Pipeline
 
 ```python
-class RetryStream(AsyncStream):
+from pepperpy_core.io import StreamPipeline
+
+class DataPipeline(StreamPipeline):
+    async def process(self, data: bytes) -> bytes:
+        # Decompress
+        decompressed = await self.decompress(data)
+        
+        # Transform
+        transformed = await self.transform(
+            decompressed
+        )
+        
+        # Compress
+        return await self.compress(transformed)
+```
+
+### Buffered Writer
+
+```python
+from pepperpy_core.io import BufferedWriter
+
+class LogWriter(BufferedWriter):
     def __init__(
         self,
-        max_retries: int = 3,
-        retry_delay: float = 1.0
+        path: str,
+        buffer_size: int = 8192
     ):
-        super().__init__()
-        self.max_retries = max_retries
-        self.retry_delay = retry_delay
-    
-    async def process(self, chunk: bytes) -> bytes:
-        retries = 0
-        last_error = None
-        
-        while retries < self.max_retries:
-            try:
-                return await self._process(chunk)
-            except Exception as e:
-                last_error = e
-                retries += 1
-                if retries < self.max_retries:
-                    await asyncio.sleep(
-                        self.retry_delay * (2 ** retries)
-                    )
-        
-        raise Exception(
-            f"Failed after {retries} retries: {last_error}"
+        super().__init__(
+            path,
+            buffer_size=buffer_size
         )
     
-    async def _process(self, chunk: bytes) -> bytes:
-        # Implementação específica
-        return chunk
+    async def write_log(self, message: str):
+        # Format message
+        formatted = self.format_message(message)
+        
+        # Write to buffer
+        await self.write(formatted)
+        
+        # Flush if needed
+        if self.should_flush():
+            await self.flush()
+```
+
+## API Reference
+
+### AsyncFile
+
+```python
+class AsyncFile:
+    async def read(
+        self,
+        size: int = -1
+    ) -> bytes:
+        """Read from file."""
+        
+    async def write(
+        self,
+        data: bytes
+    ) -> int:
+        """Write to file."""
+        
+    async def seek(
+        self,
+        offset: int,
+        whence: int = 0
+    ) -> int:
+        """Seek in file."""
+```
+
+### AsyncBuffer
+
+```python
+class AsyncBuffer:
+    async def read(
+        self,
+        size: int = -1
+    ) -> bytes:
+        """Read from buffer."""
+        
+    async def write(
+        self,
+        data: bytes
+    ) -> int:
+        """Write to buffer."""
+        
+    def clear(self):
+        """Clear buffer."""
+```
+
+### AsyncStream
+
+```python
+class AsyncStream:
+    async def read(
+        self,
+        size: int = -1
+    ) -> bytes:
+        """Read from stream."""
+        
+    async def write(
+        self,
+        data: bytes
+    ) -> int:
+        """Write to stream."""
+        
+    async def close(self):
+        """Close stream."""
 ```
 ``` 

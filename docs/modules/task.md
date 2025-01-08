@@ -1,258 +1,311 @@
-# Task System (Sistema de Tarefas)
+# Task Module
 
-O Sistema de Tarefas do PepperPy Core fornece uma infraestrutura robusta para gerenciamento e execução de tarefas assíncronas. Ele suporta execução prioritária, cancelamento de tarefas, pools de workers e monitoramento de estado.
+## Overview
 
-## Componentes Principais
+The task module provides a robust system for managing and executing asynchronous tasks, with support for prioritization, retry, monitoring, and scheduling.
 
-### TaskState
+## Core Components
 
-Enumeração que representa os possíveis estados de uma tarefa:
-
-```python
-from pepperpy_core import TaskState
-
-# Estados disponíveis
-TaskState.PENDING    # Tarefa aguardando execução
-TaskState.RUNNING    # Tarefa em execução
-TaskState.COMPLETED  # Tarefa concluída com sucesso
-TaskState.FAILED     # Tarefa falhou durante execução
-TaskState.CANCELLED  # Tarefa foi cancelada
-```
-
-### TaskConfig
-
-Configuração para o gerenciamento de tarefas:
+### TaskManager
 
 ```python
-from pepperpy_core import TaskConfig
+from pepperpy_core.task import TaskManager
 
-config = TaskConfig(
-    name="processor",
-    max_workers=4,      # Número máximo de workers concorrentes
-    max_queue_size=100, # Tamanho máximo da fila (0 = ilimitado)
-    metadata={"environment": "production"}
+# Create manager with advanced configuration
+manager = TaskManager(
+    max_workers=10,
+    queue_size=1000,
+    retry_policy=RetryPolicy.EXPONENTIAL
+)
+
+# Create task
+@manager.task
+async def process_data(data: dict):
+    result = await transform_data(data)
+    return result
+
+# Execute task
+task = await manager.execute(
+    process_data,
+    {"id": "123"}
+)
+
+# Schedule execution
+scheduled = await manager.schedule(
+    process_data,
+    {"id": "123"},
+    delay=60  # seconds
 )
 ```
 
+### TaskQueue
+
+```python
+from pepperpy_core.task import TaskQueue
+
+# Wait for completion
+async with TaskQueue() as queue:
+    # Add tasks
+    await queue.put(task1)
+    await queue.put(task2)
+    
+    # Process tasks
+    async for task in queue:
+        result = await task.execute()
+```
+
+### PriorityQueue
+
+```python
+from pepperpy_core.task import PriorityQueue
+
+# Create queue with policy
+queue = PriorityQueue(
+    policy=PriorityPolicy.FIFO,
+    max_size=1000
+)
+
+# Add tasks with priority
+await queue.put(task1, priority=1)
+await queue.put(task2, priority=2)
+
+# Process by priority
+while not queue.empty():
+    task = await queue.get()
+    await task.execute()
+```
+
+## Usage Patterns
+
+### 1. Task Pipeline
+
+```python
+from pepperpy_core.task import Pipeline
+
+class DataPipeline(Pipeline):
+    async def process(self, data: dict):
+        # Validate
+        await self.validate(data)
+        
+        # Transform
+        result = await self.transform(data)
+        
+        # Store
+        await self.store(result)
+        
+        return result
+```
+
+### 2. Task Groups
+
+```python
+from pepperpy_core.task import TaskGroup
+
+async with TaskGroup() as group:
+    # Add tasks
+    task1 = group.create_task(process1())
+    task2 = group.create_task(process2())
+    
+    # Wait for all
+    results = await group.gather()
+```
+
+### 3. Periodic Tasks
+
+```python
+from pepperpy_core.task import PeriodicTask
+
+# Daily cleanup
+@manager.periodic(
+    interval=24*60*60,  # 24 hours
+    start_time="00:00"
+)
+async def cleanup():
+    await cleanup_old_data()
+```
+
+### 4. Tasks with Dependencies
+
+```python
+from pepperpy_core.task import TaskGraph
+
+# Define dependencies
+graph = TaskGraph()
+graph.add_dependency(task2, task1)
+graph.add_dependency(task3, task2)
+
+# Execute graph
+async with graph:
+    # Wait for completion
+    results = await graph.execute_all()
+```
+
+## Advanced Features
+
+### 1. Progress Tracking
+
+```python
+from pepperpy_core.task import Progress
+
+class ProcessTask(Task):
+    async def execute(self):
+        progress = Progress()
+        
+        # Start processing
+        progress.update(0.0, "Starting")
+        
+        # Process data
+        for i in range(100):
+            await process_chunk(i)
+            progress.update(i/100, f"Processing {i}%")
+        
+        # Complete
+        progress.update(1.0, "Completed")
+```
+
+### 2. Metrics
+
+```python
+from pepperpy_core.task import Metrics
+
+# Configure metrics
+metrics = Metrics(
+    namespace="tasks",
+    subsystem="processing"
+)
+
+# Collect metrics
+@metrics.measure
+async def process_data():
+    await process()
+```
+
+## Best Practices
+
+1. **Task Design**
+   - Keep tasks focused
+   - Handle errors gracefully
+   - Include timeouts
+   - Document behavior
+
+2. **Monitoring**
+   - Track progress
+   - Enable metrics
+   - Log state changes
+   - Monitor resources
+
+3. **Performance**
+   - Optimize concurrency
+   - Use batching
+   - Handle exceptions
+   - Implement timeouts
+
+4. **Resource Management**
+   - Clean up resources
+   - Manage memory
+   - Control concurrency
+   - Monitor usage
+
+## Common Patterns
+
+### 1. Retry Pattern
+
+```python
+from pepperpy_core.task import RetryTask
+
+class APITask(RetryTask):
+    def __init__(self):
+        super().__init__(
+            max_retries=3,
+            retry_delay=1.0
+        )
+    
+    async def execute(self):
+        try:
+            return await self.api_call()
+        except APIError as e:
+            if self.should_retry(e):
+                return await self.retry()
+            raise
+```
+
+### 2. Batch Processing
+
+```python
+from pepperpy_core.task import BatchTask
+
+class DataBatch(BatchTask):
+    def __init__(self, batch_size: int = 100):
+        super().__init__(batch_size)
+    
+    async def process_batch(self, items: list):
+        results = []
+        for item in items:
+            result = await process_item(item)
+            results.append(result)
+        return results
+```
+
+### 3. Task Composition
+
+```python
+from pepperpy_core.task import CompositeTask
+
+class ProcessingTask(CompositeTask):
+    async def execute(self):
+        # Execute subtasks
+        await self.execute_subtask(ValidateTask())
+        await self.execute_subtask(TransformTask())
+        await self.execute_subtask(StoreTask())
+```
+
+## API Reference
+
 ### Task
 
-A implementação principal de uma tarefa:
-
 ```python
-from pepperpy_core import Task
-
-async def process_data(data: dict) -> dict:
-    # Processamento assíncrono
-    return processed_data
-
-# Criar uma tarefa
-task = Task("process_user_data", process_data, user_data)
-
-# Executar a tarefa
-result = await task.run()
-print(f"Status: {result.status}")
-print(f"Resultado: {result.result}")
+class Task:
+    async def execute(self) -> Any:
+        """Execute the task."""
+        
+    async def cancel(self):
+        """Cancel the task."""
+        
+    def get_status(self) -> TaskStatus:
+        """Get task status."""
 ```
 
-## Exemplos de Uso
-
-### Tarefa Básica
+### TaskManager
 
 ```python
-from pepperpy_core import Task, TaskState
-
-async def exemplo_tarefa_basica():
-    # Definir função assíncrona
-    async def calcular_soma(a: int, b: int) -> int:
-        await asyncio.sleep(1)  # Simulando processamento
-        return a + b
-    
-    # Criar e executar tarefa
-    task = Task("soma", calcular_soma, 10, 20)
-    result = await task.run()
-    
-    assert result.status == TaskState.COMPLETED
-    assert result.result == 30
+class TaskManager:
+    async def execute(
+        self,
+        task: Task,
+        *args,
+        **kwargs
+    ) -> TaskResult:
+        """Execute a task."""
+        
+    async def schedule(
+        self,
+        task: Task,
+        delay: float
+    ) -> TaskResult:
+        """Schedule a task."""
 ```
 
-### Gerenciamento de Erros
+### TaskQueue
 
 ```python
-from pepperpy_core import Task, TaskError
-
-async def exemplo_tratamento_erro():
-    async def operacao_arriscada():
-        raise ValueError("Algo deu errado")
-
-    task = Task("operacao_arriscada", operacao_arriscada)
-    try:
-        await task.run()
-    except TaskError as e:
-        print(f"Tarefa falhou: {e}")
-        print(f"Estado: {task.status}")  # TaskState.FAILED
-        print(f"Erro original: {task.error}")
-```
-
-### Fila de Tarefas com Prioridade
-
-```python
-from pepperpy_core import TaskQueue, Task
-
-async def exemplo_fila_prioridade():
-    queue = TaskQueue(maxsize=100)
-    
-    # Adicionar tarefas com diferentes prioridades
-    await queue.put(task1, priority=1)  # Baixa prioridade
-    await queue.put(task2, priority=3)  # Alta prioridade
-    await queue.put(task3, priority=2)  # Média prioridade
-    
-    # Processar tarefas (serão executadas em ordem de prioridade)
-    while True:
-        task = await queue.get()
-        try:
-            await task.run()
-        finally:
-            queue.task_done()
-```
-
-## Recursos Avançados
-
-### Pool de Workers
-
-```python
-from pepperpy_core import TaskManager, TaskConfig
-
-async def exemplo_pool_workers():
-    # Configurar pool com 4 workers
-    config = TaskConfig(
-        name="worker_pool",
-        max_workers=4,
-        max_queue_size=100
-    )
-    manager = TaskManager(config)
-    
-    # Adicionar múltiplas tarefas
-    for data in dataset:
-        task = Task(f"process_{data['id']}", process_data, data)
-        await manager.add_task(task)
-    
-    # Processar todas as tarefas com 4 workers
-    await manager.execute_tasks()
-```
-
-### Cancelamento de Tarefas
-
-```python
-async def exemplo_cancelamento():
-    async def long_operation():
-        await asyncio.sleep(10)
-        return "completed"
-
-    task = Task("long_running", long_operation)
-    
-    # Em uma corotina
-    task_execution = asyncio.create_task(task.run())
-    
-    # Em outra corotina
-    await asyncio.sleep(2)  # Esperar um pouco
-    await task.cancel()     # Cancelar a tarefa
-    
-    assert task.status == TaskState.CANCELLED
-```
-
-## Melhores Práticas
-
-1. **Nomeação de Tarefas**
-   - Use nomes descritivos e únicos
-   - Inclua identificadores relevantes
-   - Mantenha um padrão consistente
-   - Documente o propósito da tarefa
-
-2. **Gerenciamento de Prioridades**
-   - Use prioridades com moderação
-   - Documente os níveis de prioridade
-   - Reserve prioridades altas para tarefas críticas
-   - Evite starvation de tarefas de baixa prioridade
-
-3. **Tratamento de Erros**
-   - Sempre implemente tratamento de erros
-   - Registre erros apropriadamente
-   - Forneça contexto nos erros
-   - Implemente retry quando apropriado
-
-4. **Monitoramento**
-   - Monitore o estado das tarefas
-   - Implemente logging adequado
-   - Acompanhe métricas de performance
-   - Configure alertas para falhas
-
-5. **Recursos**
-   - Gerencie recursos adequadamente
-   - Implemente timeouts
-   - Limite o número de workers
-   - Monitore uso de memória
-
-## Padrões Comuns
-
-### Cadeia de Tarefas
-
-```python
-async def exemplo_cadeia_tarefas():
-    async def step1(data: dict) -> dict:
-        return {"step1": "done", **data}
-    
-    async def step2(data: dict) -> dict:
-        return {"step2": "done", **data}
-    
-    # Criar cadeia
-    task1 = Task("step1", step1, {"input": "data"})
-    result1 = await task1.run()
-    
-    task2 = Task("step2", step2, result1.result)
-    final_result = await task2.run()
-```
-
-### Tarefas Periódicas
-
-```python
-class PeriodicTask:
-    def __init__(self, name: str, interval: float):
-        self.name = name
-        self.interval = interval
-        self.running = False
-    
-    async def start(self):
-        self.running = True
-        while self.running:
-            task = Task(f"{self.name}_{int(time.time())}", self.run)
-            await task.run()
-            await asyncio.sleep(self.interval)
-    
-    async def stop(self):
-        self.running = False
-    
-    async def run(self):
-        # Implementar lógica da tarefa
-        pass
-```
-
-### Tarefas com Retry
-
-```python
-class RetryableTask:
-    def __init__(self, max_retries: int = 3, delay: float = 1.0):
-        self.max_retries = max_retries
-        self.delay = delay
-    
-    async def execute(self, task: Task) -> TaskResult:
-        retries = 0
-        while retries <= self.max_retries:
-            try:
-                return await task.run()
-            except TaskError:
-                retries += 1
-                if retries <= self.max_retries:
-                    await asyncio.sleep(self.delay)
-                    continue
-                raise
+class TaskQueue:
+    async def put(
+        self,
+        task: Task,
+        priority: int = 0
+    ):
+        """Add task to queue."""
+        
+    async def get(self) -> Task:
+        """Get next task."""
 ``` 

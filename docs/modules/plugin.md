@@ -1,292 +1,710 @@
-# Plugin (Plugin)
+# Plugin Module
 
-O módulo Plugin do PepperPy Core fornece uma estrutura para gerenciamento de plugins, permitindo estender a funcionalidade da aplicação de forma dinâmica.
+## Overview
 
-## Componentes Principais
+The plugin module provides a flexible and extensible system for adding plugins to your application. It supports dynamic loading, dependency management, lifecycle hooks, and plugin configuration.
+
+## Key Components
 
 ### PluginManager
 
-Gerenciador central de plugins:
-
 ```python
-from pepperpy_core import PluginManager, PluginConfig
+from pepperpy_core.plugin import (
+    PluginManager,
+    PluginConfig,
+    Plugin
+)
 
-# Criar gerenciador
+# Create manager
 manager = PluginManager(
-    PluginConfig(
-        name="app_plugins",
-        plugin_dir="plugins"
+    config=PluginConfig(
+        plugin_dir="plugins",
+        auto_load=True,
+        hot_reload=True
     )
 )
 
-# Inicializar
+# Initialize plugins
 await manager.initialize()
 
-# Carregar plugin
-manager.load_plugin("plugins/my_plugin.py")
-
-# Obter plugin
-plugin = manager.get_plugin("my_plugin")
+# Get plugin
+auth_plugin = await manager.get("auth")
 ```
 
-### Plugin Decorator
-
-Decorador para definir plugins:
+### Plugin
 
 ```python
-from pepperpy_core import plugin
+from pepperpy_core.plugin import (
+    Plugin,
+    PluginMeta,
+    hook
+)
 
-@plugin("my_plugin")
-class MyPlugin:
-    def process(self, data: dict) -> dict:
-        return {"processed": data}
-
-@plugin("formatter")
-class FormatterPlugin:
-    def format(self, text: str) -> str:
-        return text.upper()
-```
-
-## Exemplos de Uso
-
-### Plugin Básico
-
-```python
-from pepperpy_core import plugin, PluginManager
-
-# Definir plugin
-@plugin("data_processor")
-class DataProcessor:
-    def process(self, data: dict) -> dict:
-        # Processar dados
-        result = {
-            "processed_at": time.time(),
-            **data
-        }
-        return result
-
-# Usar plugin
-async def exemplo_plugin_basico():
-    # Criar gerenciador
-    manager = PluginManager()
-    await manager.initialize()
-    
-    # Carregar plugin
-    manager.load_plugin("plugins/processor.py")
-    
-    # Usar plugin
-    processor = manager.get_plugin("data_processor")
-    result = processor.process({"value": 42})
-```
-
-### Múltiplos Plugins
-
-```python
-from pepperpy_core import plugin, PluginManager
-
-@plugin("validator")
-class ValidationPlugin:
-    def validate(self, data: dict) -> bool:
-        return all(
-            isinstance(v, (str, int, float))
-            for v in data.values()
-        )
-
-@plugin("transformer")
-class TransformPlugin:
-    def transform(self, data: dict) -> dict:
-        return {
-            k: str(v).upper()
-            if isinstance(v, str)
-            else v
-            for k, v in data.items()
-        }
-
-async def exemplo_multiplos_plugins():
-    manager = PluginManager()
-    await manager.initialize()
-    
-    # Carregar plugins
-    manager.load_plugin("plugins/validator.py")
-    manager.load_plugin("plugins/transformer.py")
-    
-    # Usar plugins em sequência
-    data = {"name": "john", "age": 30}
-    
-    validator = manager.get_plugin("validator")
-    if validator.validate(data):
-        transformer = manager.get_plugin("transformer")
-        result = transformer.transform(data)
-```
-
-## Recursos Avançados
-
-### Plugin com Configuração
-
-```python
-from dataclasses import dataclass
-from pepperpy_core import plugin
-
-@dataclass
-class PluginConfig:
-    max_size: int = 1000
-    timeout: float = 30.0
-
-@plugin("configurable")
-class ConfigurablePlugin:
-    def __init__(self):
-        self.config = PluginConfig()
-    
-    def configure(self, **kwargs):
-        for k, v in kwargs.items():
-            if hasattr(self.config, k):
-                setattr(self.config, k, v)
-    
-    def process(self, data: dict) -> dict:
-        if len(data) > self.config.max_size:
-            raise ValueError("Data too large")
-        return data
-```
-
-### Plugin com Lifecycle
-
-```python
-@plugin("lifecycle")
-class LifecyclePlugin:
-    def __init__(self):
-        self.initialized = False
-        self.resources = {}
+@plugin(
+    name="auth",
+    version="1.0.0",
+    description="Authentication plugin"
+)
+class AuthPlugin(Plugin):
+    def __init__(self, config: dict):
+        self.config = config
     
     async def initialize(self):
-        if self.initialized:
-            return
-        
-        # Inicializar recursos
-        self.resources = await load_resources()
-        self.initialized = True
+        await self.setup_auth()
     
-    async def shutdown(self):
-        if not self.initialized:
-            return
-        
-        # Limpar recursos
-        for resource in self.resources.values():
-            await resource.cleanup()
-        self.resources.clear()
-        self.initialized = False
+    @hook("user.login")
+    async def on_login(self, user: dict):
+        await self.log_login(user)
+    
+    @hook("user.logout")
+    async def on_logout(self, user: dict):
+        await self.log_logout(user)
 ```
 
-## Melhores Práticas
-
-1. **Plugins**
-   - Mantenha foco único
-   - Documente interface
-   - Valide entrada
-   - Trate erros
-
-2. **Gerenciamento**
-   - Carregue sob demanda
-   - Valide plugins
-   - Gerencie dependências
-   - Monitore uso
-
-3. **Performance**
-   - Otimize carregamento
-   - Cache resultados
-   - Minimize overhead
-   - Gerencie recursos
-
-4. **Segurança**
-   - Valide plugins
-   - Sandbox execução
-   - Controle acesso
-   - Monitore uso
-
-5. **Manutenção**
-   - Versione plugins
-   - Documente mudanças
-   - Teste plugins
-   - Monitore erros
-
-## Padrões Comuns
-
-### Plugin com Cache
+### PluginLoader
 
 ```python
-@plugin("cached")
-class CachedPlugin:
-    def __init__(self):
-        self.cache = {}
-        self.ttl = 300  # 5 minutos
+from pepperpy_core.plugin import (
+    PluginLoader,
+    LoaderConfig
+)
+
+# Create loader
+loader = PluginLoader(
+    config=LoaderConfig(
+        paths=["plugins", "ext/plugins"],
+        patterns=["*.py", "*/plugin.py"]
+    )
+)
+
+# Load plugins
+plugins = await loader.load_plugins()
+```
+
+## Usage Patterns
+
+### 1. Plugin Development
+
+```python
+from pepperpy_core.plugin import (
+    Plugin,
+    hook,
+    inject
+)
+
+class DatabasePlugin(Plugin):
+    name = "database"
+    version = "1.0.0"
     
-    def process(self, key: str, data: Any) -> Any:
-        # Verificar cache
-        if key in self.cache:
-            entry = self.cache[key]
-            if time.time() - entry["timestamp"] < self.ttl:
-                return entry["value"]
+    # Dependencies
+    config = inject("config")
+    cache = inject("cache")
+    
+    async def initialize(self):
+        # Setup database
+        self.db = await self.setup_database(
+            self.config.get("database")
+        )
         
-        # Processar dados
-        result = self._process(data)
+        # Register models
+        await self.register_models()
         
-        # Atualizar cache
-        self.cache[key] = {
-            "value": result,
-            "timestamp": time.time()
+        # Setup migrations
+        await self.setup_migrations()
+    
+    async def cleanup(self):
+        # Close connections
+        await self.db.close()
+        
+        # Clear cache
+        await self.cache.clear()
+    
+    @hook("app.startup")
+    async def on_startup(self):
+        # Run migrations
+        await self.db.migrate()
+        
+        # Warm up cache
+        await self.cache.warmup()
+    
+    @hook("app.shutdown")
+    async def on_shutdown(self):
+        # Flush data
+        await self.db.flush()
+        
+        # Clear cache
+        await self.cache.clear()
+```
+
+### 2. Plugin Management
+
+```python
+from pepperpy_core.plugin import (
+    PluginManager,
+    PluginState
+)
+
+class ApplicationPlugins:
+    def __init__(self):
+        self.manager = PluginManager()
+    
+    async def initialize(self):
+        # Load plugin configs
+        configs = await self.load_configs()
+        
+        # Register plugins
+        for config in configs:
+            await self.register_plugin(config)
+        
+        # Start plugins
+        await self.start_plugins()
+    
+    async def register_plugin(self, config: dict):
+        try:
+            # Create plugin
+            plugin = await self.manager.create_plugin(
+                name=config["name"],
+                config=config
+            )
+            
+            # Register plugin
+            await self.manager.register(plugin)
+            
+        except Exception as e:
+            await self.handle_plugin_error(
+                "registration",
+                config["name"],
+                e
+            )
+    
+    async def start_plugins(self):
+        # Start in dependency order
+        for plugin in self.manager.get_ordered():
+            try:
+                # Initialize plugin
+                await plugin.initialize()
+                
+                # Register hooks
+                await self.register_hooks(plugin)
+                
+            except Exception as e:
+                await self.handle_plugin_error(
+                    "initialization",
+                    plugin.name,
+                    e
+                )
+    
+    async def register_hooks(self, plugin):
+        for hook in plugin.get_hooks():
+            self.manager.register_hook(
+                event=hook.event,
+                callback=hook.callback,
+                priority=hook.priority
+            )
+```
+
+### 3. Plugin Events
+
+```python
+from pepperpy_core.plugin import (
+    PluginEvents,
+    EventContext
+)
+
+class ApplicationEvents:
+    def __init__(self):
+        self.events = PluginEvents()
+    
+    async def initialize(self):
+        # Register core events
+        self.register_core_events()
+        
+        # Register plugin events
+        await self.register_plugin_events()
+    
+    def register_core_events(self):
+        # App events
+        self.events.register("app.startup")
+        self.events.register("app.shutdown")
+        
+        # User events
+        self.events.register("user.login")
+        self.events.register("user.logout")
+        
+        # Data events
+        self.events.register("data.created")
+        self.events.register("data.updated")
+        self.events.register("data.deleted")
+    
+    async def emit_event(
+        self,
+        event: str,
+        data: dict | None = None,
+        context: dict | None = None
+    ):
+        # Create context
+        ctx = EventContext(
+            event=event,
+            data=data,
+            context=context
+        )
+        
+        # Emit event
+        results = await self.events.emit(
+            event,
+            ctx
+        )
+        
+        # Handle results
+        await self.handle_event_results(
+            event,
+            results
+        )
+```
+
+## Best Practices
+
+### 1. Plugin Structure
+
+```python
+from pepperpy_core.plugin import (
+    Plugin,
+    PluginConfig
+)
+
+class PluginStructure:
+    def configure(self):
+        return PluginConfig(
+            # Basic info
+            name="my-plugin",
+            version="1.0.0",
+            description="My plugin description",
+            
+            # Dependencies
+            requires=[
+                "database",
+                "cache"
+            ],
+            
+            # Hooks
+            hooks=[
+                "app.startup",
+                "app.shutdown"
+            ],
+            
+            # Settings
+            settings={
+                "enabled": True,
+                "debug": False,
+                "timeout": 30
+            }
+        )
+    
+    def create_plugin(self):
+        class MyPlugin(Plugin):
+            # Metadata
+            name = "my-plugin"
+            version = "1.0.0"
+            
+            # Dependencies
+            database = inject("database")
+            cache = inject("cache")
+            
+            async def initialize(self):
+                # Setup plugin
+                await self.setup()
+                
+                # Register hooks
+                await self.register_hooks()
+            
+            async def cleanup(self):
+                # Cleanup resources
+                await self.cleanup_resources()
+            
+            @hook("app.startup")
+            async def on_startup(self):
+                # Handle startup
+                await self.handle_startup()
+            
+            @hook("app.shutdown")
+            async def on_shutdown(self):
+                # Handle shutdown
+                await self.handle_shutdown()
+        
+        return MyPlugin
+```
+
+### 2. Plugin Loading
+
+```python
+from pepperpy_core.plugin import (
+    PluginLoader,
+    LoaderConfig
+)
+
+class PluginLoading:
+    def __init__(self):
+        self.loader = PluginLoader()
+    
+    def configure(self):
+        return LoaderConfig(
+            # Paths
+            paths=[
+                "plugins",
+                "ext/plugins"
+            ],
+            
+            # Patterns
+            patterns=[
+                "*.py",
+                "*/plugin.py"
+            ],
+            
+            # Loading
+            recursive=True,
+            follow_links=False,
+            
+            # Validation
+            validate=True,
+            strict=True
+        )
+    
+    async def load_plugins(self):
+        try:
+            # Discover plugins
+            plugins = await self.loader.discover()
+            
+            # Load plugins
+            loaded = await self.loader.load_all(
+                plugins
+            )
+            
+            # Validate plugins
+            valid = await self.validate_plugins(
+                loaded
+            )
+            
+            return valid
+            
+        except Exception as e:
+            await self.handle_load_error(e)
+            raise
+```
+
+### 3. Plugin Hooks
+
+```python
+from pepperpy_core.plugin import (
+    PluginHooks,
+    HookConfig
+)
+
+class PluginHooks:
+    def __init__(self):
+        self.hooks = PluginHooks()
+    
+    def configure(self):
+        return HookConfig(
+            # Event types
+            types={
+                "app": ["startup", "shutdown"],
+                "user": ["login", "logout"],
+                "data": ["created", "updated", "deleted"]
+            },
+            
+            # Priorities
+            priorities={
+                "high": 100,
+                "normal": 50,
+                "low": 0
+            },
+            
+            # Execution
+            parallel=True,
+            timeout=30,
+            
+            # Error handling
+            ignore_errors=False,
+            retry_count=3
+        )
+    
+    async def register_hook(
+        self,
+        event: str,
+        callback: callable,
+        **options
+    ):
+        # Validate hook
+        await self.validate_hook(
+            event,
+            callback
+        )
+        
+        # Register hook
+        self.hooks.register(
+            event=event,
+            callback=callback,
+            priority=options.get("priority", "normal"),
+            parallel=options.get("parallel", True)
+        )
+    
+    async def execute_hooks(
+        self,
+        event: str,
+        context: dict
+    ):
+        try:
+            # Get hooks
+            hooks = self.hooks.get_hooks(event)
+            
+            # Execute hooks
+            results = await self.hooks.execute(
+                hooks,
+                context
+            )
+            
+            # Process results
+            await self.process_results(
+                event,
+                results
+            )
+            
+        except Exception as e:
+            await self.handle_hook_error(
+                event,
+                e
+            )
+```
+
+## Complete Examples
+
+### 1. Authentication Plugin
+
+```python
+from pepperpy_core.plugin import (
+    Plugin,
+    hook,
+    inject
+)
+
+class AuthPlugin(Plugin):
+    # Metadata
+    name = "auth"
+    version = "1.0.0"
+    description = "Authentication plugin"
+    
+    # Dependencies
+    database = inject("database")
+    cache = inject("cache")
+    config = inject("config")
+    
+    async def initialize(self):
+        # Load config
+        self.settings = self.config.get("auth")
+        
+        # Setup providers
+        self.providers = {
+            "jwt": JWTProvider(self.settings),
+            "oauth": OAuthProvider(self.settings),
+            "basic": BasicAuthProvider(self.settings)
         }
         
-        return result
+        # Initialize providers
+        for provider in self.providers.values():
+            await provider.initialize()
     
-    def _process(self, data: Any) -> Any:
-        # Implementação específica
-        return data
+    async def cleanup(self):
+        # Cleanup providers
+        for provider in self.providers.values():
+            await provider.cleanup()
+    
+    @hook("http.request")
+    async def authenticate_request(self, request):
+        # Get auth header
+        auth = request.headers.get("Authorization")
+        if not auth:
+            return None
+        
+        # Parse scheme
+        scheme, token = auth.split(" ", 1)
+        provider = self.providers.get(scheme.lower())
+        
+        if not provider:
+            raise AuthError(f"Unknown scheme: {scheme}")
+        
+        # Authenticate
+        return await provider.authenticate(token)
+    
+    @hook("user.login")
+    async def on_login(self, user: dict):
+        # Generate token
+        token = await self.generate_token(user)
+        
+        # Cache token
+        await self.cache.set(
+            f"token:{user['id']}",
+            token,
+            ttl=self.settings["token_ttl"]
+        )
+        
+        # Log event
+        await self.log_login(user)
+    
+    @hook("user.logout")
+    async def on_logout(self, user: dict):
+        # Revoke token
+        await self.cache.delete(
+            f"token:{user['id']}"
+        )
+        
+        # Log event
+        await self.log_logout(user)
+    
+    async def generate_token(self, user: dict):
+        # Create payload
+        payload = {
+            "sub": user["id"],
+            "name": user["name"],
+            "roles": user["roles"],
+            "exp": time.time() + self.settings["token_ttl"]
+        }
+        
+        # Sign token
+        return await self.providers["jwt"].sign(
+            payload
+        )
+    
+    async def verify_token(self, token: str):
+        try:
+            # Verify signature
+            payload = await self.providers["jwt"].verify(
+                token
+            )
+            
+            # Check expiration
+            if payload["exp"] < time.time():
+                raise AuthError("Token expired")
+            
+            # Get user
+            user = await self.get_user(
+                payload["sub"]
+            )
+            
+            return user
+            
+        except Exception as e:
+            raise AuthError(f"Invalid token: {e}")
+    
+    async def get_user(self, user_id: str):
+        # Check cache
+        user = await self.cache.get(
+            f"user:{user_id}"
+        )
+        
+        if not user:
+            # Get from database
+            user = await self.database.get_user(
+                user_id
+            )
+            
+            if user:
+                # Cache user
+                await self.cache.set(
+                    f"user:{user_id}",
+                    user,
+                    ttl=300
+                )
+        
+        return user
 ```
 
-### Plugin com Pipeline
+### 2. Database Plugin
 
 ```python
-@plugin("pipeline")
-class PipelinePlugin:
-    def __init__(self):
-        self.steps = []
-    
-    def add_step(self, step: callable):
-        self.steps.append(step)
-    
-    async def process(self, data: Any) -> Any:
-        result = data
-        
-        for step in self.steps:
-            try:
-                result = await step(result)
-            except Exception as e:
-                print(f"Error in step {step.__name__}: {e}")
-                raise
-        
-        return result
-```
+from pepperpy_core.plugin import (
+    Plugin,
+    hook,
+    inject
+)
 
-### Plugin com Eventos
-
-```python
-@plugin("events")
-class EventPlugin:
-    def __init__(self):
-        self.listeners = {}
+class DatabasePlugin(Plugin):
+    # Metadata
+    name = "database"
+    version = "1.0.0"
+    description = "Database plugin"
     
-    def on(self, event: str, callback: callable):
-        if event not in self.listeners:
-            self.listeners[event] = []
-        self.listeners[event].append(callback)
+    # Dependencies
+    config = inject("config")
     
-    async def emit(self, event: str, data: Any = None):
-        if event not in self.listeners:
-            return
+    async def initialize(self):
+        # Load config
+        self.settings = self.config.get("database")
         
-        for listener in self.listeners[event]:
-            try:
-                await listener(data)
-            except Exception as e:
-                print(f"Error in listener: {e}")
+        # Create pool
+        self.pool = await self.create_pool(
+            self.settings
+        )
+        
+        # Setup models
+        self.models = await self.setup_models()
+        
+        # Run migrations
+        if self.settings.get("auto_migrate"):
+            await self.run_migrations()
+    
+    async def cleanup(self):
+        # Close pool
+        await self.pool.close()
+    
+    @hook("app.startup")
+    async def on_startup(self):
+        # Check connection
+        await self.check_connection()
+        
+        # Initialize tables
+        await self.initialize_tables()
+    
+    @hook("app.shutdown")
+    async def on_shutdown(self):
+        # Close connections
+        await self.close_connections()
+    
+    async def create_pool(self, settings: dict):
+        return await create_pool(
+            host=settings["host"],
+            port=settings["port"],
+            user=settings["user"],
+            password=settings["password"],
+            database=settings["database"],
+            min_size=settings["pool_min_size"],
+            max_size=settings["pool_max_size"]
+        )
+    
+    async def get_connection(self):
+        return await self.pool.acquire()
+    
+    async def release_connection(self, conn):
+        await self.pool.release(conn)
+    
+    async def execute(self, query: str, *args):
+        async with self.pool.acquire() as conn:
+            return await conn.execute(
+                query,
+                *args
+            )
+    
+    async def fetch(self, query: str, *args):
+        async with self.pool.acquire() as conn:
+            return await conn.fetch(
+                query,
+                *args
+            )
+    
+    async def fetchrow(self, query: str, *args):
+        async with self.pool.acquire() as conn:
+            return await conn.fetchrow(
+                query,
+                *args
+            )
 ```
 ``` 

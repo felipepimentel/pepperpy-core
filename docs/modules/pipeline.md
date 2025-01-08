@@ -1,344 +1,302 @@
-# Pipeline (Pipeline)
+# Pipeline Module
 
-O módulo de Pipeline do PepperPy Core fornece uma estrutura para criação e execução de pipelines de processamento, permitindo encadear operações de forma flexível e eficiente.
+The PepperPy Core Pipeline module provides a framework for creating and executing processing pipelines, allowing operations to be chained together flexibly and efficiently.
 
-## Componentes Principais
+## Core Components
 
-### Pipeline
+### BasePipeline
 
-Classe base para definição de pipelines:
-
-```python
-from pepperpy_core import Pipeline
-
-# Criar pipeline
-pipeline = Pipeline("data_processor")
-
-# Adicionar etapas
-pipeline.add_step("validate", validate_data)
-pipeline.add_step("transform", transform_data)
-pipeline.add_step("save", save_data)
-
-# Executar pipeline
-result = await pipeline.execute(input_data)
-```
-
-### PipelineStep
-
-Classe que representa uma etapa do pipeline:
+Base class for defining pipelines:
 
 ```python
-from pepperpy_core import PipelineStep
+from pepperpy_core.pipeline import Pipeline
 
-class ValidationStep(PipelineStep):
-    async def execute(self, data: Any) -> Any:
-        if not self.is_valid(data):
-            raise ValidationError("Dados inválidos")
-        return data
-    
-    def is_valid(self, data: Any) -> bool:
-        # Implementar validação
-        return True
-```
-
-### PipelineContext
-
-Contexto compartilhado entre etapas do pipeline:
-
-```python
-from pepperpy_core import PipelineContext
-
-# Criar contexto
-context = PipelineContext(
-    metadata={"source": "api"},
-    config={"validate": True}
-)
-
-# Executar pipeline com contexto
-result = await pipeline.execute(data, context=context)
-```
-
-## Exemplos de Uso
-
-### Pipeline Básico
-
-```python
-from pepperpy_core import Pipeline, PipelineStep
-
-class LoadDataStep(PipelineStep):
-    async def execute(self, data: str) -> dict:
-        # Carregar dados de arquivo
-        with open(data, "r") as f:
-            return json.load(f)
-
-class ProcessDataStep(PipelineStep):
-    async def execute(self, data: dict) -> dict:
-        # Processar dados
-        data["processed"] = True
-        return data
-
-class SaveDataStep(PipelineStep):
-    async def execute(self, data: dict) -> bool:
-        # Salvar dados processados
-        with open("output.json", "w") as f:
-            json.dump(data, f)
-        return True
-
-async def exemplo_pipeline_basico():
-    # Criar pipeline
-    pipeline = Pipeline("data_pipeline")
-    
-    # Adicionar etapas
-    pipeline.add_step("load", LoadDataStep())
-    pipeline.add_step("process", ProcessDataStep())
-    pipeline.add_step("save", SaveDataStep())
-    
-    # Executar pipeline
-    result = await pipeline.execute("input.json")
-```
-
-### Pipeline com Ramificação
-
-```python
-from pepperpy_core import Pipeline, PipelineStep
-
-class RouterStep(PipelineStep):
-    async def execute(self, data: dict) -> dict:
-        if data.get("type") == "user":
-            return await self.process_user(data)
-        return await self.process_system(data)
-    
-    async def process_user(self, data: dict) -> dict:
-        # Processar dados de usuário
-        return data
-    
-    async def process_system(self, data: dict) -> dict:
-        # Processar dados do sistema
-        return data
-
-async def exemplo_pipeline_roteado():
-    # Criar pipelines
-    user_pipeline = Pipeline("user_pipeline")
-    system_pipeline = Pipeline("system_pipeline")
-    
-    # Configurar pipelines específicos
-    user_pipeline.add_step("validate", ValidateUserStep())
-    user_pipeline.add_step("process", ProcessUserStep())
-    
-    system_pipeline.add_step("validate", ValidateSystemStep())
-    system_pipeline.add_step("process", ProcessSystemStep())
-    
-    # Criar pipeline principal
-    main_pipeline = Pipeline("main_pipeline")
-    main_pipeline.add_step("route", RouterStep())
-    main_pipeline.add_step("log", LogStep())
-    
-    # Executar pipeline
-    result = await main_pipeline.execute(input_data)
-```
-
-## Recursos Avançados
-
-### Pipeline com Retry
-
-```python
-class RetryPipeline(Pipeline):
-    def __init__(
-        self,
-        name: str,
-        max_retries: int = 3,
-        delay: float = 1.0
-    ):
-        super().__init__(name)
-        self.max_retries = max_retries
-        self.delay = delay
-    
-    async def execute(
-        self,
-        data: Any,
-        context: PipelineContext | None = None
-    ) -> Any:
-        retries = 0
-        while True:
-            try:
-                return await super().execute(data, context)
-            except Exception as e:
-                retries += 1
-                if retries > self.max_retries:
-                    raise
-                
-                await asyncio.sleep(self.delay)
-                continue
-```
-
-### Pipeline com Cache
-
-```python
-class CachedPipeline(Pipeline):
-    def __init__(self, name: str, cache_time: int = 300):
-        super().__init__(name)
-        self.cache = {}
-        self.cache_time = cache_time
-    
-    async def execute(
-        self,
-        data: Any,
-        context: PipelineContext | None = None
-    ) -> Any:
-        cache_key = self._get_cache_key(data)
+class DataPipeline(Pipeline):
+    async def process(self, data: dict) -> dict:
+        # Validate input
+        if not self._validate(data):
+            raise ValidationError("Invalid data")
+            
+        # Transform data
+        result = await self._transform(data)
         
-        # Verificar cache
-        if cache_key in self.cache:
-            entry = self.cache[cache_key]
-            if time.time() - entry["timestamp"] < self.cache_time:
-                return entry["result"]
-        
-        # Executar pipeline
-        result = await super().execute(data, context)
-        
-        # Atualizar cache
-        self.cache[cache_key] = {
-            "result": result,
-            "timestamp": time.time()
-        }
-        
+        # Return result
         return result
     
-    def _get_cache_key(self, data: Any) -> str:
-        return str(hash(str(data)))
+    def _validate(self, data: dict) -> bool:
+        # Implement validation
+        return True
+    
+    async def _transform(self, data: dict) -> dict:
+        # Transform data
+        return data
 ```
 
-## Melhores Práticas
+## Usage Examples
 
-1. **Design de Pipeline**
-   - Mantenha etapas focadas
-   - Use contexto apropriadamente
-   - Implemente validações
-   - Documente fluxo de dados
+### Basic Pipeline
 
-2. **Tratamento de Erros**
-   - Implemente retry quando apropriado
-   - Registre erros adequadamente
-   - Mantenha contexto de erro
-   - Permita recuperação
+```python
+from pepperpy_core.pipeline import Pipeline
+
+class UserPipeline(Pipeline):
+    async def process(self, user: dict) -> dict:
+        # Validate
+        self.validate_user(user)
+        
+        # Transform
+        user = await self.normalize_user(user)
+        
+        # Enrich
+        user = await self.enrich_user(user)
+        
+        return user
+```
+
+### Branching Pipeline
+
+```python
+from pepperpy_core.pipeline import BranchingPipeline
+
+class DataProcessor(BranchingPipeline):
+    async def process(self, data: dict) -> dict:
+        # Process user data
+        if "user" in data:
+            data["user"] = await self.process_user(
+                data["user"]
+            )
+            
+        # Process order data
+        if "order" in data:
+            data["order"] = await self.process_order(
+                data["order"]
+            )
+            
+        return data
+    
+    def configure(self):
+        # Configure specific pipelines
+        self.add_pipeline(
+            "user",
+            UserPipeline()
+        )
+        self.add_pipeline(
+            "order",
+            OrderPipeline()
+        )
+```
+
+## Advanced Features
+
+### Pipeline with Retry
+
+```python
+from pepperpy_core.pipeline import RetryPipeline
+
+class APIProcessor(RetryPipeline):
+    def __init__(self):
+        super().__init__(
+            max_retries=3,
+            retry_delay=1.0
+        )
+    
+    async def process(self, data: dict) -> dict:
+        try:
+            return await self.api_call(data)
+        except APIError as e:
+            if self.should_retry(e):
+                return await self.retry(data)
+            raise
+```
+
+### Pipeline with Cache
+
+```python
+from pepperpy_core.pipeline import CachedPipeline
+
+class DataProcessor(CachedPipeline):
+    def __init__(self):
+        super().__init__(
+            cache_size=1000,
+            ttl=300
+        )
+    
+    def cache_key(self, data: dict) -> str:
+        return f"{data['type']}:{data['id']}"
+    
+    async def process(self, data: dict) -> dict:
+        # Check cache
+        key = self.cache_key(data)
+        if self.in_cache(key):
+            return self.get_cached(key)
+        
+        # Process data
+        result = await self.process_data(data)
+        
+        # Cache result
+        self.cache_result(key, result)
+        
+        return result
+```
+
+## Best Practices
+
+1. **Design**
+   - Keep pipelines focused
+   - Implement validations
+   - Handle errors gracefully
+   - Document steps
+
+2. **Error Handling**
+   - Handle failures gracefully
+   - Allow recovery
+   - Log errors
+   - Provide context
 
 3. **Performance**
-   - Use cache quando possível
-   - Otimize etapas pesadas
-   - Monitore tempo de execução
-   - Implemente timeouts
+   - Use cache when possible
+   - Batch operations
+   - Monitor execution time
+   - Profile bottlenecks
 
-4. **Manutenção**
-   - Monitore execução
-   - Mantenha logs detalhados
-   - Documente mudanças
-   - Teste cada etapa
+4. **Maintenance**
+   - Monitor execution
+   - Track metrics
+   - Document changes
+   - Keep tests updated
 
-5. **Extensibilidade**
-   - Projete para extensão
-   - Use interfaces claras
-   - Permita customização
-   - Mantenha compatibilidade
+5. **Extensibility**
+   - Design for extension
+   - Allow customization
+   - Support plugins
+   - Use interfaces
 
-## Padrões Comuns
+## Common Patterns
 
-### Pipeline com Validação
+### Pipeline with Validation
 
 ```python
-class ValidatedPipeline(Pipeline):
-    def __init__(self, name: str):
-        super().__init__(name)
-        self.validators = []
+from pepperpy_core.pipeline import ValidationPipeline
+
+class DataValidator(ValidationPipeline):
+    def __init__(self):
+        super().__init__([
+            TypeValidator(),
+            SchemaValidator(),
+            BusinessValidator()
+        ])
     
-    def add_validator(self, validator: callable):
-        self.validators.append(validator)
-    
-    async def execute(
-        self,
-        data: Any,
-        context: PipelineContext | None = None
-    ) -> Any:
-        # Executar validadores
+    async def process(self, data: dict) -> dict:
+        # Run all validators
         for validator in self.validators:
-            if not await validator(data):
+            if not await validator.validate(data):
                 raise ValidationError(
-                    f"Validação falhou: {validator.__name__}"
+                    f"Validation failed: {validator.__name__}"
                 )
         
-        # Executar pipeline
-        return await super().execute(data, context)
+        return data
 ```
 
-### Pipeline com Métricas
+### Pipeline with Metrics
 
 ```python
-class MetricsPipeline(Pipeline):
-    def __init__(self, name: str):
-        super().__init__(name)
-        self.metrics = {}
-    
-    async def execute(
-        self,
-        data: Any,
-        context: PipelineContext | None = None
-    ) -> Any:
-        start_time = time.time()
-        
-        try:
-            result = await super().execute(data, context)
-            self._record_success()
+from pepperpy_core.pipeline import MetricsPipeline
+
+class MonitoredPipeline(MetricsPipeline):
+    async def process(self, data: dict) -> dict:
+        # Start timer
+        with self.timer("process"):
+            # Process data
+            result = await super().process(data)
+            
+            # Record metrics
+            self.record_metric(
+                "items_processed",
+                len(result)
+            )
+            
             return result
-        except Exception as e:
-            self._record_error(str(e))
-            raise
-        finally:
-            duration = time.time() - start_time
-            self._record_duration(duration)
-    
-    def _record_success(self):
-        self.metrics.setdefault("successes", 0)
-        self.metrics["successes"] += 1
-    
-    def _record_error(self, error: str):
-        self.metrics.setdefault("errors", {})
-        self.metrics["errors"][error] = \
-            self.metrics["errors"].get(error, 0) + 1
-    
-    def _record_duration(self, duration: float):
-        self.metrics.setdefault("durations", [])
-        self.metrics["durations"].append(duration)
 ```
 
-### Pipeline com Logging
+### Pipeline with Logging
 
 ```python
-class LoggedPipeline(Pipeline):
-    def __init__(self, name: str):
-        super().__init__(name)
-        self.logger = logging.getLogger(name)
-    
-    async def execute(
-        self,
-        data: Any,
-        context: PipelineContext | None = None
-    ) -> Any:
-        self.logger.info(
-            "Iniciando execução",
-            extra={"data": data, "context": context}
+from pepperpy_core.pipeline import LoggedPipeline
+
+class AuditedPipeline(LoggedPipeline):
+    async def process(self, data: dict) -> dict:
+        # Log input
+        self.log.info(
+            "Processing data",
+            input=data
         )
         
         try:
-            result = await super().execute(data, context)
-            self.logger.info(
-                "Execução concluída",
-                extra={"result": result}
+            # Process data
+            result = await super().process(data)
+            
+            # Log success
+            self.log.info(
+                "Processing complete",
+                output=result
             )
+            
             return result
         except Exception as e:
-            self.logger.error(
-                "Erro na execução",
-                exc_info=True,
-                extra={"error": str(e)}
+            # Log error
+            self.log.error(
+                "Processing failed",
+                error=str(e)
             )
             raise
+```
+
+## API Reference
+
+### Base Pipeline
+
+```python
+class Pipeline:
+    async def process(self, data: Any) -> Any:
+        """Process data through pipeline."""
+        
+    def validate(self, data: Any) -> bool:
+        """Validate input data."""
+        
+    async def cleanup(self):
+        """Clean up resources."""
+```
+
+### Pipeline Options
+
+```python
+class PipelineOptions:
+    retry: bool = False
+    cache: bool = False
+    validate: bool = True
+    log: bool = True
+    metrics: bool = False
+    timeout: float = 30.0
+```
+
+### Pipeline Events
+
+The pipeline module emits the following events:
+
+- `pipeline.start` - When processing starts
+- `pipeline.complete` - When processing completes
+- `pipeline.error` - When an error occurs
+- `pipeline.retry` - When a retry occurs
+
+### Error Handling
+
+```python
+try:
+    result = await pipeline.process(data)
+except ValidationError as e:
+    logger.error(f"Validation error: {e}")
+except ProcessingError as e:
+    logger.error(f"Processing error: {e}")
+except PipelineTimeout as e:
+    logger.error(f"Pipeline timeout: {e}")
 ``` 
