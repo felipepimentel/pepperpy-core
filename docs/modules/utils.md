@@ -83,6 +83,66 @@ is_url = validation.is_url("https://example.com")
 is_ip = validation.is_ip("192.168.1.1")
 ```
 
+### Error Handling
+
+```python
+from pepperpy_core.utils.error import (
+    format_exception,
+    format_error_context,
+    get_error_type
+)
+
+# Basic exception formatting
+try:
+    result = await process_data()
+except Exception as e:
+    error_details = format_exception(e)
+    logger.error(f"Processing failed: {error_details}")
+
+# Detailed error context
+try:
+    await task.execute()
+except TaskError as e:
+    error_details = format_error_context(
+        e,
+        include_traceback=True,
+        include_cause=True
+    )
+    logger.error(f"Task failed: {error_details}")
+
+# Dynamic error type handling
+error_type = get_error_type("ValidationError")
+if error_type:
+    raise error_type("Invalid input data")
+```
+
+The error utilities provide:
+
+1. `format_exception(error: Exception) -> str`
+   - Formats an exception with its full traceback
+   - Useful for debugging and logging
+   - Includes complete stack trace
+
+2. `format_error_context(error: Exception, *, include_traceback: bool = True, include_cause: bool = True) -> str`
+   - Enhanced error formatting with context
+   - Includes error type and message
+   - Shows PepperpyError specific attributes
+   - Optional traceback and cause chain
+   - Structured output format
+
+3. `get_error_type(error_name: str) -> Optional[Type[Exception]]`
+   - Gets exception type by name
+   - Searches PepperpyError hierarchy
+   - Useful for dynamic error handling
+   - Returns None if not found
+
+Best Practices:
+- Use `format_exception` for basic error logging
+- Use `format_error_context` for detailed error reporting
+- Include cause chain for nested exceptions
+- Add tracebacks in development/debugging
+- Handle errors appropriately per context
+
 ## Best Practices
 
 1. **String Operations**

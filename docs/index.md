@@ -192,6 +192,11 @@ async def setup_resources():
 - [Network](modules/network.md)
 - [Telemetry](modules/telemetry.md)
 
+### Error Handling
+- [Exceptions](modules/exceptions.md) - Exception hierarchy and types
+- [Error Context](modules/exceptions.md#error-context) - Contextual error information
+- [Exception Events](modules/exceptions.md#exception-events) - Error event handling
+
 ## Best Practices
 
 ### 1. Configuration Management
