@@ -3,7 +3,7 @@
 import traceback
 from typing import Optional, Type
 
-from pepperpy_core.exceptions import PepperpyError
+from pepperpy_core import exceptions
 
 
 def format_exception(error: Exception) -> str:
@@ -70,7 +70,7 @@ def format_error_context(
     parts.append(f"Message: {str(error)}")
 
     # Add PepperpyError specific context
-    if isinstance(error, PepperpyError):
+    if isinstance(error, exceptions.PepperpyError):
         # Add any additional attributes specific to the error type
         for attr in dir(error):
             if (
@@ -115,13 +115,6 @@ def get_error_type(error_name: str) -> Optional[Type[Exception]]:
         ```
     """
     try:
-        return next(
-            (
-                getattr(PepperpyError, name)
-                for name in dir(PepperpyError)
-                if name == error_name and isinstance(getattr(PepperpyError, name), type)
-            ),
-            None,
-        )
-    except Exception:
+        return getattr(exceptions, error_name)
+    except AttributeError:
         return None

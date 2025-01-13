@@ -1,10 +1,7 @@
-"""Utility functions."""
+"""Logging utilities."""
 
-import importlib.metadata
 import logging
-from typing import Any, TypeVar
-
-T = TypeVar("T")
+from typing import Any
 
 
 def get_logger(name: str) -> logging.Logger:
@@ -38,27 +35,6 @@ def get_package_logger() -> logging.Logger:
         Logger instance
     """
     return get_logger("pepperpy_core")
-
-
-def get_package_name() -> str:
-    """Get package name.
-
-    Returns:
-        Package name
-    """
-    return "pepperpy_core"
-
-
-def get_package_version() -> str:
-    """Get package version.
-
-    Returns:
-        Package version
-    """
-    try:
-        return importlib.metadata.version("pepperpy_core")
-    except importlib.metadata.PackageNotFoundError:
-        return "0.0.0"
 
 
 class LoggerMixin:

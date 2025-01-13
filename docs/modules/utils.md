@@ -1,8 +1,134 @@
 # Utilities Module
 
-The PepperPy Core Utils module provides a collection of utility functions and classes for common tasks, including string manipulation, dates, files, and other resources.
+The PepperPy Core Utils module provides a collection of utility functions and classes for common tasks, including string manipulation, dates, files, error handling, logging, and other resources.
 
 ## Core Components
+
+### Error Utilities
+
+```python
+from pepperpy_core.utils.error import (
+    format_exception,
+    format_error_context,
+    get_error_type
+)
+
+# Basic exception formatting
+try:
+    result = await process_data()
+except Exception as e:
+    error_details = format_exception(e)
+    logger.error(f"Processing failed: {error_details}")
+
+# Detailed error context
+try:
+    await task.execute()
+except TaskError as e:
+    error_details = format_error_context(
+        e,
+        include_traceback=True,
+        include_cause=True
+    )
+    logger.error(f"Task failed: {error_details}")
+
+# Dynamic error type handling
+error_type = get_error_type("ValidationError")
+if error_type:
+    raise error_type("Invalid input data")
+```
+
+The error utilities provide:
+
+1. `format_exception(error: Exception) -> str`
+   - Formats an exception with its full traceback
+   - Useful for debugging and logging
+   - Includes complete stack trace
+
+2. `format_error_context(error: Exception, *, include_traceback: bool = True, include_cause: bool = True) -> str`
+   - Enhanced error formatting with context
+   - Includes error type and message
+   - Shows PepperpyError specific attributes
+   - Optional traceback and cause chain
+   - Structured output format
+
+3. `get_error_type(error_name: str) -> Optional[Type[Exception]]`
+   - Gets exception type by name
+   - Searches PepperpyError hierarchy
+   - Useful for dynamic error handling
+   - Returns None if not found
+
+### Logging Utilities
+
+```python
+from pepperpy_core.utils.logging import (
+    get_logger,
+    get_module_logger,
+    get_package_logger,
+    LoggerMixin
+)
+
+# Get loggers
+logger = get_logger("my_logger")
+module_logger = get_module_logger(__name__)
+package_logger = get_package_logger()
+
+# Use LoggerMixin
+class MyClass(LoggerMixin):
+    def process(self):
+        self.logger.info("Processing...")
+        try:
+            result = do_something()
+            self.logger.debug(f"Result: {result}")
+        except Exception as e:
+            self.logger.error(f"Error: {e}")
+```
+
+The logging utilities provide:
+
+1. `get_logger(name: str) -> logging.Logger`
+   - Gets a logger by name
+   - Returns standard Python logger
+   - Consistent naming convention
+
+2. `get_module_logger(module_name: str) -> logging.Logger`
+   - Gets a logger for a module
+   - Uses module name as logger name
+   - Consistent module logging
+
+3. `get_package_logger() -> logging.Logger`
+   - Gets the package logger
+   - Uses "pepperpy_core" as name
+   - Central package logging
+
+4. `LoggerMixin`
+   - Adds logging capabilities to classes
+   - Provides standard logging methods
+   - Uses class name as logger name
+
+### Package Utilities
+
+```python
+from pepperpy_core.utils.package import (
+    get_package_name,
+    get_package_version
+)
+
+# Get package info
+name = get_package_name()  # "pepperpy_core"
+version = get_package_version()  # e.g. "1.0.0"
+```
+
+The package utilities provide:
+
+1. `get_package_name() -> str`
+   - Gets the package name
+   - Returns "pepperpy_core"
+   - Consistent package naming
+
+2. `get_package_version() -> str`
+   - Gets the package version
+   - Uses importlib.metadata
+   - Returns "0.0.0" if not found
 
 ### String Utilities
 
@@ -83,93 +209,45 @@ is_url = validation.is_url("https://example.com")
 is_ip = validation.is_ip("192.168.1.1")
 ```
 
-### Error Handling
-
-```python
-from pepperpy_core.utils.error import (
-    format_exception,
-    format_error_context,
-    get_error_type
-)
-
-# Basic exception formatting
-try:
-    result = await process_data()
-except Exception as e:
-    error_details = format_exception(e)
-    logger.error(f"Processing failed: {error_details}")
-
-# Detailed error context
-try:
-    await task.execute()
-except TaskError as e:
-    error_details = format_error_context(
-        e,
-        include_traceback=True,
-        include_cause=True
-    )
-    logger.error(f"Task failed: {error_details}")
-
-# Dynamic error type handling
-error_type = get_error_type("ValidationError")
-if error_type:
-    raise error_type("Invalid input data")
-```
-
-The error utilities provide:
-
-1. `format_exception(error: Exception) -> str`
-   - Formats an exception with its full traceback
-   - Useful for debugging and logging
-   - Includes complete stack trace
-
-2. `format_error_context(error: Exception, *, include_traceback: bool = True, include_cause: bool = True) -> str`
-   - Enhanced error formatting with context
-   - Includes error type and message
-   - Shows PepperpyError specific attributes
-   - Optional traceback and cause chain
-   - Structured output format
-
-3. `get_error_type(error_name: str) -> Optional[Type[Exception]]`
-   - Gets exception type by name
-   - Searches PepperpyError hierarchy
-   - Useful for dynamic error handling
-   - Returns None if not found
-
-Best Practices:
-- Use `format_exception` for basic error logging
-- Use `format_error_context` for detailed error reporting
-- Include cause chain for nested exceptions
-- Add tracebacks in development/debugging
-- Handle errors appropriately per context
-
 ## Best Practices
 
-1. **String Operations**
+1. **Error Handling**
+   - Use proper error formatting
+   - Include context in errors
+   - Handle errors appropriately
+   - Log errors with details
+
+2. **Logging**
+   - Use appropriate log levels
+   - Include relevant context
+   - Follow naming conventions
+   - Use LoggerMixin when needed
+
+3. **String Operations**
    - Use proper encoding
    - Handle special chars
    - Validate input
    - Normalize output
 
-2. **Date Operations**
+4. **Date Operations**
    - Use UTC when possible
    - Handle timezones
    - Format consistently
    - Validate dates
 
-3. **File Operations**
+5. **File Operations**
    - Check permissions
    - Handle errors
    - Clean up resources
    - Validate paths
 
-4. **Collections**
+6. **Collections**
    - Handle empty cases
    - Check types
    - Optimize operations
    - Document usage
 
-5. **Security**
+7. **Security**
    - Validate input
    - Sanitize data
    - Use secure hashes
@@ -287,4 +365,4 @@ class FileUtils:
     def get_mime(path: str) -> str:
         """Get MIME type."""
 ```
-``` 
+```
