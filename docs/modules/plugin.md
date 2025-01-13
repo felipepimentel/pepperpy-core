@@ -707,4 +707,56 @@ class DatabasePlugin(Plugin):
                 *args
             )
 ```
+
+### Resource Plugin
+
+```python
+from pepperpy_core.plugin import ResourcePlugin, ResourcePluginConfig
+
+# Create plugin with custom config
+plugin = ResourcePlugin(
+    config=ResourcePluginConfig(
+        name="resource_manager",
+        resource_dir="resources"
+    )
+)
+
+# Initialize plugin
+await plugin.initialize()
+
+# Create a resource
+resource = await plugin.create_resource(
+    name="config",
+    path="config.yaml",
+    metadata={"type": "yaml", "version": "1.0"}
+)
+
+# Get resource
+resource = await plugin.get_resource("config")
+
+# List all resources
+resources = await plugin.list_resources()
+
+# Update resource metadata
+updated = await plugin.update_resource(
+    name="config",
+    metadata={"version": "1.1"}
+)
+
+# Delete resource
+await plugin.delete_resource("config")
+
+# Cleanup
+await plugin.cleanup()
+```
+
+The ResourcePlugin provides RESTful-like resource management capabilities:
+
+- **create_resource**: Create a new resource with metadata
+- **get_resource**: Retrieve a resource by name
+- **list_resources**: List all available resources
+- **update_resource**: Update resource metadata
+- **delete_resource**: Remove a resource
+
+The plugin integrates with the core ResourceManager and provides async operations with proper error handling.
 ``` 

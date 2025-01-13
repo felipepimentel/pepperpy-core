@@ -1,14 +1,15 @@
 """Plugin implementation module."""
 
-import importlib.util
-import inspect
 from collections.abc import Callable
 from dataclasses import dataclass, field
+import importlib.util
+import inspect
 from pathlib import Path
-from typing import Any, TypeVar
+from typing import Any, Optional, TypeVar
 
-from .exceptions import PluginError
+from .exceptions import PluginError, ResourceError
 from .module import BaseModule, ModuleConfig
+from .resources import ResourceManager, ResourceInfo
 
 
 @dataclass
@@ -56,6 +57,136 @@ def is_plugin(obj: Any) -> bool:
         True if object is a plugin
     """
     return hasattr(obj, "__plugin_name__")
+
+
+@dataclass
+class ResourcePluginConfig(PluginConfig):
+    """Resource plugin configuration."""
+
+    resource_dir: str | Path = "resources"
+
+
+@plugin("resource_manager")
+class ResourcePlugin:
+    """Resource management plugin implementation."""
+
+    def __init__(self, config: ResourcePluginConfig | None = None) -> None:
+        """Initialize resource plugin.
+
+        Args:
+            config: Resource plugin configuration
+        """
+        self.config = config or ResourcePluginConfig(
+            name="resource_manager",
+            resource_dir="resources"
+        )
+        self._manager = ResourceManager()
+        self._initialized = False
+
+    async def initialize(self) -> None:
+        """Initialize resource plugin."""
+        if self._initialized:
+            return
+        self._manager.initialize()
+        self._initialized = True
+
+    async def cleanup(self) -> None:
+        """Cleanup resource plugin."""
+        if not self._initialized:
+            return
+        self._manager.cleanup()
+        self._initialized = False
+
+    def _ensure_initialized(self) -> None:
+        """Ensure plugin is initialized."""
+        if not self._initialized:
+            raise ResourceError("Resource plugin not initialized")
+
+    async def create_resource(
+        self,
+        name: str,
+        path: str | Path,
+        metadata: Optional[dict[str, Any]] = None
+    ) -> ResourceInfo:
+        """Create a new resource.
+
+        Args:
+            name: Resource name
+            path: Resource path
+            metadata: Optional resource metadata
+
+        Returns:
+            Resource information
+
+        Raises:
+            ResourceError: If resource creation fails
+        """
+        self._ensure_initialized()
+        return self._manager.add_resource(name, path, metadata)
+
+    async def get_resource(self, name: str) -> Optional[ResourceInfo]:
+        """Get resource by name.
+
+        Args:
+            name: Resource name
+
+        Returns:
+            Resource information if found, None otherwise
+
+        Raises:
+            ResourceError: If plugin not initialized
+        """
+        self._ensure_initialized()
+        return self._manager.get_resource(name)
+
+    async def list_resources(self) -> list[ResourceInfo]:
+        """List all resources.
+
+        Returns:
+            List of resource information
+
+        Raises:
+            ResourceError: If plugin not initialized
+        """
+        self._ensure_initialized()
+        return self._manager.list_resources()
+
+    async def update_resource(
+        self,
+        name: str,
+        metadata: dict[str, Any]
+    ) -> ResourceInfo:
+        """Update resource metadata.
+
+        Args:
+            name: Resource name
+            metadata: New resource metadata
+
+        Returns:
+            Updated resource information
+
+        Raises:
+            ResourceError: If plugin not initialized or resource not found
+        """
+        self._ensure_initialized()
+        resource = self._manager.get_resource(name)
+        if not resource:
+            raise ResourceError(f"Resource {name} not found")
+        
+        resource.metadata.update(metadata)
+        return resource
+
+    async def delete_resource(self, name: str) -> None:
+        """Delete resource.
+
+        Args:
+            name: Resource name
+
+        Raises:
+            ResourceError: If plugin not initialized or resource not found
+        """
+        self._ensure_initialized()
+        self._manager.remove_resource(name)
 
 
 T = TypeVar("T")
