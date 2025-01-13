@@ -36,6 +36,7 @@ coverage = "^7.4.4"
 types-pyyaml = "^6.0.12.20241230"
 black = "^24.10.0"
 python-semantic-release = "^9.15.2"
+pre-commit = "^4.0.1"
 
 [build-system]
 requires = ["poetry-core"]

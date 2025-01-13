@@ -41,7 +41,7 @@ def test_format_error_context_with_cause() -> None:
         try:
             raise ValueError("Inner error")
         except ValueError as e:
-            raise TaskError("Task failed", cause=e)
+            raise TaskError("Task failed", cause=e) from e
     except TaskError as e:
         result = format_error_context(e, include_traceback=False)
         assert "Error Type: TaskError" in result
