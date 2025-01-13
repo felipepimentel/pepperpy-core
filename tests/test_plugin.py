@@ -6,11 +6,9 @@ from typing import Generator
 
 import pytest
 
-from pepperpy_core.exceptions import PluginError
 from pepperpy_core.plugin import (
     PluginManager,
     ResourcePlugin,
-    ResourcePluginConfig,
     plugin,
 )
 
