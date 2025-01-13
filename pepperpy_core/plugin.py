@@ -1,15 +1,15 @@
 """Plugin implementation module."""
 
-from collections.abc import Callable
-from dataclasses import dataclass, field
 import importlib.util
 import inspect
+from collections.abc import Callable
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Optional, TypeVar
 
 from .exceptions import PluginError, ResourceError
 from .module import BaseModule, ModuleConfig
-from .resources import ResourceManager, ResourceInfo
+from .resources import ResourceInfo, ResourceManager
 
 
 @dataclass
@@ -77,8 +77,7 @@ class ResourcePlugin:
             config: Resource plugin configuration
         """
         self.config = config or ResourcePluginConfig(
-            name="resource_manager",
-            resource_dir="resources"
+            name="resource_manager", resource_dir="resources"
         )
         self._manager = ResourceManager()
         self._initialized = False
@@ -103,10 +102,7 @@ class ResourcePlugin:
             raise ResourceError("Resource plugin not initialized")
 
     async def create_resource(
-        self,
-        name: str,
-        path: str | Path,
-        metadata: Optional[dict[str, Any]] = None
+        self, name: str, path: str | Path, metadata: Optional[dict[str, Any]] = None
     ) -> ResourceInfo:
         """Create a new resource.
 
@@ -152,9 +148,7 @@ class ResourcePlugin:
         return self._manager.list_resources()
 
     async def update_resource(
-        self,
-        name: str,
-        metadata: dict[str, Any]
+        self, name: str, metadata: dict[str, Any]
     ) -> ResourceInfo:
         """Update resource metadata.
 
@@ -172,7 +166,7 @@ class ResourcePlugin:
         resource = self._manager.get_resource(name)
         if not resource:
             raise ResourceError(f"Resource {name} not found")
-        
+
         resource.metadata.update(metadata)
         return resource
 
