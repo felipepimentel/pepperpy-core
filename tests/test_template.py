@@ -172,3 +172,79 @@ def test_template_render_extra_vars() -> None:
     context = TemplateContext(variables={"name": "world", "extra": "unused"})
     result = template.render(context)
     assert result == "Hello world!"
+
+
+def test_template_render_invalid_syntax() -> None:
+    """Test template rendering with invalid variable syntax."""
+    template = Template(name="test", content="Hello {name}!")  # Single braces
+    context = TemplateContext(variables={"name": "world"})
+    result = template.render(context)
+    assert result == "Hello {name}!"  # Should not replace single braces
+
+    template = Template(name="test", content="Hello {{{name}}}!")  # Triple braces
+    result = template.render(context)
+    assert result == "Hello {world}!"  # Should handle triple braces
+
+
+def test_template_render_duplicate_vars() -> None:
+    """Test template rendering with duplicate variables."""
+    template = Template(name="test", content="{{name}}, {{name}}!")
+    context = TemplateContext(variables={"name": "world"})
+    result = template.render(context)
+    assert result == "world, world!"
+
+
+def test_template_render_nested_content() -> None:
+    """Test template rendering with nested content."""
+    template = Template(
+        name="test",
+        content="{{outer}} { {{inner}} }",
+    )
+    context = TemplateContext(
+        variables={
+            "outer": "Hello",
+            "inner": "World",
+        }
+    )
+    result = template.render(context)
+    assert result == "Hello { World }"
+
+
+def test_template_update() -> None:
+    """Test template update method."""
+    template = Template(
+        name="test",
+        content="Hello {{name}}!",
+        description="Original description",
+        metadata={"version": "1.0"},
+    )
+
+    # Update single field
+    template.update(description="Updated description")
+    assert template.description == "Updated description"
+    assert template.metadata == {"version": "1.0"}
+
+    # Update multiple fields
+    template.update(
+        content="Hi {{name}}!",
+        metadata={"version": "2.0"},
+    )
+    assert template.content == "Hi {{name}}!"
+    assert template.metadata == {"version": "2.0"}
+
+
+def test_template_context_update() -> None:
+    """Test template context update method."""
+    context = TemplateContext(
+        variables={"name": "test"},
+        metadata={"version": "1.0"},
+    )
+
+    # Update variables
+    context.update(variables={"name": "updated", "new": "value"})
+    assert context.variables == {"name": "updated", "new": "value"}
+    assert context.metadata == {"version": "1.0"}
+
+    # Update metadata
+    context.update(metadata={"version": "2.0", "status": "active"})
+    assert context.metadata == {"version": "2.0", "status": "active"}
