@@ -1,13 +1,13 @@
 # Utilities Module
 
-The PepperPy Core Utils module provides a collection of utility functions and classes for common tasks, including string manipulation, dates, files, error handling, logging, and other resources.
+The PepperPy Utils module provides a collection of utility functions and classes for common tasks, including string manipulation, dates, files, error handling, logging, and other resources.
 
 ## Core Components
 
 ### Error Utilities
 
 ```python
-from pepperpy.utils.error import (
+from pepperpy.error import (
     format_exception,
     format_error_context,
     get_error_type
@@ -60,7 +60,7 @@ The error utilities provide:
 ### Logging Utilities
 
 ```python
-from pepperpy.utils.logging import (
+from pepperpy.logging import (
     get_logger,
     get_module_logger,
     get_package_logger,
@@ -108,7 +108,7 @@ The logging utilities provide:
 ### Package Utilities
 
 ```python
-from pepperpy.utils.package import (
+from pepperpy.package import (
     get_package_name,
     get_package_version
 )

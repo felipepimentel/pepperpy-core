@@ -1,4 +1,4 @@
-# PepperPy Core Documentation
+# PepperPy Documentation
 
 ![Python Version](https://img.shields.io/badge/python-3.8%2B-blue)
 ![Poetry](https://img.shields.io/badge/poetry-managed-blue)
@@ -8,7 +8,7 @@
 
 ## Overview
 
-PepperPy Core is a powerful utility library designed to accelerate Python project development through:
+PepperPy is a powerful utility library designed to accelerate Python project development through:
 
 - **Productivity Acceleration**: Rich set of tools and utilities that eliminate boilerplate code
 - **Security by Design**: Built-in security features and best practices
@@ -21,10 +21,10 @@ PepperPy Core is a powerful utility library designed to accelerate Python projec
 
 ```bash
 # Using Poetry (recommended)
-poetry add pepperpy-core
+poetry add pepperpy
 
 # Using pip
-pip install pepperpy-core
+pip install pepperpy
 ```
 
 ### Basic Usage
