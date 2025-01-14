@@ -1,406 +1,397 @@
-"""Tests for the network module."""
-# mypy: disable-error-code=unreachable
+"""Test network module."""
 
 import asyncio
-from typing import AsyncGenerator
+from dataclasses import dataclass
+from typing import Any
 
 import pytest
-from aiohttp import ClientSession, ClientTimeout, web
+from aiohttp import ClientResponse, ClientSession, FormData
+from multidict import MultiDict
+from yarl import URL
 
 from pepperpy.network import (
     HTTPClient,
-    NetworkClient,
-    NetworkConfig,
+    HTTPConfig,
     NetworkError,
-    RequestData,
+    RequestInterceptor,
+    ResponseFormat,
 )
 
 
-class MockServer:
-    """Mock server for testing."""
+@pytest.fixture
+async def http_client() -> HTTPClient:
+    """Create HTTP client fixture."""
+    client = HTTPClient(HTTPConfig(base_url="http://example.com"))
+    yield client
+    await client.cleanup()
 
-    def __init__(self, host: str, port: int) -> None:
-        """Initialize mock server.
 
-        Args:
-            host: Server host
-            port: Server port
-        """
-        self.host = host
-        self.port = port
-        self._server: asyncio.AbstractServer | None = None
-        self._last_request: bytes | None = None
+@dataclass
+class TestInterceptor(RequestInterceptor):
+    """Test interceptor."""
 
-    async def start(self) -> None:
-        """Start server."""
-        self._server = await asyncio.start_server(
-            self._handle_client, self.host, self.port
-        )
+    pre_request_called: bool = False
+    post_response_called: bool = False
 
-    async def stop(self) -> None:
-        """Stop server."""
-        if self._server:
-            self._server.close()
-            await self._server.wait_closed()
-
-    async def _handle_client(
-        self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
+    async def pre_request(
+        self,
+        method: str,
+        url: str,
+        params: MultiDict[str] | dict[str, str] | None = None,
+        headers: dict[str, str] | None = None,
+        proxy: str | None = None,
+        timeout: Any | None = None,
+        verify_ssl: bool | None = None,
+        json: Any | None = None,
+        data: FormData | None = None,
     ) -> None:
-        """Handle client connection.
+        """Pre-request hook."""
+        self.pre_request_called = True
 
-        Args:
-            reader: Stream reader
-            writer: Stream writer
-        """
-        while True:
-            try:
-                data = await reader.read(1024)
-                if not data:
-                    break
-                self._last_request = data
-                writer.write(data)
-                await writer.drain()
-            except ConnectionError:
-                break
-        writer.close()
-        await writer.wait_closed()
-
-    @property
-    def last_request(self) -> bytes | None:
-        """Get the last received request."""
-        return self._last_request
+    async def post_response(self, response: ClientResponse) -> None:
+        """Post-response hook."""
+        self.post_response_called = True
 
 
-class MockHTTPServer:
-    """Mock HTTP server for testing."""
+async def test_http_client_initialization(http_client: HTTPClient) -> None:
+    """Test HTTP client initialization."""
+    assert not http_client._initialized
+    assert http_client._session is None
 
-    def __init__(self, host: str, port: int) -> None:
-        """Initialize mock HTTP server.
-
-        Args:
-            host: Server host
-            port: Server port
-        """
-        self.host = host
-        self.port = port
-        self._runner: web.AppRunner | None = None
-        self._site: web.TCPSite | None = None
-        self._app = web.Application()
-        self._app.router.add_routes(
-            [
-                web.get("/{tail:.*}", self._handle_request),
-                web.post("/{tail:.*}", self._handle_request),
-                web.put("/{tail:.*}", self._handle_request),
-                web.delete("/{tail:.*}", self._handle_request),
-            ]
-        )
-
-    async def start(self) -> None:
-        """Start server."""
-        self._runner = web.AppRunner(self._app)
-        await self._runner.setup()
-        self._site = web.TCPSite(self._runner, self.host, self.port)
-        await self._site.start()
-
-    async def stop(self) -> None:
-        """Stop server."""
-        if self._runner:
-            await self._runner.cleanup()
-            self._runner = None
-            self._site = None
-
-    async def _handle_request(self, request: web.Request) -> web.Response:
-        """Handle HTTP request.
-
-        Args:
-            request: HTTP request
-
-        Returns:
-            HTTP response
-        """
-        return web.Response(text="OK")
+    await http_client.initialize()
+    assert http_client._initialized
+    assert isinstance(http_client._session, ClientSession)
+    assert http_client._session._base_url == URL("http://example.com")
 
 
-@pytest.fixture
-def test_host() -> str:
-    """Get test host."""
-    return "localhost"
+async def test_http_client_cleanup(http_client: HTTPClient) -> None:
+    """Test HTTP client cleanup."""
+    await http_client.initialize()
+    assert http_client._initialized
+    assert http_client._session is not None
+
+    await http_client.cleanup()
+    assert not http_client._initialized
+    assert http_client._session is None
 
 
-@pytest.fixture
-def test_port() -> int:
-    """Get test port."""
-    return 8080
-
-
-@pytest.fixture
-def test_url(test_host: str, test_port: int) -> str:
-    """Get test URL."""
-    return f"http://{test_host}:{test_port}/"
-
-
-@pytest.fixture
-def test_params() -> dict[str, str]:
-    """Get test query parameters."""
-    return {"key": "value"}
-
-
-@pytest.fixture
-def test_headers() -> dict[str, str]:
-    """Get test headers."""
-    return {"User-Agent": "test"}
-
-
-@pytest.fixture
-def test_timeout() -> ClientTimeout:
-    """Get test timeout."""
-    return ClientTimeout(total=5)
-
-
-@pytest.fixture
-def test_json() -> RequestData:
-    """Get test JSON data."""
-    return {"str_value": "test"}
-
-
-@pytest.fixture
-async def mock_server(
-    test_host: str, test_port: int
-) -> AsyncGenerator[MockServer, None]:
-    """Create a mock server for testing."""
-    server = MockServer(test_host, test_port)
-    await server.start()
-    yield server
-    await server.stop()
-
-
-@pytest.fixture
-async def mock_http_server(
-    test_host: str, test_port: int
-) -> AsyncGenerator[MockHTTPServer, None]:
-    """Create a mock HTTP server for testing."""
-    server = MockHTTPServer(test_host, test_port)
-    await server.start()
-    yield server
-    await server.stop()
-
-
-@pytest.fixture
-async def network_client(
-    mock_server: MockServer,
-) -> AsyncGenerator[NetworkClient, None]:
-    """Create a network client for testing."""
-    config = NetworkConfig(host=mock_server.host, port=mock_server.port)
-    client = NetworkClient(config)
-    await client.connect()
-    yield client
-    await client.disconnect()
-
-
-@pytest.fixture
-async def http_client() -> AsyncGenerator[HTTPClient, None]:
-    """Create an HTTP client for testing."""
-    client = HTTPClient()
-    await client.initialize()
-    yield client
-    await client.cleanup()
-
-
-@pytest.mark.asyncio
-async def test_network_client_connect(
-    network_client: NetworkClient, test_host: str, test_port: int
-) -> None:
-    """Test network client connection."""
-    assert network_client._config.host == test_host
-    assert network_client._config.port == test_port
-
-
-@pytest.mark.asyncio
-async def test_network_client_disconnect(network_client: NetworkClient) -> None:
-    """Test network client disconnection."""
-    await network_client.disconnect()
-    assert not network_client.is_connected
-
-
-@pytest.mark.asyncio
-async def test_network_client_send(network_client: NetworkClient) -> None:
-    """Test network client send."""
-    data = b"test"
-    await network_client.send(data)
-    received = await network_client.receive(size=len(data))
-    assert received == data
-
-
-@pytest.mark.asyncio
-async def test_network_client_receive(network_client: NetworkClient) -> None:
-    """Test network client receive."""
-    data = b"test"
-    await network_client.send(data)
-    received = await network_client.receive(size=len(data))
-    assert received == data
-
-
-@pytest.mark.asyncio
-async def test_network_client_context_manager(
-    mock_server: MockServer, test_host: str, test_port: int
-) -> None:
-    """Test network client context manager."""
-    config = NetworkConfig(host=test_host, port=test_port)
-    async with NetworkClient(config) as client:
-        assert client.is_connected
-        assert client._config.host == test_host
-        assert client._config.port == test_port
-
-
-@pytest.mark.asyncio
-async def test_network_client_repr(
-    network_client: NetworkClient, test_host: str, test_port: int
-) -> None:
-    """Test network client string representation."""
-    expected = f"NetworkClient(host={test_host}, port={test_port})"
-    assert repr(network_client) == expected
-
-
-@pytest.mark.asyncio
-async def test_http_client_initialize_and_cleanup() -> None:
-    """Test HTTP client initialization and cleanup."""
-    client = HTTPClient()
-    assert not client._initialized
-    assert client._session is None
-
-    await client.initialize()
-    assert client._initialized
-    assert isinstance(client._session, ClientSession)
-
-    await client.cleanup()
-    assert not client._initialized
-    assert client._session is None
-
-
-@pytest.mark.asyncio
-async def test_http_client_session_property() -> None:
-    """Test HTTP client session property.
-
-    Note:
-        There is a known issue with mypy's control flow analysis where it incorrectly
-        marks the session property access as unreachable. This is a false positive
-        as the code is working correctly and all tests pass.
-    """
-    # Test not initialized case
-    client = HTTPClient()
-    with pytest.raises(NetworkError):
-        _ = client.session
-
-    # Test initialized case
-    await client.initialize()
-    session = client.session
-    assert isinstance(session, ClientSession)
-    await client.cleanup()
-
-
-@pytest.mark.asyncio
-async def test_http_client_context_manager() -> None:
+async def test_http_client_context_manager(http_client: HTTPClient) -> None:
     """Test HTTP client context manager."""
-    async with HTTPClient() as client:
-        assert client._initialized
-        assert isinstance(client._session, ClientSession)
+    async with http_client:
+        assert http_client._initialized
+        assert http_client._session is not None
+
+    assert not http_client._initialized
+    assert http_client._session is None
 
 
-@pytest.mark.asyncio
-async def test_http_client_get(
-    http_client: HTTPClient,
-    mock_http_server: MockHTTPServer,
-    test_url: str,
-    test_params: dict[str, str],
-    test_headers: dict[str, str],
-    test_timeout: ClientTimeout,
-) -> None:
-    """Test HTTP client GET request."""
-    response = await http_client.get(
-        test_url,
-        params=test_params,
-        headers=test_headers,
-        timeout=test_timeout,
-        verify_ssl=True,
+async def test_http_client_request_formats(http_client: HTTPClient) -> None:
+    """Test HTTP client request formats."""
+    await http_client.initialize()
+
+    # Mock session request method
+    async def mock_request(*args: Any, **kwargs: Any) -> Any:
+        class MockResponse:
+            status = 200
+            reason = "OK"
+
+            async def json(self) -> dict[str, str]:
+                return {"key": "value"}
+
+            async def text(self) -> str:
+                return "text"
+
+            async def read(self) -> bytes:
+                return b"bytes"
+
+            def raise_for_status(self) -> None:
+                pass
+
+            async def __aenter__(self) -> "MockResponse":
+                return self
+
+            async def __aexit__(self, *args: Any) -> None:
+                pass
+
+        return MockResponse()
+
+    http_client._session.request = mock_request  # type: ignore
+
+    # Test JSON format
+    result = await http_client._request(
+        "GET", "/test", response_format=ResponseFormat.JSON
     )
-    assert response == "OK"
+    assert result == {"key": "value"}
 
-
-@pytest.mark.asyncio
-async def test_http_client_post(
-    http_client: HTTPClient,
-    mock_http_server: MockHTTPServer,
-    test_url: str,
-    test_params: dict[str, str],
-    test_headers: dict[str, str],
-    test_timeout: ClientTimeout,
-    test_json: RequestData,
-) -> None:
-    """Test HTTP client POST request."""
-    response = await http_client.post(
-        test_url,
-        params=test_params,
-        headers=test_headers,
-        timeout=test_timeout,
-        verify_ssl=True,
-        json=test_json,
+    # Test text format
+    result = await http_client._request(
+        "GET", "/test", response_format=ResponseFormat.TEXT
     )
-    assert response == "OK"
+    assert result == "text"
 
-
-@pytest.mark.asyncio
-async def test_http_client_put(
-    http_client: HTTPClient,
-    mock_http_server: MockHTTPServer,
-    test_url: str,
-    test_params: dict[str, str],
-    test_headers: dict[str, str],
-    test_timeout: ClientTimeout,
-    test_json: RequestData,
-) -> None:
-    """Test HTTP client PUT request."""
-    response = await http_client.put(
-        test_url,
-        params=test_params,
-        headers=test_headers,
-        timeout=test_timeout,
-        verify_ssl=True,
-        json=test_json,
+    # Test bytes format
+    result = await http_client._request(
+        "GET", "/test", response_format=ResponseFormat.BYTES
     )
-    assert response == "OK"
+    assert result == b"bytes"
 
 
-@pytest.mark.asyncio
-async def test_http_client_delete(
-    http_client: HTTPClient,
-    mock_http_server: MockHTTPServer,
-    test_url: str,
-    test_params: dict[str, str],
-    test_headers: dict[str, str],
-    test_timeout: ClientTimeout,
-) -> None:
-    """Test HTTP client DELETE request."""
-    response = await http_client.delete(
-        test_url,
-        params=test_params,
-        headers=test_headers,
-        timeout=test_timeout,
-        verify_ssl=True,
-    )
-    assert response == "OK"
+async def test_http_client_rate_limit(http_client: HTTPClient) -> None:
+    """Test HTTP client rate limiting."""
+    http_client._config.max_rate_limit = 2
+    await http_client.initialize()
+
+    # Mock session request
+    async def mock_request(*args: Any, **kwargs: Any) -> Any:
+        class MockResponse:
+            status = 200
+            reason = "OK"
+
+            async def json(self) -> dict[str, Any]:
+                return {}
+
+            def raise_for_status(self) -> None:
+                pass
+
+            async def __aenter__(self) -> "MockResponse":
+                return self
+
+            async def __aexit__(self, *args: Any) -> None:
+                pass
+
+        return MockResponse()
+
+    http_client._session.request = mock_request  # type: ignore
+
+    # Make requests
+    start_time = asyncio.get_event_loop().time()
+    for _ in range(3):
+        await http_client.get("/test")
+
+    # Check that rate limiting was applied
+    elapsed = asyncio.get_event_loop().time() - start_time
+    assert elapsed >= 1.0  # At least 1 second delay between requests
 
 
-@pytest.mark.asyncio
-async def test_http_client_request_error(
-    mock_server: MockServer, test_url: str
-) -> None:
-    """Test HTTP client request error."""
-    # Stop the server to simulate a connection error
-    await mock_server.stop()
+async def test_http_client_retries(http_client: HTTPClient) -> None:
+    """Test HTTP client retries."""
+    await http_client.initialize()
 
-    client = HTTPClient()
-    with pytest.raises(NetworkError):
-        await client._request(
-            "GET",
-            test_url,
-        )
+    # Mock session request to fail twice then succeed
+    attempts = 0
+
+    async def mock_request(*args: Any, **kwargs: Any) -> Any:
+        nonlocal attempts
+        attempts += 1
+        if attempts <= 2:
+            raise ConnectionError("Test error")
+
+        class MockResponse:
+            status = 200
+            reason = "OK"
+
+            async def json(self) -> dict[str, int]:
+                return {"attempt": attempts}
+
+            def raise_for_status(self) -> None:
+                pass
+
+            async def __aenter__(self) -> "MockResponse":
+                return self
+
+            async def __aexit__(self, *args: Any) -> None:
+                pass
+
+        return MockResponse()
+
+    http_client._session.request = mock_request  # type: ignore
+    http_client._config.retries = 1
+
+    # Should fail with max retries exceeded
+    with pytest.raises(NetworkError, match="Request failed after 1 retries"):
+        await http_client.get("/test")
+
+    # Reset attempts and increase retries
+    attempts = 0
+    http_client._config.retries = 2
+
+    # Should succeed on third attempt
+    result = await http_client.get("/test")
+    assert result == {"attempt": 3}
+
+
+async def test_http_client_methods(http_client: HTTPClient) -> None:
+    """Test HTTP client methods."""
+    await http_client.initialize()
+
+    # Mock session request
+    async def mock_request(method: str, *args: Any, **kwargs: Any) -> Any:
+        class MockResponse:
+            status = 200
+            reason = "OK"
+
+            async def json(self) -> dict[str, str]:
+                return {"method": method}
+
+            def raise_for_status(self) -> None:
+                pass
+
+            async def __aenter__(self) -> "MockResponse":
+                return self
+
+            async def __aexit__(self, *args: Any) -> None:
+                pass
+
+        return MockResponse()
+
+    http_client._session.request = mock_request  # type: ignore
+
+    # Test GET
+    result = await http_client.get("/test")
+    assert result == {"method": "GET"}
+
+    # Test POST
+    result = await http_client.post("/test", json={"data": "test"})
+    assert result == {"method": "POST"}
+
+    # Test PUT
+    result = await http_client.put("/test", json={"data": "test"})
+    assert result == {"method": "PUT"}
+
+    # Test DELETE
+    result = await http_client.delete("/test")
+    assert result == {"method": "DELETE"}
+
+
+async def test_http_config_validation() -> None:
+    """Test HTTP config validation."""
+    # Test valid config
+    config = HTTPConfig(base_url="http://example.com")
+    assert config.base_url == "http://example.com"
+
+    # Test invalid base URL
+    with pytest.raises(ValueError, match="Base URL must be absolute"):
+        HTTPConfig(base_url="invalid")
+
+    # Test invalid timeout
+    with pytest.raises(ValueError, match="Timeout must be greater than 0"):
+        HTTPConfig(base_url="http://example.com", timeout=0)
+
+    # Test invalid retries
+    with pytest.raises(ValueError, match="Retries must be non-negative"):
+        HTTPConfig(base_url="http://example.com", retries=-1)
+
+    # Test invalid retry delay
+    with pytest.raises(ValueError, match="Retry delay must be greater than 0"):
+        HTTPConfig(base_url="http://example.com", retry_delay=0)
+
+    # Test invalid rate limit
+    with pytest.raises(ValueError, match="Rate limit must be non-negative"):
+        HTTPConfig(base_url="http://example.com", max_rate_limit=-1)
+
+
+async def test_http_client_status_codes(http_client: HTTPClient) -> None:
+    """Test HTTP client status code handling."""
+    await http_client.initialize()
+
+    # Mock session request
+    async def mock_request(*args: Any, **kwargs: Any) -> Any:
+        class MockResponse:
+            status = 404
+            reason = "Not Found"
+
+            async def json(self) -> dict[str, str]:
+                return {"error": "not found"}
+
+            def raise_for_status(self) -> None:
+                raise Exception("404 Not Found")
+
+            async def __aenter__(self) -> "MockResponse":
+                return self
+
+            async def __aexit__(self, *args: Any) -> None:
+                pass
+
+        return MockResponse()
+
+    http_client._session.request = mock_request  # type: ignore
+
+    # Test raise_for_status=True
+    with pytest.raises(NetworkError, match="Request failed with status 404"):
+        await http_client.get("/test")
+
+    # Test raise_for_status=False
+    http_client._config.raise_for_status = False
+    result = await http_client.get("/test")
+    assert result == {"error": "not found"}
+
+
+async def test_http_client_form_data(http_client: HTTPClient) -> None:
+    """Test HTTP client form data handling."""
+    await http_client.initialize()
+
+    # Mock session request
+    async def mock_request(*args: Any, **kwargs: Any) -> Any:
+        assert isinstance(kwargs.get("data"), FormData)
+
+        class MockResponse:
+            status = 200
+            reason = "OK"
+
+            async def json(self) -> dict[str, str]:
+                return {"success": "true"}
+
+            def raise_for_status(self) -> None:
+                pass
+
+            async def __aenter__(self) -> "MockResponse":
+                return self
+
+            async def __aexit__(self, *args: Any) -> None:
+                pass
+
+        return MockResponse()
+
+    http_client._session.request = mock_request  # type: ignore
+
+    # Test form data
+    form = FormData()
+    form.add_field("field", "value")
+    result = await http_client.post("/test", data=form)
+    assert result == {"success": "true"}
+
+
+async def test_http_client_interceptors(http_client: HTTPClient) -> None:
+    """Test HTTP client interceptors."""
+    interceptor = TestInterceptor()
+    http_client._config.interceptors.append(interceptor)
+    await http_client.initialize()
+
+    # Mock session request
+    async def mock_request(*args: Any, **kwargs: Any) -> Any:
+        class MockResponse:
+            status = 200
+            reason = "OK"
+
+            async def json(self) -> dict[str, str]:
+                return {"success": "true"}
+
+            def raise_for_status(self) -> None:
+                pass
+
+            async def __aenter__(self) -> "MockResponse":
+                return self
+
+            async def __aexit__(self, *args: Any) -> None:
+                pass
+
+        return MockResponse()
+
+    http_client._session.request = mock_request  # type: ignore
+
+    # Make request
+    await http_client.get("/test")
+
+    # Check interceptor was called
+    assert interceptor.pre_request_called
+    assert interceptor.post_response_called
