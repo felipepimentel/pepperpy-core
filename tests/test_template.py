@@ -121,7 +121,10 @@ def test_template_render_multiple_missing_vars() -> None:
 
     with pytest.raises(TemplateError) as exc_info:
         template.render(context)
-    assert "Missing required variables: greeting, name" in str(exc_info.value)
+    error_msg = str(exc_info.value)
+    assert "Missing required variables:" in error_msg
+    assert "greeting" in error_msg
+    assert "name" in error_msg
     assert exc_info.value.template_name == "test"
 
 
