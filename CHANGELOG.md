@@ -1,6 +1,19 @@
 # CHANGELOG
 
 
+## v0.4.0 (2025-01-14)
+
+### Chores
+
+- Bump version to 0.3.1 in pyproject.toml
+  ([`6fd1898`](https://github.com/felipepimentel/pepperpy-core/commit/6fd1898c247265b86328c6b0d93c7493065ad38e))
+
+### Features
+
+- Enhance network module with status code handling, form data, and interceptors
+  ([`7a746f8`](https://github.com/felipepimentel/pepperpy-core/commit/7a746f81381872f60f663494a6983960ad2ec5d4))
+
+
 ## v0.3.0 (2025-01-14)
 
 ### Chores
