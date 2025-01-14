@@ -1,6 +1,27 @@
 # CHANGELOG
 
 
+## v0.4.1 (2025-01-14)
+
+### Bug Fixes
+
+- Update template module and tests to handle missing variables
+  ([`a8e97c3`](https://github.com/felipepimentel/pepperpy-core/commit/a8e97c34cb5b6a1f1cf0fedffb413728fcb433ec))
+
+### Refactoring
+
+- Reorganize error handling and module structure
+  ([`3b96580`](https://github.com/felipepimentel/pepperpy-core/commit/3b9658014b003422e3b259196ecd79bdb6166a15))
+
+### Testing
+
+- Add comprehensive test cases for template module
+  ([`f0b5ecb`](https://github.com/felipepimentel/pepperpy-core/commit/f0b5ecb216af780d403d2cf920437182793c76d3))
+
+- Add edge case tests for template module
+  ([`dac4735`](https://github.com/felipepimentel/pepperpy-core/commit/dac47359b4de3351ef31670177aaefb52fd0792a))
+
+
 ## v0.4.0 (2025-01-14)
 
 ### Chores
