@@ -1,617 +1,227 @@
-# Registry Module
+# Registry System
 
-## Overview
+The Registry system provides a centralized component registry for managing application dependencies, services, and configurations. It implements a type-safe container for protocol implementations, allowing runtime validation and dependency injection.
 
-The registry module provides a centralized component registry system for managing application dependencies, services, and configurations. It supports dependency injection, lazy loading, and lifecycle management.
+## Key Features
 
-## Key Components
+- Type-safe registration and retrieval
+- Protocol-based implementation management
+- Automatic instantiation of components
+- Runtime protocol validation
+- Clean-up functionality for registered components
 
-### Registry
+## Usage
+
+### Basic Registry
 
 ```python
-from pepperpy.registry import (
-    Registry,
-    RegistryConfig
-)
+from typing import Protocol
+from pepperpy import Registry
+
+# Define protocol
+class DataStore(Protocol):
+    def get(self, key: str) -> Any: ...
+    def set(self, key: str, value: Any) -> None: ...
 
 # Create registry
-registry = Registry(
-    config=RegistryConfig(
-        name="app",
-        auto_load=True,
-        strict=True
-    )
-)
+registry = Registry[DataStore](DataStore)
 
-# Initialize registry
-await registry.initialize()
+# Register implementation
+class MemoryStore(DataStore):
+    def __init__(self):
+        self._data = {}
+    
+    def get(self, key: str) -> Any:
+        return self._data.get(key)
+    
+    def set(self, key: str, value: Any) -> None:
+        self._data[key] = value
+
+# Register instance
+registry.register("memory", MemoryStore())
+
+# Get instance
+store = registry.get("memory")
+store.set("key", "value")
 ```
 
 ### Component Registration
 
 ```python
-from pepperpy.registry import (
-    Component,
-    Dependency,
-    Lifecycle
-)
+from dataclasses import dataclass
+from pepperpy import Registry, BaseModule, ModuleConfig
 
-@component
-class Database:
-    def __init__(self, config: dict):
-        self.config = config
-        self.pool = None
-    
-    async def initialize(self):
-        self.pool = await create_pool(
-            self.config
-        )
-    
-    async def cleanup(self):
-        await self.pool.close()
+@dataclass
+class CacheConfig(ModuleConfig):
+    capacity: int = 1000
 
-# Register component
-registry.register(
-    name="database",
-    component=Database,
-    config=db_config
-)
+class CacheModule(BaseModule[CacheConfig]):
+    async def _setup(self) -> None:
+        self._cache = {}
+    
+    async def _teardown(self) -> None:
+        self._cache.clear()
+
+# Register with config
+registry = Registry[BaseModule](BaseModule)
+config = CacheConfig(name="cache", capacity=5000)
+registry.register("cache", CacheModule(config))
 ```
 
 ### Dependency Injection
 
 ```python
-from pepperpy.registry import (
-    inject,
-    provides
-)
+from typing import Protocol
+from pepperpy import Registry
 
-@component
-class UserService:
-    # Inject dependencies
-    database = inject("database")
-    cache = inject("cache")
+class Logger(Protocol):
+    def log(self, message: str) -> None: ...
+
+class Service:
+    def __init__(self, logger: Logger):
+        self._logger = logger
     
-    @provides("users")
-    async def get_users(self):
-        # Get from cache
-        users = await self.cache.get("users")
-        if users:
-            return users
-        
-        # Get from database
-        users = await self.database.get_users()
-        
-        # Cache results
-        await self.cache.set(
-            "users",
-            users,
-            ttl=300
-        )
-        
-        return users
-```
+    def do_something(self):
+        self._logger.log("Doing something")
 
-## Usage Patterns
+# Create registries
+logger_registry = Registry[Logger](Logger)
+service_registry = Registry[Service](Service)
 
-### 1. Component Management
+# Register logger
+class ConsoleLogger(Logger):
+    def log(self, message: str) -> None:
+        print(f"[LOG] {message}")
 
-```python
-from pepperpy.registry import (
-    ComponentManager,
-    ManagerConfig
-)
+logger_registry.register("console", ConsoleLogger())
 
-class ApplicationComponents:
-    def __init__(self):
-        self.manager = ComponentManager(
-            config=ManagerConfig(
-                auto_start=True,
-                strict=True
-            )
-        )
-    
-    async def initialize(self):
-        # Register core components
-        await self.register_core()
-        
-        # Register services
-        await self.register_services()
-        
-        # Start components
-        await self.start_components()
-    
-    async def register_core(self):
-        # Register database
-        await self.manager.register(
-            name="database",
-            component=Database,
-            config=db_config,
-            required=True
-        )
-        
-        # Register cache
-        await self.manager.register(
-            name="cache",
-            component=Cache,
-            config=cache_config,
-            required=True
-        )
-        
-        # Register queue
-        await self.manager.register(
-            name="queue",
-            component=Queue,
-            config=queue_config,
-            required=False
-        )
-    
-    async def register_services(self):
-        # Register user service
-        await self.manager.register(
-            name="users",
-            component=UserService,
-            depends=["database", "cache"]
-        )
-        
-        # Register auth service
-        await self.manager.register(
-            name="auth",
-            component=AuthService,
-            depends=["users", "cache"]
-        )
-    
-    async def start_components(self):
-        try:
-            # Start in order
-            await self.manager.start_all()
-            
-        except Exception as e:
-            # Handle startup error
-            await self.handle_startup_error(e)
-            raise
-```
-
-### 2. Dependency Resolution
-
-```python
-from pepperpy.registry import (
-    DependencyResolver,
-    ResolverConfig
-)
-
-class ServiceDependencies:
-    def __init__(self):
-        self.resolver = DependencyResolver(
-            config=ResolverConfig(
-                strict=True,
-                max_depth=10
-            )
-        )
-    
-    async def resolve_dependencies(
-        self,
-        service: str
-    ):
-        try:
-            # Get dependencies
-            deps = await self.resolver.resolve(
-                service
-            )
-            
-            # Check circular
-            if await self.resolver.has_circular(
-                deps
-            ):
-                raise DependencyError(
-                    "Circular dependency detected"
-                )
-            
-            # Order dependencies
-            ordered = await self.resolver.order(
-                deps
-            )
-            
-            return ordered
-            
-        except Exception as e:
-            raise DependencyError(
-                f"Resolution failed: {e}"
-            )
-    
-    async def validate_dependencies(
-        self,
-        service: str
-    ):
-        try:
-            # Get dependencies
-            deps = await self.resolver.resolve(
-                service
-            )
-            
-            # Validate each
-            for dep in deps:
-                await self.validate_dependency(dep)
-            
-        except Exception as e:
-            raise DependencyError(
-                f"Validation failed: {e}"
-            )
-```
-
-### 3. Lifecycle Management
-
-```python
-from pepperpy.registry import (
-    LifecycleManager,
-    LifecycleConfig
-)
-
-class ComponentLifecycle:
-    def __init__(self):
-        self.lifecycle = LifecycleManager(
-            config=LifecycleConfig(
-                timeout=30,
-                retry_count=3
-            )
-        )
-    
-    async def start_component(
-        self,
-        name: str,
-        component: object
-    ):
-        try:
-            # Initialize
-            await self.lifecycle.initialize(
-                name,
-                component
-            )
-            
-            # Start
-            await self.lifecycle.start(
-                name,
-                component
-            )
-            
-        except Exception as e:
-            await self.handle_lifecycle_error(
-                "start",
-                name,
-                e
-            )
-    
-    async def stop_component(
-        self,
-        name: str,
-        component: object
-    ):
-        try:
-            # Stop
-            await self.lifecycle.stop(
-                name,
-                component
-            )
-            
-            # Cleanup
-            await self.lifecycle.cleanup(
-                name,
-                component
-            )
-            
-        except Exception as e:
-            await self.handle_lifecycle_error(
-                "stop",
-                name,
-                e
-            )
+# Register service with dependency
+service = Service(logger_registry.get("console"))
+service_registry.register("main", service)
 ```
 
 ## Best Practices
 
-### 1. Component Configuration
+### Component Configuration
+
+1. **Naming**: Use descriptive names for registered components
+2. **Validation**: Validate components implement required protocols
+3. **Lifecycle**: Handle initialization and cleanup properly
+4. **Dependencies**: Manage dependencies through registry
+
+### Dependency Configuration
+
+1. **Injection**: Use constructor injection for dependencies
+2. **Resolution**: Resolve dependencies at component creation
+3. **Validation**: Validate required dependencies exist
+4. **Cleanup**: Handle dependency cleanup order
+
+### Registry Configuration
+
+1. **Scope**: Create separate registries for different component types
+2. **Access**: Control registry access through dependency injection
+3. **Validation**: Enable runtime protocol validation
+4. **Cleanup**: Implement proper cleanup for all components
+
+## Integration with Module System
+
+The Registry system works seamlessly with the Module system for managing module implementations:
 
 ```python
-from pepperpy.registry import (
-    ComponentConfig,
-    LifecycleConfig
-)
+from pepperpy import Registry, BaseModule
 
-class ComponentSetup:
-    def configure(self):
-        return ComponentConfig(
-            # Basic info
-            name="database",
-            version="1.0.0",
-            description="Database component",
-            
-            # Dependencies
-            requires=[
-                "config",
-                "metrics"
-            ],
-            
-            # Lifecycle
-            lifecycle=LifecycleConfig(
-                startup_timeout=30,
-                shutdown_timeout=30,
-                retry_count=3
-            ),
-            
-            # Settings
-            settings={
-                "pool_size": 10,
-                "timeout": 30,
-                "retry": True
-            }
-        )
+# Create module registry
+module_registry = Registry[BaseModule](BaseModule)
+
+# Register modules
+module_registry.register("cache", CacheModule(cache_config))
+module_registry.register("auth", AuthModule(auth_config))
+module_registry.register("storage", StorageModule(storage_config))
+
+# Initialize modules
+async def initialize_modules():
+    for name in module_registry.list():
+        module = module_registry.get(name)
+        await module.initialize()
+
+# Cleanup modules
+async def cleanup_modules():
+    for name in reversed(module_registry.list()):
+        module = module_registry.get(name)
+        await module.teardown()
 ```
 
-### 2. Dependency Configuration
+## Application Registry
+
+Example of using Registry for application-level component management:
 
 ```python
-from pepperpy.registry import (
-    DependencyConfig,
-    InjectionConfig
-)
-
-class DependencySetup:
-    def configure(self):
-        return DependencyConfig(
-            # Resolution
-            resolution={
-                "strict": True,
-                "max_depth": 10,
-                "allow_circular": False
-            },
-            
-            # Injection
-            injection=InjectionConfig(
-                mode="constructor",
-                lazy=True,
-                optional=False
-            ),
-            
-            # Validation
-            validation={
-                "check_types": True,
-                "check_interfaces": True
-            }
-        )
-```
-
-### 3. Registry Configuration
-
-```python
-from pepperpy.registry import (
-    RegistryConfig,
-    StorageConfig
-)
-
-class RegistrySetup:
-    def configure(self):
-        return RegistryConfig(
-            # Basic settings
-            name="app",
-            version="1.0.0",
-            
-            # Components
-            components={
-                "database": {
-                    "required": True,
-                    "startup_order": 0
-                },
-                "cache": {
-                    "required": True,
-                    "startup_order": 1
-                },
-                "services": {
-                    "required": False,
-                    "startup_order": 2
-                }
-            },
-            
-            # Storage
-            storage=StorageConfig(
-                type="memory",
-                persistence=False
-            ),
-            
-            # Lifecycle
-            lifecycle={
-                "startup_timeout": 60,
-                "shutdown_timeout": 30
-            }
-        )
-```
-
-## Complete Examples
-
-### 1. Application Registry
-
-```python
-from pepperpy.registry import (
-    Registry,
-    Component,
-    inject
-)
+from pepperpy import Registry
 
 class Application:
     def __init__(self):
-        self.registry = Registry(
-            name="app"
-        )
+        # Create registries
+        self.modules = Registry[BaseModule](BaseModule)
+        self.services = Registry[Service](Service)
+        self.loggers = Registry[Logger](Logger)
     
     async def initialize(self):
         # Register components
-        await self.register_components()
+        self._register_modules()
+        self._register_services()
+        self._register_loggers()
         
-        # Start registry
-        await self.registry.start()
-    
-    async def register_components(self):
-        # Register database
-        await self.registry.register(
-            "database",
-            Database(db_config)
-        )
-        
-        # Register cache
-        await self.registry.register(
-            "cache",
-            Cache(cache_config)
-        )
-        
-        # Register services
-        await self.registry.register(
-            "users",
-            UserService()
-        )
-        
-        await self.registry.register(
-            "auth",
-            AuthService()
-        )
-    
-    async def get_component(
-        self,
-        name: str
-    ):
-        try:
-            # Get component
-            component = await self.registry.get(
-                name
-            )
-            
-            if not component:
-                raise ComponentError(
-                    f"Component not found: {name}"
-                )
-            
-            return component
-            
-        except Exception as e:
-            raise RegistryError(
-                f"Failed to get component: {e}"
-            )
+        # Initialize modules
+        for name in self.modules.list():
+            await self.modules.get(name).initialize()
     
     async def cleanup(self):
-        try:
-            # Stop registry
-            await self.registry.stop()
-            
-            # Cleanup components
-            await self.registry.cleanup()
-            
-        except Exception as e:
-            raise RegistryError(
-                f"Cleanup failed: {e}"
-            )
+        # Cleanup in reverse order
+        for name in reversed(self.modules.list()):
+            await self.modules.get(name).teardown()
+
+# Create application
+app = Application()
+await app.initialize()
 ```
 
-### 2. Service Registry
+## Service Registry
+
+Example of using Registry for service management:
 
 ```python
-from pepperpy.registry import (
-    ServiceRegistry,
-    Service,
-    inject
-)
+from pepperpy import Registry, Service
 
-class ServiceManager:
+class ServiceRegistry:
     def __init__(self):
-        self.registry = ServiceRegistry(
-            name="services"
-        )
+        self._registry = Registry[Service](Service)
+        self._active = set()
     
-    async def initialize(self):
-        # Register services
-        await self.register_services()
-        
-        # Start registry
-        await self.registry.start()
+    def register(self, name: str, service: Service):
+        self._registry.register(name, service)
     
-    async def register_services(self):
-        # User service
-        await self.registry.register(
-            name="users",
-            service=UserService(),
-            version="1.0.0",
-            metadata={
-                "type": "core",
-                "critical": True
-            }
-        )
-        
-        # Auth service
-        await self.registry.register(
-            name="auth",
-            service=AuthService(),
-            version="1.0.0",
-            metadata={
-                "type": "core",
-                "critical": True
-            }
-        )
-        
-        # Email service
-        await self.registry.register(
-            name="email",
-            service=EmailService(),
-            version="1.0.0",
-            metadata={
-                "type": "support",
-                "critical": False
-            }
-        )
+    async def start(self, name: str):
+        service = self._registry.get(name)
+        await service.start()
+        self._active.add(name)
     
-    async def get_service(
-        self,
-        name: str,
-        version: str | None = None
-    ):
-        try:
-            # Get service
-            service = await self.registry.get(
-                name,
-                version=version
-            )
-            
-            if not service:
-                raise ServiceError(
-                    f"Service not found: {name}"
-                )
-            
-            return service
-            
-        except Exception as e:
-            raise RegistryError(
-                f"Failed to get service: {e}"
-            )
+    async def stop(self, name: str):
+        if name in self._active:
+            service = self._registry.get(name)
+            await service.stop()
+            self._active.remove(name)
     
-    async def list_services(
-        self,
-        type: str | None = None,
-        critical: bool | None = None
-    ):
-        try:
-            # Build filter
-            filters = {}
-            if type:
-                filters["type"] = type
-            if critical is not None:
-                filters["critical"] = critical
-            
-            # Get services
-            services = await self.registry.list(
-                filters=filters
-            )
-            
-            return services
-            
-        except Exception as e:
-            raise RegistryError(
-                f"Failed to list services: {e}"
-            )
+    def is_active(self, name: str) -> bool:
+        return name in self._active
+
+# Use service registry
+registry = ServiceRegistry()
+registry.register("auth", AuthService())
+await registry.start("auth")
 ```
+
+## See Also
+
+- [Module System](module.md) - For creating modular components
+- [Plugin System](plugin.md) - For creating plugin modules
 ``` 

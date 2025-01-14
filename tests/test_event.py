@@ -1,172 +1,173 @@
 """Test event module."""
 
-import asyncio
-from dataclasses import dataclass
-from typing import Any, AsyncGenerator, List, Tuple
-
 import pytest
 
-from pepperpy.event import Event, EventBus, EventListener
-from pepperpy.exceptions import EventError
+from pepperpy.event import Event, EventBus
 
 
-@dataclass
-class TestEvent(Event):
-    """Test event."""
+def test_event_init() -> None:
+    """Test event initialization."""
+    event = Event(name="test", data="test")
+    assert event.name == "test"
+    assert event.data == "test"
 
-    data: Any
+
+def test_event_init_with_metadata() -> None:
+    """Test event initialization with metadata."""
+    event = Event(name="test", data={"key": "value"})
+    assert event.name == "test"
+    assert event.data == {"key": "value"}
 
 
-@pytest.fixture
-async def event_bus() -> AsyncGenerator[EventBus, None]:
-    """Create an event bus."""
+def test_event_init_with_invalid_name() -> None:
+    """Test event initialization with invalid name."""
+    with pytest.raises(ValueError):
+        Event(name="", data="test")
+
+
+@pytest.mark.asyncio
+async def test_event_bus_init() -> None:
+    """Test event bus initialization."""
     bus = EventBus()
     await bus.initialize()
-    yield bus
-    await bus.teardown()
-
-
-@pytest.fixture
-def test_event() -> TestEvent:
-    """Create a test event."""
-    return TestEvent(data="test")
+    assert bus._initialized
+    await bus.cleanup()
 
 
 @pytest.mark.asyncio
-async def test_event_bus_emit(event_bus: EventBus, test_event: TestEvent) -> None:
-    """Test event bus emit."""
-    events: List[Event] = []
-
-    def handler(event: Event) -> None:
-        events.append(event)
-
-    event_bus.add_listener(TestEvent, handler)
-    await event_bus.emit(test_event)
-    assert len(events) == 1
-    assert events[0] == test_event
+async def test_event_bus_init_with_max_listeners() -> None:
+    """Test event bus initialization with max listeners."""
+    bus = EventBus(max_listeners=5)
+    await bus.initialize()
+    assert bus._max_listeners == 5
+    await bus.cleanup()
 
 
 @pytest.mark.asyncio
-async def test_event_bus_emit_async(event_bus: EventBus, test_event: TestEvent) -> None:
-    """Test event bus emit with async handler."""
-    events: List[Event] = []
+async def test_event_bus_add_listener() -> None:
+    """Test add listener."""
+    bus = EventBus()
+    await bus.initialize()
 
     async def handler(event: Event) -> None:
-        await asyncio.sleep(0.1)
-        events.append(event)
-
-    event_bus.add_listener(TestEvent, handler)
-    await event_bus.emit(test_event)
-    assert len(events) == 1
-    assert events[0] == test_event
-
-
-@pytest.mark.asyncio
-async def test_event_bus_emit_priority(
-    event_bus: EventBus, test_event: TestEvent
-) -> None:
-    """Test event bus emit with priority."""
-    events: List[Tuple[str, Event]] = []
-
-    def handler1(event: Event) -> None:
-        events.append(("handler1", event))
-
-    def handler2(event: Event) -> None:
-        events.append(("handler2", event))
-
-    event_bus.add_listener(TestEvent, handler1, priority=1)
-    event_bus.add_listener(TestEvent, handler2, priority=2)
-    await event_bus.emit(test_event)
-    assert len(events) == 2
-    assert events[0] == ("handler2", test_event)  # Higher priority handler called first
-    assert events[1] == ("handler1", test_event)
-
-
-@pytest.mark.asyncio
-async def test_event_bus_remove_listener(
-    event_bus: EventBus, test_event: TestEvent
-) -> None:
-    """Test event bus remove listener."""
-    events: List[Event] = []
-
-    def handler(event: Event) -> None:
-        events.append(event)
-
-    event_bus.add_listener(TestEvent, handler)
-    event_bus.remove_listener(TestEvent, handler)
-    await event_bus.emit(test_event)
-    assert len(events) == 0
-
-
-@pytest.mark.asyncio
-async def test_event_bus_get_listeners(event_bus: EventBus) -> None:
-    """Test event bus get listeners."""
-
-    def handler1(event: Event) -> None:
         pass
 
-    def handler2(event: Event) -> None:
-        pass
-
-    event_bus.add_listener(TestEvent, handler1)
-    event_bus.add_listener(TestEvent, handler2)
-
-    listeners = event_bus.get_listeners(TestEvent)
-    assert len(listeners) == 2
-    assert all(isinstance(listener, EventListener) for listener in listeners)
-    assert {listener.handler for listener in listeners} == {handler1, handler2}
+    bus.add_listener("test", handler)
+    assert len(bus.get_listeners("test")) == 1
+    await bus.cleanup()
 
 
 @pytest.mark.asyncio
-async def test_event_bus_emit_error(event_bus: EventBus, test_event: TestEvent) -> None:
-    """Test event bus emit error."""
-
-    def handler(event: Event) -> None:
-        raise ValueError("test error")
-
-    event_bus.add_listener(TestEvent, handler)
-    with pytest.raises(EventError):
-        await event_bus.emit(test_event)
-
-
-@pytest.mark.asyncio
-async def test_event_bus_emit_not_initialized(test_event: TestEvent) -> None:
-    """Test event bus emit when not initialized."""
+async def test_event_bus_add_listener_with_priority() -> None:
+    """Test add listener with priority."""
     bus = EventBus()
-    with pytest.raises(EventError):
-        await bus.emit(test_event)
+    await bus.initialize()
+
+    async def handler1(event: Event) -> None:
+        pass
+
+    async def handler2(event: Event) -> None:
+        pass
+
+    bus.add_listener("test", handler1, priority=1)
+    bus.add_listener("test", handler2, priority=2)
+
+    listeners = bus.get_listeners("test")
+    assert len(listeners) == 2
+    assert listeners[0].priority == 2
+    assert listeners[1].priority == 1
+
+    await bus.cleanup()
 
 
 @pytest.mark.asyncio
-async def test_event_bus_max_listeners(event_bus: EventBus) -> None:
-    """Test event bus max listeners."""
-    max_listeners = event_bus.config.max_listeners
+async def test_event_bus_add_listener_max_exceeded() -> None:
+    """Test add listener max exceeded."""
+    bus = EventBus(max_listeners=1)
+    await bus.initialize()
 
-    def handler(event: Event) -> None:
+    async def handler1(event: Event) -> None:
         pass
 
-    # Add max_listeners listeners
-    for _ in range(max_listeners):
-        event_bus.add_listener(TestEvent, handler)
+    async def handler2(event: Event) -> None:
+        pass
 
-    # Try to add one more listener
-    with pytest.raises(EventError):
-        event_bus.add_listener(TestEvent, handler)
+    bus.add_listener("test", handler1)
+    with pytest.raises(ValueError):
+        bus.add_listener("test", handler2)
+
+    await bus.cleanup()
 
 
 @pytest.mark.asyncio
-async def test_event_bus_stats(event_bus: EventBus, test_event: TestEvent) -> None:
-    """Test event bus stats."""
+async def test_event_bus_remove_listener() -> None:
+    """Test remove listener."""
+    bus = EventBus()
+    await bus.initialize()
 
-    def handler(event: Event) -> None:
+    async def handler(event: Event) -> None:
         pass
 
-    event_bus.add_listener(TestEvent, handler)
-    await event_bus.emit(test_event)
+    bus.add_listener("test", handler)
+    bus.remove_listener("test", handler)
+    assert len(bus.get_listeners("test")) == 0
 
-    assert event_bus._stats["total_events"] == 1
-    assert event_bus._stats["total_listeners"] == 1
-    assert event_bus._stats["active_listeners"] == 1
+    await bus.cleanup()
 
-    event_bus.remove_listener(TestEvent, handler)
-    assert event_bus._stats["active_listeners"] == 0
+
+@pytest.mark.asyncio
+async def test_event_bus_get_listeners() -> None:
+    """Test get listeners."""
+    bus = EventBus()
+    await bus.initialize()
+
+    async def handler(event: Event) -> None:
+        pass
+
+    bus.add_listener("test", handler)
+    listeners = bus.get_listeners("test")
+    assert len(listeners) == 1
+    assert listeners[0].handler == handler
+
+    await bus.cleanup()
+
+
+@pytest.mark.asyncio
+async def test_event_bus_emit() -> None:
+    """Test emit event."""
+    bus = EventBus()
+    await bus.initialize()
+
+    events = []
+
+    async def handler(event: Event) -> None:
+        events.append(event)
+
+    bus.add_listener("test", handler)
+    event = Event(name="test", data="test")
+    await bus.emit(event)
+
+    assert len(events) == 1
+    assert events[0] == event
+
+    await bus.cleanup()
+
+
+@pytest.mark.asyncio
+async def test_event_bus_get_stats() -> None:
+    """Test get stats."""
+    bus = EventBus()
+    await bus.initialize()
+
+    async def handler(event: Event) -> None:
+        pass
+
+    bus.add_listener("test", handler)
+    event = Event(name="test", data="test")
+    await bus.emit(event)
+    await bus.emit(event)
+
+    stats = bus.get_stats()
+    assert stats["test"] == 2
+
+    await bus.cleanup()

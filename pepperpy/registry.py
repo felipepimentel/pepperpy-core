@@ -1,6 +1,67 @@
-"""Registry module."""
+"""Registry module.
 
-from typing import Generic, List, TypeVar
+A generic registry for managing protocol implementations. This module provides a
+type-safe container for registering and retrieving implementations of specific
+protocols or interfaces.
+
+The Registry pattern implemented here is independent of the module system and can
+be used to manage any type of protocol implementation. This separation of
+concerns allows for:
+
+1. Type-safe registration and retrieval
+2. Protocol-based implementation management
+3. Flexible implementation discovery
+4. Runtime protocol validation
+
+Example:
+    ```python
+    from typing import Protocol
+
+    class DataStore(Protocol):
+        def save(self, data: bytes) -> None: ...
+        def load(self) -> bytes: ...
+
+    # Create registry for DataStore implementations
+    registry = Registry[DataStore](DataStore)
+
+    # Register implementations
+    registry.register("memory", MemoryStore())
+    registry.register("file", FileStore)  # Classes are instantiated automatically
+
+    # Get implementation
+    store = registry.get("memory")
+    store.save(b"data")
+    ```
+"""
+
+from typing import Generic, List, Optional, TypeVar
+
+from .core import PepperpyError
+
+
+class RegistryError(PepperpyError):
+    """Registry-related errors."""
+
+    def __init__(
+        self,
+        message: str,
+        cause: Optional[Exception] = None,
+        implementation_name: Optional[str] = None,
+        protocol_name: Optional[str] = None,
+    ) -> None:
+        """Initialize registry error.
+
+        Args:
+            message: Error message
+            cause: Optional cause of the error
+            implementation_name: Optional name of the implementation that caused
+                the error
+            protocol_name: Optional name of the protocol that caused the error
+        """
+        super().__init__(message, cause)
+        self.implementation_name = implementation_name
+        self.protocol_name = protocol_name
+
 
 T = TypeVar("T")
 

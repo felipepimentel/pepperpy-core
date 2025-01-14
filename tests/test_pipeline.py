@@ -1,9 +1,9 @@
-"""Tests for the pipeline module."""
+"""Test pipeline module."""
 
 import pytest
 import pytest_asyncio
 
-from pepperpy.exceptions import PepperpyError
+from pepperpy.core import PepperpyError
 from pepperpy.pipeline import (
     Pipeline,
     PipelineConfig,

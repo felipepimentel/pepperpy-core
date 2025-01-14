@@ -9,12 +9,34 @@ from aiohttp import ClientResponse, ClientSession, ClientTimeout, FormData
 from multidict import MultiDict
 from yarl import URL
 
-from pepperpy.exceptions import PepperpyError
+from pepperpy.core import PepperpyError
 from pepperpy.logging import LoggerMixin
 
 
 class NetworkError(PepperpyError):
     """Network error."""
+
+    def __init__(
+        self,
+        message: str,
+        cause: Exception | None = None,
+        url: str | None = None,
+        method: str | None = None,
+        status: int | None = None,
+    ) -> None:
+        """Initialize network error.
+
+        Args:
+            message: Error message
+            cause: Original exception
+            url: Request URL
+            method: Request method
+            status: Response status code
+        """
+        super().__init__(message, cause)
+        self.url = url
+        self.method = method
+        self.status = status
 
 
 class ResponseFormat(str, Enum):

@@ -1,9 +1,30 @@
 """Cache module."""
 
 from dataclasses import dataclass, field
-from typing import Any, Generic, TypeVar
+from typing import Any, Generic, Optional, TypeVar
 
+from .core import PepperpyError
 from .module import BaseModule, ModuleConfig
+
+
+class CacheError(PepperpyError):
+    """Cache-related errors."""
+
+    def __init__(
+        self,
+        message: str,
+        cause: Optional[Exception] = None,
+        cache_key: Optional[str] = None,
+    ) -> None:
+        """Initialize cache error.
+
+        Args:
+            message: Error message
+            cause: Optional cause of the error
+            cache_key: Optional key that caused the error
+        """
+        super().__init__(message, cause)
+        self.cache_key = cache_key
 
 
 @dataclass

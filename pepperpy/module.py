@@ -1,15 +1,78 @@
-"""Module base implementation."""
+"""Module base implementation.
+
+This module provides the base infrastructure for creating modular components in
+PepperPy. It implements the Template Method pattern to define a consistent
+lifecycle for all modules, including initialization, setup, and teardown phases.
+
+The module system provides:
+- Consistent module lifecycle management
+- Type-safe configuration handling
+- Proper cleanup of resources
+- Extensible module hierarchy
+
+Example:
+    A simple cache module implementation:
+
+    ```python
+    class CacheModule(BaseModule):
+        def __init__(self, config: CacheConfig) -> None:
+            super().__init__(config)
+            self._cache = {}
+
+        async def _setup(self) -> None:
+            # Set up cache
+            self._cache = {}
+
+        async def _teardown(self) -> None:
+            # Clean up cache
+            self._cache.clear()
+
+        def get(self, key: str) -> Any:
+            self._ensure_initialized()
+            if key in self._cache:
+                self._hits += 1
+                return self._cache[key]
+            self._misses += 1
+            return None
+    ```
+"""
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any, Generic, TypeVar
 
-from .exceptions import InitializationError, PepperpyError
-from .types import BaseConfig
+from pepperpy.config import BaseConfig
+from pepperpy.core import PepperpyError
 
 
 class ModuleError(PepperpyError):
-    """Module specific error."""
+    """Module-related errors."""
+
+    def __init__(
+        self,
+        message: str,
+        cause: Exception | None = None,
+        module_name: str | None = None,
+    ) -> None:
+        """Initialize module error.
+
+        Args:
+            message: Error message
+            cause: Original exception that caused this error
+            module_name: Name of the module that caused the error
+        """
+        super().__init__(message, cause)
+        self.module_name = module_name
+
+
+class InitializationError(ModuleError):
+    """Initialization-related errors."""
+
+    pass
+
+
+class ModuleNotFoundError(ModuleError):
+    """Module not found errors."""
 
     pass
 
@@ -20,6 +83,15 @@ class ModuleConfig(BaseConfig):
 
     name: str
     metadata: dict[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        """Validate configuration after initialization.
+
+        Raises:
+            ValueError: If name is empty or invalid
+        """
+        if not self.name or not isinstance(self.name, str):
+            raise ValueError("Module name must be a non-empty string")
 
 
 T = TypeVar("T", bound=ModuleConfig)

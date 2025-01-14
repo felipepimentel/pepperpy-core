@@ -1,16 +1,33 @@
 """Pipeline implementation module."""
 
 from dataclasses import dataclass, field
-from typing import Any, Generic, TypeVar
+from typing import Any, Generic, Optional, TypeVar
 
-from .exceptions import PepperpyError
+from .core import PepperpyError
 from .module import BaseModule, ModuleConfig
 
 
 class PipelineError(PepperpyError):
-    """Pipeline specific error."""
+    """Pipeline-related errors."""
 
-    pass
+    def __init__(
+        self,
+        message: str,
+        cause: Optional[Exception] = None,
+        pipeline_name: Optional[str] = None,
+        step_name: Optional[str] = None,
+    ) -> None:
+        """Initialize pipeline error.
+
+        Args:
+            message: Error message
+            cause: Optional cause of the error
+            pipeline_name: Optional name of the pipeline that caused the error
+            step_name: Optional name of the step that caused the error
+        """
+        super().__init__(message, cause)
+        self.pipeline_name = pipeline_name
+        self.step_name = step_name
 
 
 @dataclass

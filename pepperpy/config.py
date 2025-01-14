@@ -1,10 +1,77 @@
-"""Configuration module."""
+"""Configuration module.
+
+This module provides a flexible configuration system for PepperPy applications.
+It includes:
+- Base configuration class for all config objects
+- Configuration items for storing values
+- Configuration sections for organizing items
+- Full configuration management with validation
+"""
 
 from dataclasses import dataclass, field
 from typing import Any
 
-from .exceptions import ConfigError
-from .types import BaseConfig
+from .core import PepperpyError
+
+
+class ConfigError(PepperpyError):
+    """Configuration-related errors."""
+
+    def __init__(
+        self,
+        message: str,
+        cause: Exception | None = None,
+        config_name: str | None = None,
+    ) -> None:
+        """Initialize configuration error.
+
+        Args:
+            message: Error message
+            cause: Original exception that caused this error
+            config_name: Name of the configuration that caused the error
+        """
+        super().__init__(message, cause)
+        self.config_name = config_name
+
+
+class BaseConfig:
+    """Base configuration class for PepperPy modules and components.
+
+    This class provides the foundation for all configuration objects in the system.
+    It enforces a consistent configuration pattern where each config must have a name
+    and can optionally include metadata. The metadata can be used to store additional
+    configuration parameters specific to each module.
+
+    Example:
+        ```python
+        config = BaseConfig("database", metadata={
+            "host": "localhost",
+            "port": 5432
+        })
+        ```
+
+    Raises:
+        ValueError: If name is empty or metadata is not a dictionary
+    """
+
+    def __init__(self, name: str, **kwargs: Any) -> None:
+        """Initialize base configuration.
+
+        Args:
+            name: Configuration name
+            kwargs: Additional arguments
+
+        Raises:
+            ValueError: If name is empty
+        """
+        if not name:
+            raise ValueError("name cannot be empty")
+
+        self.name = name
+        self.metadata = kwargs.get("metadata", {})
+
+        if not isinstance(self.metadata, dict):
+            raise ValueError("metadata must be a dictionary")
 
 
 @dataclass

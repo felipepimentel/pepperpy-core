@@ -3,10 +3,30 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, TypeVar
+from typing import Any, Optional, TypeVar
 
-from .exceptions import SecurityError
+from .core import PepperpyError
 from .module import BaseModule, ModuleConfig
+
+
+class SecurityError(PepperpyError):
+    """Security-related errors."""
+
+    def __init__(
+        self,
+        message: str,
+        cause: Optional[Exception] = None,
+        security_level: Optional[str] = None,
+    ) -> None:
+        """Initialize security error.
+
+        Args:
+            message: Error message
+            cause: Optional cause of the error
+            security_level: Optional security level when the error occurred
+        """
+        super().__init__(message, cause)
+        self.security_level = security_level
 
 
 class SecurityLevel(Enum):

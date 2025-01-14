@@ -7,21 +7,22 @@ from typing import Protocol, runtime_checkable
 
 import pytest
 
-from pepperpy.types import (
+from pepperpy.callables import (
     AsyncCallable,
-    AsyncGenerator,
-    BaseConfig,
     Callable,
     Coroutine,
-    Generator,
     validate_async_callable,
-    validate_async_generator,
     validate_callable,
     validate_coroutine,
-    validate_generator,
-    validate_protocol,
-    validate_type,
 )
+from pepperpy.config import BaseConfig
+from pepperpy.generators import (
+    AsyncGenerator,
+    Generator,
+    validate_async_generator,
+    validate_generator,
+)
+from pepperpy.validators import validate_protocol, validate_type
 
 
 @runtime_checkable

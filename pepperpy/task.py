@@ -3,10 +3,30 @@
 import asyncio
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Awaitable, Callable, Generic, TypeVar
+from typing import Any, Awaitable, Callable, Generic, Optional, TypeVar
 
-from pepperpy.exceptions import TaskError
-from pepperpy.module import BaseModule, ModuleConfig
+from .core import PepperpyError
+from .module import BaseModule, ModuleConfig
+
+
+class TaskError(PepperpyError):
+    """Task-related errors."""
+
+    def __init__(
+        self,
+        message: str,
+        cause: Optional[Exception] = None,
+        task_id: Optional[str] = None,
+    ) -> None:
+        """Initialize task error.
+
+        Args:
+            message: Error message
+            cause: Optional cause of the error
+            task_id: Optional ID of the task that caused the error
+        """
+        super().__init__(message, cause)
+        self.task_id = task_id
 
 
 class TaskState(str, Enum):
@@ -44,7 +64,7 @@ class TaskResult:
     """Task result."""
 
     task_id: str
-    status: TaskState
+    state: TaskState
     result: Any | None = None
 
 
@@ -70,60 +90,78 @@ class Task(Generic[T]):
             **kwargs: Function keyword arguments
         """
         self.name = name
-        self._func = func
+        self.callback = func
         self._args = args
         self._kwargs = kwargs
         self._task: asyncio.Task[T] | None = None
-        self.status = TaskState.PENDING
+        self.state = TaskState.PENDING
         self.result: T | None = None
         self.error: Exception | None = None
 
-    async def run(self) -> TaskResult:
+    async def run(self, retries: int = 0) -> TaskResult:
         """Run task.
+
+        Args:
+            retries: Number of retries on failure
 
         Returns:
             Task result
 
         Raises:
-            TaskError: If task fails
+            TaskError: If task fails after all retries
         """
-        if self.status == TaskState.RUNNING:
+        if self.state == TaskState.RUNNING:
             raise TaskError(f"Task {self.name} already running")
 
-        self.status = TaskState.RUNNING
-        try:
-            coro = self._func(*self._args, **self._kwargs)
-            if not asyncio.iscoroutine(coro):
-                raise TaskError(f"Task {self.name} function must be a coroutine")
-            self._task = asyncio.create_task(coro)
-            self.result = await self._task
-            self.status = TaskState.COMPLETED
-            return TaskResult(
-                task_id=self.name,
-                status=self.status,
-                result=self.result,
-            )
-        except asyncio.CancelledError as e:
-            self.error = Exception(str(e))
-            self.status = TaskState.CANCELLED
-            raise TaskError(f"Task {self.name} cancelled") from e
-        except Exception as e:
-            self.error = e
-            self.status = TaskState.FAILED
-            raise TaskError(f"Task {self.name} failed: {e}") from e
-        finally:
-            self._task = None
+        if self.state == TaskState.CANCELLED:
+            raise TaskError(f"Task {self.name} was cancelled")
+
+        attempts = 0
+        last_error: Exception | None = None
+
+        while attempts <= retries:
+            self.state = TaskState.RUNNING
+            try:
+                coro = self.callback(*self._args, **self._kwargs)
+                if not asyncio.iscoroutine(coro):
+                    raise TaskError(f"Task {self.name} function must be a coroutine")
+                self._task = asyncio.create_task(coro)
+                self.result = await self._task
+                self.state = TaskState.COMPLETED
+                return TaskResult(
+                    task_id=self.name, state=self.state, result=self.result
+                )
+            except asyncio.CancelledError as e:
+                self.error = e
+                self.state = TaskState.CANCELLED
+                raise TaskError(f"Task {self.name} cancelled") from e
+            except Exception as e:
+                self.error = e
+                last_error = e
+                self.state = TaskState.FAILED
+                if attempts < retries:
+                    attempts += 1
+                    self.state = TaskState.PENDING
+                    continue
+                raise TaskError(f"Task {self.name} failed: {e}") from e
+            finally:
+                self._task = None
+
+        assert last_error is not None  # for type checker
+        raise TaskError(
+            f"Task {self.name} failed after {retries} retries: {last_error}"
+        ) from last_error
 
     async def cancel(self) -> None:
         """Cancel task."""
-        if not self.status == TaskState.RUNNING or not self._task:
+        if not self.state == TaskState.RUNNING or not self._task:
             return
 
         self._task.cancel()
         try:
             await self._task
         except asyncio.CancelledError:
-            self.status = TaskState.CANCELLED
+            self.state = TaskState.CANCELLED
         finally:
             self._task = None
 
@@ -150,8 +188,9 @@ class TaskQueue:
             task: Task to queue
             priority: Task priority (higher number means higher priority)
         """
-        # Invert priority since PriorityQueue returns lowest values first
-        await self._queue.put((priority, self._counter, task))
+        # Negate priority since PriorityQueue returns lowest values first
+        # This way higher priority values will be processed first
+        await self._queue.put((-priority, self._counter, task))
         self._counter += 1
         self._tasks[task.name] = task
 
@@ -244,86 +283,122 @@ class TaskWorker:
             pass
 
 
-class TaskManager(BaseModule[TaskConfig]):
+class TaskManager(BaseModule):
     """Task manager implementation."""
 
-    def __init__(self, config: TaskConfig) -> None:
+    def __init__(self, config: Optional[TaskConfig] = None) -> None:
         """Initialize task manager.
 
         Args:
-            config: Task manager configuration
+            config: Optional task configuration
         """
-        super().__init__(config)
-        self._queue: TaskQueue = TaskQueue(maxsize=config.max_queue_size)
+        super().__init__(config or TaskConfig(name="task_manager"))
+        self._queue: Optional[TaskQueue] = None
         self._workers: list[TaskWorker] = []
-        self._tasks: dict[str, Task[Any]] = {}
+        self.tasks: dict[str, Task[Any]] = {}
 
     async def _setup(self) -> None:
         """Set up task manager."""
-        # Only create one worker to ensure tasks are executed in order
-        worker = TaskWorker(self._queue)
-        await worker.start()
-        self._workers.append(worker)
+        if not isinstance(self.config, TaskConfig):
+            raise TypeError("Invalid config type")
+
+        self._queue = TaskQueue(maxsize=self.config.max_queue_size)
+        self._workers = []
+        for _ in range(self.config.max_workers):
+            worker = TaskWorker(self._queue)
+            self._workers.append(worker)
+            await worker.start()
 
     async def _teardown(self) -> None:
         """Tear down task manager."""
-        if self._workers:
-            await asyncio.gather(*(worker.stop() for worker in self._workers))
-            self._workers.clear()
-        # Create a new queue to ensure type safety
-        self._queue = TaskQueue(maxsize=self.config.max_queue_size)
+        if not self._queue:
+            return
 
-    async def add_task(self, task: Task[Any], priority: int = 1) -> None:
-        """Add task to manager.
+        # Stop all workers
+        for worker in self._workers:
+            await worker.stop()
+        self._workers.clear()
+
+        # Cancel all tasks
+        for task in self.tasks.values():
+            await task.cancel()
+        self.tasks.clear()
+
+        self._queue = None
+
+    async def submit(self, task: Task[Any], priority: int = 1) -> None:
+        """Submit task.
 
         Args:
-            task: Task to add
-            priority: Task priority (lower number means higher priority)
+            task: Task to submit
+            priority: Task priority (higher number means higher priority)
 
         Raises:
             TaskError: If task already exists
         """
         if not self.is_initialized:
-            await self.initialize()
+            raise TaskError("Task manager not initialized")
 
-        if task.name in self._tasks:
+        if task.name in self.tasks:
             raise TaskError(f"Task {task.name} already exists")
 
-        self._tasks[task.name] = task
-        await self._queue.put(task, priority=priority)
+        assert self._queue is not None  # for type checker
+        await self._queue.put(task, priority)
+        self.tasks[task.name] = task
 
-    async def remove_task(self, task_name: str) -> None:
-        """Remove task from manager.
+    async def cancel(self, task: Task[Any]) -> None:
+        """Cancel task.
 
         Args:
-            task_name: Task name
+            task: Task to cancel
 
         Raises:
             TaskError: If task not found
         """
-        if task_name not in self._tasks:
-            raise TaskError(f"Task {task_name} not found")
-
-        task = self._tasks[task_name]
-        await task.cancel()
-        del self._tasks[task_name]
-
-    async def execute_tasks(self) -> None:
-        """Execute all tasks."""
         if not self.is_initialized:
-            await self.initialize()
+            raise TaskError("Task manager not initialized")
 
-        # Wait for the queue to be processed completely
-        await self._queue.join()
+        if task.name not in self.tasks:
+            raise TaskError(f"Task {task.name} not found")
 
-    @property
-    def tasks(self) -> dict[str, Task[Any]]:
-        """Return tasks.
+        await task.cancel()
+        del self.tasks[task.name]
+
+    def get_task(self, name: str) -> Task[Any]:
+        """Get task by name.
+
+        Args:
+            name: Task name
 
         Returns:
-            Tasks dictionary
+            Task instance
+
+        Raises:
+            TaskError: If task not found
         """
-        return self._tasks
+        if not self.initialized:
+            raise TaskError("Task manager not initialized")
+
+        if name not in self.tasks:
+            raise TaskError(f"Task {name} not found")
+
+        return self.tasks[name]
+
+    def get_stats(self) -> dict[str, Any]:
+        """Get task manager statistics.
+
+        Returns:
+            Task manager statistics
+        """
+        stats = super().get_stats()
+        stats.update(
+            {
+                "tasks": len(self.tasks),
+                "workers": len(self._workers),
+                "queue_size": self._queue.qsize() if self._queue else 0,
+            }
+        )
+        return stats
 
 
 __all__ = [

@@ -1,9 +1,27 @@
-"""Error utilities module."""
+"""Core utilities and base classes for PepperPy.
+
+This module provides core functionality used throughout the framework,
+including base classes, error handling utilities, and common types.
+"""
 
 import traceback
 from typing import Optional, Type
 
-from pepperpy import exceptions
+
+class PepperpyError(Exception):
+    """Base class for all pepperpy exceptions."""
+
+    def __init__(self, message: str, cause: Exception | None = None) -> None:
+        """Initialize pepperpy error.
+
+        Args:
+            message: Error message
+            cause: Cause of the error
+        """
+        super().__init__(message)
+        if cause:
+            self.__cause__ = cause
+            self.__traceback__ = cause.__traceback__
 
 
 def format_exception(error: Exception) -> str:
@@ -70,7 +88,7 @@ def format_error_context(
     parts.append(f"Message: {str(error)}")
 
     # Add PepperpyError specific context
-    if isinstance(error, exceptions.PepperpyError):
+    if isinstance(error, PepperpyError):
         # Add any additional attributes specific to the error type
         for attr in dir(error):
             if (
@@ -99,7 +117,7 @@ def format_error_context(
 
 
 def get_error_type(error_name: str) -> Optional[Type[Exception]]:
-    """Get an exception type from the PepperpyError hierarchy by name.
+    """Get an exception type from the PepperPy error hierarchy by name.
 
     Args:
         error_name: The name of the error type to get
@@ -114,7 +132,48 @@ def get_error_type(error_name: str) -> Optional[Type[Exception]]:
             raise error_type("Task failed to execute")
         ```
     """
-    try:
-        return getattr(exceptions, error_name)
-    except AttributeError:
-        return None
+    # Import all modules that contain error types
+    from pepperpy import (
+        cache,
+        config,
+        event,
+        logging,
+        module,
+        network,
+        plugin,
+        security,
+        task,
+        telemetry,
+        validators,
+    )
+
+    # Try to find the error type in each module
+    modules = [
+        cache,
+        config,
+        event,
+        logging,
+        module,
+        network,
+        plugin,
+        security,
+        task,
+        telemetry,
+        validators,
+    ]
+
+    for mod in modules:
+        try:
+            return getattr(mod, error_name)
+        except AttributeError:
+            continue
+
+    return None
+
+
+__all__ = [
+    "PepperpyError",
+    "format_exception",
+    "format_error_context",
+    "get_error_type",
+]

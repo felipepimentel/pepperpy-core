@@ -2,9 +2,31 @@
 
 import json
 from pathlib import Path
-from typing import Protocol, runtime_checkable
+from typing import Optional, Protocol, runtime_checkable
 
 import aiofiles
+
+from .core import PepperpyError
+
+
+class IOError(PepperpyError):
+    """IO-related errors."""
+
+    def __init__(
+        self,
+        message: str,
+        cause: Optional[Exception] = None,
+        file_path: Optional[str] = None,
+    ) -> None:
+        """Initialize IO error.
+
+        Args:
+            message: Error message
+            cause: Optional cause of the error
+            file_path: Optional path of the file that caused the error
+        """
+        super().__init__(message, cause)
+        self.file_path = file_path
 
 
 @runtime_checkable

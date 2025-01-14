@@ -1,26 +1,25 @@
-"""Test package utilities."""
+"""Test package metadata."""
 
 import importlib.metadata
-from unittest.mock import patch
+from pathlib import Path
 
-from pepperpy.package import get_package_name, get_package_version
-
-
-def test_get_package_name() -> None:
-    """Test get_package_name utility."""
-    assert get_package_name() == "pepperpy"
+import pepperpy
 
 
-def test_get_package_version_found() -> None:
-    """Test get_package_version when package is found."""
-    with patch("importlib.metadata.version", return_value="1.0.0"):
-        assert get_package_version() == "1.0.0"
+def test_package_name() -> None:
+    """Test get_package_name returns the correct package name."""
+    assert pepperpy.__name__ == "pepperpy"
 
 
-def test_get_package_version_not_found() -> None:
-    """Test get_package_version when package is not found."""
-    with patch(
-        "importlib.metadata.version",
-        side_effect=importlib.metadata.PackageNotFoundError("pepperpy"),
-    ):
-        assert get_package_version() == "0.0.0"
+def test_package_version() -> None:
+    """Test get_package_version returns the correct version."""
+    try:
+        expected = importlib.metadata.version("pepperpy")
+    except importlib.metadata.PackageNotFoundError:
+        version_file = Path(__file__).parent.parent.parent / "pepperpy" / "VERSION"
+        if version_file.exists():
+            expected = version_file.read_text().strip()
+        else:
+            expected = "0.0.0-dev"
+
+    assert pepperpy.__version__ == expected

@@ -3,10 +3,33 @@
 import asyncio
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any
+from typing import Any, Optional
 
-from .exceptions import TelemetryError
+from .core import PepperpyError
 from .module import BaseModule, ModuleConfig
+
+
+class TelemetryError(PepperpyError):
+    """Telemetry-related errors."""
+
+    def __init__(
+        self,
+        message: str,
+        cause: Optional[Exception] = None,
+        metric_name: Optional[str] = None,
+        collector_name: Optional[str] = None,
+    ) -> None:
+        """Initialize telemetry error.
+
+        Args:
+            message: Error message
+            cause: Optional cause of the error
+            metric_name: Optional name of the metric that caused the error
+            collector_name: Optional name of the collector that caused the error
+        """
+        super().__init__(message, cause)
+        self.metric_name = metric_name
+        self.collector_name = collector_name
 
 
 @dataclass

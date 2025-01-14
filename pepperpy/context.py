@@ -2,15 +2,29 @@
 
 from contextvars import ContextVar
 from dataclasses import dataclass, field
-from typing import Any, Generic, TypeVar, cast
+from typing import Any, Generic, Optional, TypeVar, cast
 
-from .exceptions import PepperpyError
+from .core import PepperpyError
 
 
 class ContextError(PepperpyError):
-    """Context specific error."""
+    """Context-related errors."""
 
-    pass
+    def __init__(
+        self,
+        message: str,
+        cause: Optional[Exception] = None,
+        context_key: Optional[str] = None,
+    ) -> None:
+        """Initialize context error.
+
+        Args:
+            message: Error message
+            cause: Optional cause of the error
+            context_key: Optional key that caused the error
+        """
+        super().__init__(message, cause)
+        self.context_key = context_key
 
 
 T = TypeVar("T")

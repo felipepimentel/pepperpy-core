@@ -2,15 +2,29 @@
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
-from .exceptions import PepperpyError
+from .core import PepperpyError
 
 
 class ResourceError(PepperpyError):
-    """Resource specific error."""
+    """Resource-related errors."""
 
-    pass
+    def __init__(
+        self,
+        message: str,
+        cause: Optional[Exception] = None,
+        resource_name: Optional[str] = None,
+    ) -> None:
+        """Initialize resource error.
+
+        Args:
+            message: Error message
+            cause: Optional cause of the error
+            resource_name: Optional name of the resource that caused the error
+        """
+        super().__init__(message, cause)
+        self.resource_name = resource_name
 
 
 @dataclass

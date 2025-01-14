@@ -1,4 +1,4 @@
-"""Plugin implementation module."""
+"""Plugin module."""
 
 import importlib.util
 import inspect
@@ -7,9 +7,29 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Optional, TypeVar
 
-from .exceptions import PluginError, ResourceError
+from .core import PepperpyError
 from .module import BaseModule, ModuleConfig
-from .resources import ResourceInfo, ResourceManager
+from .resources import ResourceError, ResourceInfo, ResourceManager
+
+
+class PluginError(PepperpyError):
+    """Plugin-related errors."""
+
+    def __init__(
+        self,
+        message: str,
+        cause: Optional[Exception] = None,
+        plugin_name: Optional[str] = None,
+    ) -> None:
+        """Initialize plugin error.
+
+        Args:
+            message: Error message
+            cause: Optional cause of the error
+            plugin_name: Optional name of the plugin that caused the error
+        """
+        super().__init__(message, cause)
+        self.plugin_name = plugin_name
 
 
 @dataclass
@@ -20,6 +40,16 @@ class PluginConfig(ModuleConfig):
     plugin_dir: str | Path = "plugins"
     enabled: bool = True
     metadata: dict[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        """Validate configuration after initialization.
+
+        Raises:
+            ValueError: If name is empty or invalid
+        """
+        super().__post_init__()
+        if not isinstance(self.plugin_dir, (str, Path)):
+            raise ValueError("Plugin directory must be a string or Path")
 
 
 def plugin(name: str) -> Callable[[Any], Any]:

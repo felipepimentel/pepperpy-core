@@ -1,11 +1,8 @@
-"""Test error utilities module."""
+"""Test error utilities."""
 
-from pepperpy.error import (
-    format_error_context,
-    format_exception,
-    get_error_type,
-)
-from pepperpy.exceptions import TaskError, ValidationError
+from pepperpy.core import format_error_context, format_exception, get_error_type
+from pepperpy.task import TaskError
+from pepperpy.validators import ValidationError
 
 
 def test_format_exception() -> None:

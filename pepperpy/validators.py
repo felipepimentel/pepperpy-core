@@ -1,10 +1,44 @@
-"""Validators module."""
+"""Validators module.
+
+This module provides validation utilities for PepperPy.
+It includes validators for common data types, protocols, and custom validation rules.
+"""
 
 import re
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Generic, List, TypeVar, cast
 
-from pepperpy.exceptions import ValidationError
+from .core import PepperpyError
+
+
+class ValidationError(PepperpyError):
+    """Validation-related errors."""
+
+    def __init__(
+        self,
+        message: str,
+        cause: Exception | None = None,
+        field_name: str | None = None,
+        invalid_value: Any = None,
+    ) -> None:
+        """Initialize validation error.
+
+        Args:
+            message: Error message
+            cause: Original exception that caused this error
+            field_name: Name of the field that failed validation
+            invalid_value: The value that failed validation
+        """
+        details = {}
+        if field_name:
+            details["field_name"] = field_name
+        if invalid_value is not None:
+            details["invalid_value"] = str(invalid_value)
+            details["invalid_value_type"] = type(invalid_value).__name__
+        super().__init__(message, cause)
+        self.field_name = field_name
+        self.invalid_value = invalid_value
+
 
 T = TypeVar("T")
 
@@ -130,3 +164,68 @@ class PhoneNumberValidator(BaseValidator[str]):
         if not self._PHONE_PATTERN.match(value):
             raise ValidationError("Invalid phone number")
         return value
+
+
+def validate_type(value: Any, expected_type: type[T]) -> T:
+    """Validate that a value matches an expected type.
+
+    This utility function provides runtime type checking to ensure type safety
+    when working with external data or configuration values.
+
+    Example:
+        ```python
+        # Validates that the value is a string
+        name = validate_type(config.get("name"), str)
+
+        # Validates that the value is a list of integers
+        numbers = validate_type(data.get("numbers"), list[int])
+        ```
+
+    Args:
+        value: The value to validate
+        expected_type: The expected type of the value
+
+    Returns:
+        The validated value with proper typing
+
+    Raises:
+        TypeError: If value is not of expected type
+    """
+    if not isinstance(value, expected_type):
+        raise TypeError(
+            f"Expected {expected_type.__name__}, got {type(value).__name__}"
+        )
+    return value
+
+
+def validate_protocol(value: Any, protocol: type) -> Any:
+    """Validate protocol.
+
+    Args:
+        value: Value to validate
+        protocol: Protocol to validate against
+
+    Returns:
+        Validated value
+
+    Raises:
+        TypeError: If value does not implement protocol
+    """
+    if not isinstance(value, protocol):
+        raise TypeError(f"Value does not implement {protocol.__name__}")
+    return value
+
+
+__all__ = [
+    "BaseValidator",
+    "DictValidator",
+    "ListValidator",
+    "StringValidator",
+    "IntegerValidator",
+    "EmailValidator",
+    "URLValidator",
+    "IPAddressValidator",
+    "PhoneNumberValidator",
+    "validate_type",
+    "validate_protocol",
+]

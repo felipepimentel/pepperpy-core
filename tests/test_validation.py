@@ -5,7 +5,6 @@ from typing import Any
 
 import pytest
 
-from pepperpy.exceptions import ValidationError
 from pepperpy.validators import (
     DictValidator,
     EmailValidator,
@@ -14,6 +13,7 @@ from pepperpy.validators import (
     PhoneNumberValidator,
     StringValidator,
     URLValidator,
+    ValidationError,
 )
 
 

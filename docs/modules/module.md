@@ -1,291 +1,168 @@
-# Module
+# Module System
 
-The PepperPy Core Module provides the base structure for module implementation, with support for initialization, configuration, and lifecycle management.
+The Module system provides the foundation for creating modular components in PepperPy. It implements the Template Method pattern to define a consistent lifecycle for all modules, including initialization, setup, and teardown phases.
 
-## Core Components
+## Key Features
 
-### BaseModule
+- Consistent module lifecycle management
+- Type-safe configuration handling
+- Proper cleanup and resource management
+- Extensible module hierarchy
+- Integration with dependency injection
 
-Base class for module implementation:
-
-```python
-from pepperpy.module import BaseModule
-
-class CustomModule(BaseModule):
-    async def initialize(self):
-        # Module initialization
-        await self.setup()
-    
-    async def cleanup(self):
-        # Module cleanup
-        await self.teardown()
-
-# Create and initialize module
-module = CustomModule()
-await module.initialize()
-```
-
-### ModuleConfig
-
-Base configuration for modules:
-
-```python
-from pepperpy.module import ModuleConfig
-
-# Basic configuration
-config = ModuleConfig(
-    name="custom",
-    version="1.0.0",
-    dependencies=[]
-)
-```
+## Usage
 
 ### Basic Module
 
 ```python
-from pepperpy.module import Module
 from dataclasses import dataclass
+from pepperpy import BaseModule, ModuleConfig
 
 @dataclass
-class DBConfig:
-    host: str
-    port: int
+class CacheConfig(ModuleConfig):
+    capacity: int = 1000
+    ttl: int = 3600
 
-class DatabaseModule(Module):
-    def __init__(self, config: DBConfig):
-        super().__init__()
-        self.config = config
-        self.connection = None
+class CacheModule(BaseModule[CacheConfig]):
+    async def _setup(self) -> None:
+        self._cache = {}
+        self._stats = {"hits": 0, "misses": 0}
     
-    async def initialize(self):
-        # Connect to database
-        self.connection = await connect(
-            self.config.host,
-            self.config.port
-        )
+    async def _teardown(self) -> None:
+        self._cache.clear()
+        self._stats.clear()
     
-    async def cleanup(self):
-        # Close connection
-        if self.connection:
-            await self.connection.close()
+    def get(self, key: str) -> Any:
+        self._ensure_initialized()
+        if key in self._cache:
+            self._stats["hits"] += 1
+            return self._cache[key]
+        self._stats["misses"] += 1
+        return None
 ```
 
-### Module with Resources
+### Module Lifecycle
 
 ```python
-from pepperpy.module import ResourceModule
+# Create module
+config = CacheConfig(name="cache", capacity=5000)
+cache = CacheModule(config)
 
-class CacheModule(ResourceModule):
-    def __init__(self, size: int = 1000):
-        super().__init__()
-        self.size = size
-        self.cache = {}
-    
-    async def get(self, key: str) -> Any:
-        return self.cache.get(key)
-    
-    async def set(self, key: str, value: Any):
-        if len(self.cache) >= self.size:
-            self.cache.pop(next(iter(self.cache)))
-        self.cache[key] = value
+# Initialize module
+await cache.initialize()  # Calls _setup()
+
+# Use module
+value = cache.get("key")
+
+# Cleanup
+await cache.teardown()  # Calls _teardown()
 ```
 
-## Advanced Features
-
-### Module with Dependencies
+### Error Handling
 
 ```python
-from pepperpy.module import DependentModule
+from pepperpy import ModuleError, InitializationError
 
-class APIModule(DependentModule):
-    def __init__(self, cache: CacheModule):
-        super().__init__()
-        self.cache = cache
-    
-    async def initialize(self):
-        # Initialize dependencies first
-        await self.cache.initialize()
-        
-        # Initialize this module
-        await self.setup_api()
-```
+try:
+    await module.initialize()
+except InitializationError as e:
+    # Handle initialization error
+    print(f"Failed to initialize: {e}")
 
-### Module with State
-
-```python
-from pepperpy.module import StateModule
-from dataclasses import dataclass
-
-@dataclass
-class ModuleState:
-    is_active: bool
-    last_update: float
-
-class ServiceModule(StateModule[ModuleState]):
-    async def initialize(self):
-        await self.set_state(ModuleState(
-            is_active=True,
-            last_update=time.time()
-        ))
-    
-    async def update(self):
-        state = await self.get_state()
-        await self.set_state(ModuleState(
-            is_active=state.is_active,
-            last_update=time.time()
-        ))
+try:
+    module.do_something()
+except ModuleError as e:
+    # Handle module operation error
+    print(f"Operation failed: {e}")
 ```
 
 ## Best Practices
 
-1. **Initialization**
-   - Validate configuration
-   - Initialize resources
-   - Handle errors
-   - Log status
+1. **Configuration**: Use dataclasses for type-safe configuration
+2. **Initialization**: Perform all setup in `_setup()` method
+3. **Cleanup**: Release all resources in `_teardown()` method
+4. **State Management**: Check initialization state before operations
+5. **Error Handling**: Use appropriate exception types
 
-2. **Cleanup**
-   - Release resources
-   - Close connections
-   - Clear state
-   - Log cleanup
+## Integration with Registry
 
-3. **Dependencies**
-   - Declare dependencies
-   - Handle circular deps
-   - Validate versions
-   - Monitor health
-
-4. **State**
-   - Keep minimal state
-   - Use immutable data
-   - Handle updates
-   - Monitor changes
-
-5. **Resources**
-   - Manage lifecycle
-   - Handle cleanup
-   - Monitor usage
-   - Log errors
-
-## Common Patterns
-
-### Module with Retry
+While modules can be used standalone, they can also be registered in a Registry for centralized management:
 
 ```python
-from pepperpy.module import RetryModule
+from pepperpy import Registry, BaseModule
 
-class NetworkModule(RetryModule):
-    def __init__(
-        self,
-        max_retries: int = 3,
-        delay: float = 1.0
-    ):
-        super().__init__()
-        self.max_retries = max_retries
-        self.delay = delay
+# Create registry for modules
+registry = Registry[BaseModule](BaseModule)
+
+# Register modules
+registry.register("cache", CacheModule(cache_config))
+registry.register("auth", AuthModule(auth_config))
+
+# Get module
+cache = registry.get("cache")
+await cache.initialize()
+```
+
+## Advanced Usage
+
+### Dependency Injection
+
+```python
+@dataclass
+class ServiceConfig(ModuleConfig):
+    cache_module: str = "cache"
+    auth_module: str = "auth"
+
+class ServiceModule(BaseModule[ServiceConfig]):
+    def __init__(self, config: ServiceConfig, registry: Registry) -> None:
+        super().__init__(config)
+        self._registry = registry
+        self._cache = None
+        self._auth = None
     
-    async def initialize(self):
-        retries = 0
-        while True:
-            try:
-                await self.connect()
-                break
-            except ConnectionError as e:
-                retries += 1
-                if retries >= self.max_retries:
-                    raise
-                await asyncio.sleep(self.delay)
-```
-
-### Module with Cache
-
-```python
-from pepperpy.module import CachedModule
-
-class DataModule(CachedModule):
-    def __init__(self):
-        super().__init__()
-        self.cache = {}
+    async def _setup(self) -> None:
+        # Get dependencies
+        self._cache = self._registry.get(self.config.cache_module)
+        self._auth = self._registry.get(self.config.auth_module)
+        
+        # Initialize if needed
+        if not self._cache.is_initialized:
+            await self._cache.initialize()
+        if not self._auth.is_initialized:
+            await self._auth.initialize()
     
-    async def get_data(self, key: str) -> Any:
-        # Check cache
-        if key in self.cache:
-            return self.cache[key]
-        
-        # Get data
-        data = await self.fetch_data(key)
-        
-        # Update cache
-        self.cache[key] = data
-        return data
+    async def _teardown(self) -> None:
+        # Cleanup dependencies
+        if self._cache and self._cache.is_initialized:
+            await self._cache.teardown()
+        if self._auth and self._auth.is_initialized:
+            await self._auth.teardown()
 ```
 
-### Module with Metrics
+### Module Composition
 
 ```python
-from pepperpy.module import MetricsModule
-
-class ServiceModule(MetricsModule):
-    async def initialize(self):
-        # Start timer
-        with self.timer("initialize"):
-            try:
-                await super().initialize()
-                self.record_success()
-            except Exception as e:
-                self.record_failure(str(e))
-                raise
+class CompositeModule(BaseModule[ModuleConfig]):
+    def __init__(self, config: ModuleConfig) -> None:
+        super().__init__(config)
+        self._submodules: List[BaseModule] = []
+    
+    def add_module(self, module: BaseModule) -> None:
+        self._submodules.append(module)
+    
+    async def _setup(self) -> None:
+        # Initialize all submodules
+        for module in self._submodules:
+            await module.initialize()
+    
+    async def _teardown(self) -> None:
+        # Cleanup all submodules in reverse order
+        for module in reversed(self._submodules):
+            await module.teardown()
 ```
 
-## API Reference
+## See Also
 
-### BaseModule
-
-```python
-class BaseModule:
-    async def initialize(self):
-        """Initialize module."""
-        
-    async def cleanup(self):
-        """Clean up module."""
-        
-    async def health_check(self) -> bool:
-        """Check module health."""
-```
-
-### ModuleConfig
-
-```python
-class ModuleConfig:
-    def validate(self):
-        """Validate configuration."""
-        
-    def to_dict(self) -> dict:
-        """Convert to dictionary."""
-        
-    @classmethod
-    def from_dict(cls, data: dict):
-        """Create from dictionary."""
-```
-
-### StateModule
-
-```python
-class StateModule[T]:
-    async def get_state(self) -> T:
-        """Get current state."""
-        
-    async def set_state(
-        self,
-        state: T
-    ):
-        """Set new state."""
-        
-    async def update_state(
-        self,
-        updater: Callable[[T], T]
-    ):
-        """Update state."""
-```
+- [Registry](registry.md) - For managing module implementations
+- [Plugin System](plugin.md) - For creating plugin modules
 ``` 

@@ -2,7 +2,32 @@
 
 import json
 from dataclasses import asdict, is_dataclass
-from typing import Any, Protocol, TypeVar, runtime_checkable
+from typing import Any, Optional, Protocol, TypeVar, runtime_checkable
+
+from .core import PepperpyError
+
+
+class SerializationError(PepperpyError):
+    """Serialization-related errors."""
+
+    def __init__(
+        self,
+        message: str,
+        cause: Optional[Exception] = None,
+        object_type: Optional[str] = None,
+        target_type: Optional[str] = None,
+    ) -> None:
+        """Initialize serialization error.
+
+        Args:
+            message: Error message
+            cause: Optional cause of the error
+            object_type: Optional type of the object that caused the error
+            target_type: Optional target type for deserialization
+        """
+        super().__init__(message, cause)
+        self.object_type = object_type
+        self.target_type = target_type
 
 
 @runtime_checkable
