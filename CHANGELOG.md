@@ -1,6 +1,101 @@
 # CHANGELOG
 
 
+## v0.2.0 (2025-01-14)
+
+### Build System
+
+- Add pre-commit as dev dependency
+  ([`3db7628`](https://github.com/felipepimentel/pepperpy-core/commit/3db7628c653af633d8437cce3f6f918c0f628714))
+
+- Remove coverage threshold requirement
+  ([`26c63cc`](https://github.com/felipepimentel/pepperpy-core/commit/26c63cceb6e848aab588492f820e0eb9d62b1767))
+
+### Chores
+
+- Update dependencies and enhance README documentation
+  ([`d21cafa`](https://github.com/felipepimentel/pepperpy-core/commit/d21cafaf0f9c9ac3f2f4fa646aa06fce51b059a3))
+
+- Updated `pygments` from version 2.19.0 to 2.19.1 in `poetry.lock`. - Updated `pytest-asyncio` from
+  version 0.25.1 to 0.25.2 in `poetry.lock`. - Expanded the `README.md` to include detailed
+  features, installation instructions, quick start guide, core modules, development setup,
+  contributing guidelines, and best practices for the PepperPy Core library.
+
+- Update repository URL and remove development status classifier in pyproject.toml
+  ([`ea90e10`](https://github.com/felipepimentel/pepperpy-core/commit/ea90e10dce78072deb49e73050cd30390b40f4a4))
+
+- Changed the repository URL from "https://github.com/pimentel/pepperpy-core" to
+  "https://github.com/felipepimentel/pepperpy-core". - Removed the "Development Status :: 4 - Beta"
+  classifier from the classifiers list.
+
+### Documentation
+
+- Add error handling section and utilities examples
+  ([`62536af`](https://github.com/felipepimentel/pepperpy-core/commit/62536af0a2c1344079928a66430fbcb064ebc092))
+
+- Introduced a new "Error Handling" section in the documentation, detailing exception hierarchy and
+  types. - Added examples for error handling utilities in `utils.md`, including `format_exception`,
+  `format_error_context`, and `get_error_type`. - Provided best practices for error logging and
+  reporting, enhancing the clarity and usability of error management in the codebase.
+
+This commit improves the documentation related to error handling, making it easier for developers to
+  implement robust error management in their applications.
+
+- Enhance utilities documentation and remove deprecated utils.py
+  ([`9c6612d`](https://github.com/felipepimentel/pepperpy-core/commit/9c6612d6b42a7c76cd896214a78235a1cbb2e5db))
+
+- Expanded the Utilities Module documentation to include detailed sections on Error Utilities and
+  Logging Utilities, providing examples and best practices for error handling and logging. - Removed
+  the deprecated `utils.py` file, consolidating utility functions into the appropriate modules for
+  better organization and maintainability. - Updated the error handling examples to reflect the new
+  structure and improved clarity in the documentation.
+
+This commit improves the usability and clarity of the utilities documentation, making it easier for
+  developers to implement error handling and logging in their applications.
+
+### Features
+
+- Add error utilities and pre-commit hooks
+  ([`4078eab`](https://github.com/felipepimentel/pepperpy-core/commit/4078eabbdfe4867102b7f1fcc9e14b6b12875ee2))
+
+- Reorganize utility modules and improve code structure
+  ([`7f18bff`](https://github.com/felipepimentel/pepperpy-core/commit/7f18bffe997c6fd2b547e52ca59959340871aca2))
+
+- **plugin**: Add ResourcePlugin with RESTful-like capabilities
+  ([`6d7ea75`](https://github.com/felipepimentel/pepperpy-core/commit/6d7ea75ab17333617b0de86c094a485881f1d54c))
+
+### Refactoring
+
+- **plugin**: Improve code structure and enhance documentation
+  ([`f883d7a`](https://github.com/felipepimentel/pepperpy-core/commit/f883d7aeb44286cc45eaa618e29749b2e9b889a8))
+
+- Reorganized import statements for better readability and maintainability. - Streamlined parameters
+  in `create_resource` and `update_resource` methods. - Removed unnecessary line breaks and ensured
+  consistent formatting across the codebase. - Expanded documentation for core modules, including
+  installation instructions and usage examples. - Updated README.md with detailed features and
+  contributing guidelines.
+
+This commit enhances both the code quality and the documentation, making it easier for developers to
+  understand and use the plugin effectively.
+
+- **plugin**: Reorganize imports and streamline ResourcePlugin methods
+  ([`2126fba`](https://github.com/felipepimentel/pepperpy-core/commit/2126fba9846fed59073ffbbf368fc2617711706a))
+
+- Moved import statements for `Callable` and `dataclass` to improve readability. - Consolidated
+  parameters in `create_resource` and `update_resource` methods for cleaner syntax. - Enhanced code
+  clarity by removing unnecessary line breaks and ensuring consistent formatting.
+
+- **tests**: Remove test_logging.py file
+  ([`01a6ad5`](https://github.com/felipepimentel/pepperpy-core/commit/01a6ad57a382a6d6527197d0a90cec08efb6f91a))
+
+- Deleted the `test_logging.py` file, which contained tests for the logging module. - This removal
+  helps streamline the test suite by eliminating outdated or redundant tests, contributing to better
+  maintainability and clarity in the testing framework.
+
+- **tests**: Remove unused imports in test_plugin.py
+  ([`d311235`](https://github.com/felipepimentel/pepperpy-core/commit/d3112355d518440346e8bd3ed99439b7bbe72790))
+
+
 ## v0.1.6 (2025-01-06)
 
 
