@@ -5,6 +5,11 @@ This package provides core functionality for event handling, configuration
 management, and plugin systems.
 """
 
+import sys
+
+if sys.version_info < (3, 8):
+    sys.exit("Python 3.8 or higher is required")
+
 import importlib.metadata
 from pathlib import Path
 
@@ -22,7 +27,7 @@ except importlib.metadata.PackageNotFoundError:
 __name__ = __package__ or Path(__file__).parent.name
 
 # Public API exports
-from pepperpy.cache import CacheError  # noqa: E402
+from pepperpy.cache import Cache, CacheEntry  # noqa: E402
 from pepperpy.callables import (  # noqa: E402
     AsyncCallable,
     Callable,
@@ -64,7 +69,17 @@ from pepperpy.security import SecurityError  # noqa: E402
 from pepperpy.serialization import SerializationError  # noqa: E402
 from pepperpy.task import TaskError  # noqa: E402
 from pepperpy.telemetry import TelemetryError  # noqa: E402
+from pepperpy.template import Template, TemplateContext, TemplateError  # noqa: E402
 from pepperpy.validators import validate_protocol, validate_type  # noqa: E402
+
+from .dependencies import (
+    DependencyError,
+    DependencyManager,
+    check_dependency,
+    get_installation_command,
+    get_missing_dependencies,
+    verify_dependencies,
+)
 
 __all__ = [
     # Version info
@@ -80,7 +95,8 @@ __all__ = [
     "EventListener",
     # Exceptions
     "PepperpyError",
-    "CacheError",
+    "Cache",
+    "CacheEntry",
     "ContextError",
     "EventError",
     "IOError",
@@ -94,6 +110,7 @@ __all__ = [
     "SerializationError",
     "TaskError",
     "TelemetryError",
+    "TemplateError",
     # Logging
     "LoggerMixin",
     "get_logger",
@@ -109,4 +126,14 @@ __all__ = [
     # Validation
     "validate_type",
     "validate_protocol",
+    # Dependencies
+    "DependencyError",
+    "DependencyManager",
+    "check_dependency",
+    "get_missing_dependencies",
+    "verify_dependencies",
+    "get_installation_command",
+    # Templates
+    "Template",
+    "TemplateContext",
 ]

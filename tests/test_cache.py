@@ -1,87 +1,132 @@
 """Test cache module."""
 
-from typing import AsyncGenerator
+import asyncio
+from datetime import datetime, timedelta
 
 import pytest
 
-from pepperpy.cache import Cache, CacheConfig
+from pepperpy.cache import Cache, CacheEntry, JsonDict, MemoryCache, MemoryCacheConfig
 
 
 @pytest.fixture
-async def cache() -> AsyncGenerator[Cache[str], None]:
-    """Get cache."""
-    cache = Cache[str](CacheConfig(name="test"))
+def cache_config() -> MemoryCacheConfig:
+    """Create cache config fixture."""
+    return MemoryCacheConfig(
+        name="test_cache",
+        max_size=100,
+        metadata={"test": True},
+    )
+
+
+@pytest.fixture
+async def cache(cache_config: MemoryCacheConfig) -> Cache:
+    """Create cache fixture."""
+    cache = MemoryCache(config=cache_config)
     await cache.initialize()
     yield cache
-    await cache._teardown()
+    await cache.teardown()
 
 
 @pytest.mark.asyncio
-async def test_cache_get_not_found(cache: Cache[str]) -> None:
-    """Test cache get not found."""
-    value = await cache.get("test")
-    assert value is None
+async def test_cache_config_init() -> None:
+    """Test cache config initialization."""
+    config = MemoryCacheConfig(
+        name="test_cache",
+        max_size=100,
+        metadata={"test": True},
+    )
+    assert config.name == "test_cache"
+    assert config.max_size == 100
+    assert config.metadata == {"test": True}
 
 
 @pytest.mark.asyncio
-async def test_cache_get_with_default(cache: Cache[str]) -> None:
-    """Test cache get with default."""
-    value = await cache.get("test", "default")
-    assert value == "default"
+async def test_cache_init(cache_config: MemoryCacheConfig) -> None:
+    """Test cache initialization."""
+    cache = MemoryCache(config=cache_config)
+    await cache.initialize()
+    assert cache.config == cache_config
+    await cache.teardown()
 
 
 @pytest.mark.asyncio
-async def test_cache_set(cache: Cache[str]) -> None:
-    """Test cache set."""
-    await cache.set("test", "value")
-    value = await cache.get("test")
+async def test_cache_set_get(cache: Cache) -> None:
+    """Test cache set and get."""
+    metadata: JsonDict = {"test": True}
+    entry = await cache.set("key", "value", metadata=metadata)
+    assert isinstance(entry, CacheEntry)
+    assert entry.key == "key"
+    assert entry.value == "value"
+    assert entry.metadata == metadata
+
+    result = await cache.get("key")
+    assert result is not None
+    assert result.key == "key"
+    assert result.value == "value"
+    assert result.metadata == metadata
+
+
+@pytest.mark.asyncio
+async def test_cache_get_value(cache: Cache) -> None:
+    """Test cache get_value."""
+    await cache.set("key", "value")
+    value = await cache.get_value("key")
     assert value == "value"
 
-
-@pytest.mark.asyncio
-async def test_cache_delete(cache: Cache[str]) -> None:
-    """Test cache delete."""
-    await cache.set("test", "value")
-    await cache.delete("test")
-    value = await cache.get("test")
+    value = await cache.get_value("missing")
     assert value is None
 
 
 @pytest.mark.asyncio
-async def test_cache_clear(cache: Cache[str]) -> None:
+async def test_cache_expiration(cache: Cache) -> None:
+    """Test cache expiration."""
+    expires_at = datetime.now() + timedelta(seconds=1)
+    entry = await cache.set("key", "value", expires_at=expires_at)
+    assert not entry.is_expired()
+
+    result = await cache.get("key")
+    assert result is not None
+    assert result.value == "value"
+
+    await asyncio.sleep(1.1)  # Wait for expiration
+    result = await cache.get("key")
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_cache_delete(cache: Cache) -> None:
+    """Test cache delete."""
+    await cache.set("key", "value")
+    result = await cache.get("key")
+    assert result is not None
+
+    await cache.delete("key")
+    result = await cache.get("key")
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_cache_clear(cache: Cache) -> None:
     """Test cache clear."""
-    await cache.set("test1", "value1")
-    await cache.set("test2", "value2")
+    await cache.set("key1", "value1")
+    await cache.set("key2", "value2")
+
     await cache.clear()
-    value1 = await cache.get("test1")
-    value2 = await cache.get("test2")
-    assert value1 is None
-    assert value2 is None
+    assert await cache.get("key1") is None
+    assert await cache.get("key2") is None
 
 
 @pytest.mark.asyncio
-async def test_cache_max_size(cache: Cache[str]) -> None:
-    """Test cache max size."""
-    cache = Cache[str](CacheConfig(name="test", max_size=2))
-    await cache.initialize()
-    await cache.set("test1", "value1")
-    await cache.set("test2", "value2")
-    await cache.set("test3", "value3")
-    value1 = await cache.get("test1")
-    value2 = await cache.get("test2")
-    value3 = await cache.get("test3")
-    assert value1 is None
-    assert value2 is not None
-    assert value3 is not None
+async def test_cache_cleanup_expired(cache: Cache) -> None:
+    """Test cache cleanup of expired entries."""
+    expires_at = datetime.now() + timedelta(seconds=1)
+    await cache.set("key1", "value1", expires_at=expires_at)
+    await cache.set("key2", "value2")  # No expiration
 
+    await asyncio.sleep(1.1)  # Wait for expiration
+    result = await cache.get("key1")
+    assert result is None  # Expired entry should be cleaned up
 
-@pytest.mark.asyncio
-async def test_cache_get_stats(cache: Cache[str]) -> None:
-    """Test cache get stats."""
-    await cache.set("test1", "value1")
-    await cache.set("test2", "value2")
-    stats = await cache.get_stats()
-    assert stats["name"] == "test"
-    assert stats["size"] == 2
-    assert stats["max_size"] == 1000
-    assert stats["ttl"] == 60.0
+    result = await cache.get("key2")
+    assert result is not None  # Non-expired entry should remain
+    assert result.value == "value2"

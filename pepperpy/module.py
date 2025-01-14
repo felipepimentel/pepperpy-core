@@ -9,6 +9,7 @@ The module system provides:
 - Type-safe configuration handling
 - Proper cleanup of resources
 - Extensible module hierarchy
+- Resource management capabilities
 
 Example:
     A simple cache module implementation:
@@ -38,48 +39,28 @@ Example:
 """
 
 from abc import ABC, abstractmethod
+from collections.abc import Mapping
 from dataclasses import dataclass, field
-from typing import Any, Generic, TypeVar
+from typing import Any, Generic, TypedDict, TypeVar
 
-from pepperpy.config import BaseConfig
-from pepperpy.core import PepperpyError
+from .core import PepperpyError
 
 
 class ModuleError(PepperpyError):
     """Module-related errors."""
 
-    def __init__(
-        self,
-        message: str,
-        cause: Exception | None = None,
-        module_name: str | None = None,
-    ) -> None:
-        """Initialize module error.
-
-        Args:
-            message: Error message
-            cause: Original exception that caused this error
-            module_name: Name of the module that caused the error
-        """
-        super().__init__(message, cause)
-        self.module_name = module_name
-
-
-class InitializationError(ModuleError):
-    """Initialization-related errors."""
-
     pass
 
 
-class ModuleNotFoundError(ModuleError):
-    """Module not found errors."""
+class InitializationError(ModuleError):
+    """Module initialization errors."""
 
     pass
 
 
 @dataclass
-class ModuleConfig(BaseConfig):
-    """Module configuration."""
+class ModuleConfig:
+    """Base module configuration."""
 
     name: str
     metadata: dict[str, Any] = field(default_factory=dict)
@@ -90,8 +71,17 @@ class ModuleConfig(BaseConfig):
         Raises:
             ValueError: If name is empty or invalid
         """
-        if not self.name or not isinstance(self.name, str):
-            raise ValueError("Module name must be a non-empty string")
+        if not self.name:
+            raise ValueError("Module name cannot be empty")
+        if not isinstance(self.name, str):
+            raise ValueError("Module name must be a string")
+
+
+class ResourceValue(TypedDict, total=False):
+    """Type hints for resource values."""
+
+    value: str | int | float | bool | dict | list | None
+    metadata: dict[str, str | int | float | bool | dict | list | None]
 
 
 T = TypeVar("T", bound=ModuleConfig)
@@ -108,6 +98,7 @@ class BaseModule(Generic[T], ABC):
         """
         self.config = config
         self._is_initialized = False
+        self._resources: dict[str, ResourceValue] = {}
 
     @property
     def is_initialized(self) -> bool:
@@ -145,6 +136,37 @@ class BaseModule(Generic[T], ABC):
         if not self.is_initialized:
             raise ModuleError(f"Module {self.config.name} is not initialized")
 
+    def get_resource(self, key: str) -> ResourceValue | None:
+        """Get module resource.
+
+        Args:
+            key: Resource key.
+
+        Returns:
+            ResourceValue | None: Resource value or None if not found.
+        """
+        self._ensure_initialized()
+        return self._resources.get(key)
+
+    def set_resource(self, key: str, value: ResourceValue) -> None:
+        """Set module resource.
+
+        Args:
+            key: Resource key.
+            value: Resource value.
+        """
+        self._ensure_initialized()
+        self._resources[key] = value
+
+    def get_resources(self) -> Mapping[str, ResourceValue]:
+        """Get all module resources.
+
+        Returns:
+            Mapping[str, ResourceValue]: Dictionary of resources.
+        """
+        self._ensure_initialized()
+        return self._resources
+
     @abstractmethod
     async def _setup(self) -> None:
         """Setup module."""
@@ -154,10 +176,3 @@ class BaseModule(Generic[T], ABC):
     async def _teardown(self) -> None:
         """Teardown module."""
         pass
-
-
-__all__ = [
-    "ModuleError",
-    "ModuleConfig",
-    "BaseModule",
-]
