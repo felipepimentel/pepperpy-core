@@ -9,7 +9,7 @@ The PepperPy Core Network module provides asynchronous network clients for both 
 Configuration for TCP network client:
 
 ```python
-from pepperpy_core.network import NetworkConfig
+from pepperpy.network import NetworkConfig
 
 # Create configuration
 config = NetworkConfig(
@@ -26,7 +26,7 @@ config = NetworkConfig(
 TCP client implementation:
 
 ```python
-from pepperpy_core.network import NetworkClient
+from pepperpy.network import NetworkClient
 
 # Create client
 client = NetworkClient(config)
@@ -45,7 +45,7 @@ async with client:
 HTTP client implementation:
 
 ```python
-from pepperpy_core.network import HTTPClient
+from pepperpy.network import HTTPClient
 
 # Create client
 async with HTTPClient() as client:
@@ -70,7 +70,7 @@ async with HTTPClient() as client:
 ### TCP Client
 
 ```python
-from pepperpy_core.network import NetworkClient, NetworkConfig
+from pepperpy.network import NetworkClient, NetworkConfig
 
 async def handle_connection():
     config = NetworkConfig(
@@ -90,7 +90,7 @@ async def handle_connection():
 ### HTTP Client
 
 ```python
-from pepperpy_core.network import HTTPClient
+from pepperpy.network import HTTPClient
 from aiohttp import ClientTimeout
 
 async def make_requests():
@@ -129,7 +129,7 @@ async def make_requests():
 ### Request Data Typing
 
 ```python
-from pepperpy_core.network import RequestData
+from pepperpy.network import RequestData
 
 # Type-safe request data
 data: RequestData = {
@@ -145,7 +145,7 @@ data: RequestData = {
 ### Proxy Support
 
 ```python
-from pepperpy_core.network import HTTPClient
+from pepperpy.network import HTTPClient
 
 async with HTTPClient() as client:
     # Use proxy
@@ -158,7 +158,7 @@ async with HTTPClient() as client:
 ### SSL Verification
 
 ```python
-from pepperpy_core.network import HTTPClient
+from pepperpy.network import HTTPClient
 
 async with HTTPClient() as client:
     # Disable SSL verification

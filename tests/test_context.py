@@ -4,7 +4,7 @@ from typing import Any
 
 import pytest
 
-from pepperpy_core.context import Context, State
+from pepperpy.context import Context, State
 
 
 @pytest.fixture

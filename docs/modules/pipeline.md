@@ -9,7 +9,7 @@ The PepperPy Core Pipeline module provides a framework for creating and executin
 Base class for defining pipelines:
 
 ```python
-from pepperpy_core.pipeline import Pipeline
+from pepperpy.pipeline import Pipeline
 
 class DataPipeline(Pipeline):
     async def process(self, data: dict) -> dict:
@@ -37,7 +37,7 @@ class DataPipeline(Pipeline):
 ### Basic Pipeline
 
 ```python
-from pepperpy_core.pipeline import Pipeline
+from pepperpy.pipeline import Pipeline
 
 class UserPipeline(Pipeline):
     async def process(self, user: dict) -> dict:
@@ -56,7 +56,7 @@ class UserPipeline(Pipeline):
 ### Branching Pipeline
 
 ```python
-from pepperpy_core.pipeline import BranchingPipeline
+from pepperpy.pipeline import BranchingPipeline
 
 class DataProcessor(BranchingPipeline):
     async def process(self, data: dict) -> dict:
@@ -91,7 +91,7 @@ class DataProcessor(BranchingPipeline):
 ### Pipeline with Retry
 
 ```python
-from pepperpy_core.pipeline import RetryPipeline
+from pepperpy.pipeline import RetryPipeline
 
 class APIProcessor(RetryPipeline):
     def __init__(self):
@@ -112,7 +112,7 @@ class APIProcessor(RetryPipeline):
 ### Pipeline with Cache
 
 ```python
-from pepperpy_core.pipeline import CachedPipeline
+from pepperpy.pipeline import CachedPipeline
 
 class DataProcessor(CachedPipeline):
     def __init__(self):
@@ -176,7 +176,7 @@ class DataProcessor(CachedPipeline):
 ### Pipeline with Validation
 
 ```python
-from pepperpy_core.pipeline import ValidationPipeline
+from pepperpy.pipeline import ValidationPipeline
 
 class DataValidator(ValidationPipeline):
     def __init__(self):
@@ -200,7 +200,7 @@ class DataValidator(ValidationPipeline):
 ### Pipeline with Metrics
 
 ```python
-from pepperpy_core.pipeline import MetricsPipeline
+from pepperpy.pipeline import MetricsPipeline
 
 class MonitoredPipeline(MetricsPipeline):
     async def process(self, data: dict) -> dict:
@@ -221,7 +221,7 @@ class MonitoredPipeline(MetricsPipeline):
 ### Pipeline with Logging
 
 ```python
-from pepperpy_core.pipeline import LoggedPipeline
+from pepperpy.pipeline import LoggedPipeline
 
 class AuditedPipeline(LoggedPipeline):
     async def process(self, data: dict) -> dict:

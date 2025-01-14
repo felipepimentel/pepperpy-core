@@ -181,7 +181,7 @@ This commit enhances both the code quality and the documentation, making it easi
 
 - Added `aiofiles` and its typing stubs `types-aiofiles` to `pyproject.toml`. - Updated `mypy` to
   version 1.14.1 in `poetry.lock`. - Enhanced `pytest.ini` to filter specific warnings during tests.
-  - Refactored `pepperpy_core` modules for improved clarity and performance, including: - Simplified
+  - Refactored `pepperpy` modules for improved clarity and performance, including: - Simplified
   exception handling and logging configurations. - Updated event handling and task management logic.
   - Removed deprecated validation functionality. - Improved test coverage and organization across
   various modules. - Removed unused scripts for linting and formatting.

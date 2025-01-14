@@ -2,8 +2,8 @@
 
 from typing import Any, Awaitable, Callable, Dict, List, Optional
 
-from pepperpy_core.exceptions import EventError
-from pepperpy_core.module import BaseModule, ModuleConfig
+from pepperpy.exceptions import EventError
+from pepperpy.module import BaseModule, ModuleConfig
 
 
 class Event:

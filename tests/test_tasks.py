@@ -2,7 +2,7 @@
 
 import pytest
 
-from pepperpy_core.task import Task, TaskConfig, TaskManager, TaskState
+from pepperpy.task import Task, TaskConfig, TaskManager, TaskState
 
 
 @pytest.mark.asyncio

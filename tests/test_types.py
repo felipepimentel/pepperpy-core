@@ -7,7 +7,7 @@ from typing import Protocol, runtime_checkable
 
 import pytest
 
-from pepperpy_core.types import (
+from pepperpy.types import (
     AsyncCallable,
     AsyncGenerator,
     BaseConfig,

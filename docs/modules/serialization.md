@@ -9,7 +9,7 @@ The PepperPy Core Serialization module provides utilities for object serializati
 Protocol for serializable objects:
 
 ```python
-from pepperpy_core.serialization import Serializable
+from pepperpy.serialization import Serializable
 
 class User(Serializable):
     def __init__(self, name: str, email: str):
@@ -33,7 +33,7 @@ class User(Serializable):
 ### Basic Serialization
 
 ```python
-from pepperpy_core.serialization import JsonSerializer
+from pepperpy.serialization import JsonSerializer
 
 # Create serializer
 serializer = JsonSerializer()
@@ -49,7 +49,7 @@ data = serializer.deserialize(json_str)
 ### Complex Serialization
 
 ```python
-from pepperpy_core.serialization import (
+from pepperpy.serialization import (
     Serializer,
     Field,
     serialize,
@@ -81,7 +81,7 @@ user = User.deserialize(data)
 ### Serializer with Validation
 
 ```python
-from pepperpy_core.serialization import ValidatedSerializer
+from pepperpy.serialization import ValidatedSerializer
 
 class UserSerializer(ValidatedSerializer):
     def validate(self, data: dict) -> bool:
@@ -139,7 +139,7 @@ class UserSerializer(ValidatedSerializer):
 ### Versioned Serializer
 
 ```python
-from pepperpy_core.serialization import VersionedSerializer
+from pepperpy.serialization import VersionedSerializer
 
 class DataSerializer(VersionedSerializer):
     def serialize(self, obj: Any) -> dict:
@@ -162,7 +162,7 @@ class DataSerializer(VersionedSerializer):
 ### Compressed Serializer
 
 ```python
-from pepperpy_core.serialization import CompressedSerializer
+from pepperpy.serialization import CompressedSerializer
 
 class DataSerializer(CompressedSerializer):
     def serialize(self, obj: Any) -> bytes:
@@ -179,7 +179,7 @@ class DataSerializer(CompressedSerializer):
 ### Cached Serializer
 
 ```python
-from pepperpy_core.serialization import CachedSerializer
+from pepperpy.serialization import CachedSerializer
 
 class DataSerializer(CachedSerializer):
     def __init__(self):

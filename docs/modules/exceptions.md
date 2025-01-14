@@ -9,7 +9,7 @@ The PepperPy Core Exceptions module provides a complete hierarchy of exceptions 
 Base class for all exceptions:
 
 ```python
-from pepperpy_core.exceptions import PepperPyException
+from pepperpy.exceptions import PepperPyException
 
 try:
     # Operation that may fail
@@ -21,7 +21,7 @@ except PepperPyException as e:
 ### Configuration Exceptions
 
 ```python
-from pepperpy_core.exceptions import ConfigError
+from pepperpy.exceptions import ConfigError
 
 try:
     config.validate()
@@ -33,7 +33,7 @@ except ConfigError as e:
 ### Validation Exceptions
 
 ```python
-from pepperpy_core.exceptions import ValidationError
+from pepperpy.exceptions import ValidationError
 
 try:
     validator.validate(data)
@@ -47,7 +47,7 @@ except ValidationError as e:
 ### Module Exceptions
 
 ```python
-from pepperpy_core.exceptions import (
+from pepperpy.exceptions import (
     ModuleError,
     ModuleInitError,
     ModuleNotFoundError
@@ -65,7 +65,7 @@ except ModuleNotFoundError as e:
 ### Security Exceptions
 
 ```python
-from pepperpy_core.exceptions import (
+from pepperpy.exceptions import (
     SecurityError,
     AuthenticationError,
     AuthorizationError,
@@ -85,7 +85,7 @@ except InvalidTokenError:
 ### Task Exceptions
 
 ```python
-from pepperpy_core.exceptions import (
+from pepperpy.exceptions import (
     TaskError,
     TaskExecutionError,
     TaskNotFoundError
@@ -105,7 +105,7 @@ except TaskNotFoundError as e:
 ### Basic Error Handling
 
 ```python
-from pepperpy_core.exceptions import (
+from pepperpy.exceptions import (
     ValidationError,
     ProcessingError,
     ResourceError
@@ -129,7 +129,7 @@ async def process_data(data: dict) -> dict:
 ### Exception Chaining
 
 ```python
-from pepperpy_core.exceptions import (
+from pepperpy.exceptions import (
     ConfigError,
     ValidationError,
     ProcessingError
@@ -157,7 +157,7 @@ async def initialize_system():
 ### Custom Exceptions
 
 ```python
-from pepperpy_core.exceptions import PepperPyException
+from pepperpy.exceptions import PepperPyException
 
 class CustomError(PepperPyException):
     def __init__(
@@ -200,7 +200,7 @@ class CustomError(PepperPyException):
 ### Retry Pattern
 
 ```python
-from pepperpy_core.exceptions import RetryableError
+from pepperpy.exceptions import RetryableError
 
 class RetryHandler:
     async def execute(
@@ -222,7 +222,7 @@ class RetryHandler:
 ### Context Exceptions
 
 ```python
-from pepperpy_core.exceptions import ContextError
+from pepperpy.exceptions import ContextError
 
 class Context:
     def __init__(self):
@@ -240,7 +240,7 @@ class Context:
 ### Exception Translation
 
 ```python
-from pepperpy_core.exceptions import ExceptionTranslator
+from pepperpy.exceptions import ExceptionTranslator
 
 class APITranslator(ExceptionTranslator):
     def translate(self, error: Exception) -> dict:

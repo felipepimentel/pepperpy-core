@@ -5,8 +5,8 @@ from collections.abc import AsyncIterator
 import pytest
 import pytest_asyncio
 
-from pepperpy_core.module import ModuleError
-from pepperpy_core.telemetry import MetricsCollector, TelemetryConfig
+from pepperpy.module import ModuleError
+from pepperpy.telemetry import MetricsCollector, TelemetryConfig
 
 
 @pytest.fixture

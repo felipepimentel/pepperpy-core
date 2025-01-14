@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from pepperpy_core.cache import Cache, CacheConfig
+from pepperpy.cache import Cache, CacheConfig
 
 
 class ExampleCache(Cache):

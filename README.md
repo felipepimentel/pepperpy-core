@@ -31,7 +31,7 @@ poetry add pepperpy-core
 ## Quick Start
 
 ```python
-from pepperpy_core import Task, Event, Logger
+from pepperpy import Task, Event, Logger
 
 # Configure logging
 logger = Logger("my_app")
@@ -151,7 +151,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ```
 pepperpy-core/
-├── pepperpy_core/        # Core package
+├── pepperpy/        # Core package
 │   ├── task.py          # Task management
 │   ├── event.py         # Event system
 │   ├── plugin.py        # Plugin system

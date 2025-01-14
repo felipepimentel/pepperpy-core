@@ -258,7 +258,7 @@ The library implements several common design patterns:
 ### Basic Application
 
 ```python
-from pepperpy_core import (
+from pepperpy import (
     Config,
     StateManager,
     TaskManager,
@@ -299,7 +299,7 @@ async def main():
 ### Data Processing
 
 ```python
-from pepperpy_core import (
+from pepperpy import (
     Pipeline,
     Storage,
     Validation
@@ -331,7 +331,7 @@ async def process_data():
 ### Secure API
 
 ```python
-from pepperpy_core import (
+from pepperpy import (
     Security,
     Validation,
     Logging

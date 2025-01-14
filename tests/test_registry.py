@@ -4,7 +4,7 @@ from typing import Protocol, runtime_checkable
 
 import pytest
 
-from pepperpy_core.registry import Registry
+from pepperpy.registry import Registry
 
 
 @runtime_checkable

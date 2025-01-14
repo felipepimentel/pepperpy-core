@@ -4,8 +4,8 @@ from typing import AsyncGenerator
 
 import pytest
 
-from pepperpy_core.exceptions import InitializationError
-from pepperpy_core.module import BaseModule, ModuleConfig
+from pepperpy.exceptions import InitializationError
+from pepperpy.module import BaseModule, ModuleConfig
 
 
 class TestModule(BaseModule[ModuleConfig]):

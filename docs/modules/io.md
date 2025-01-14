@@ -9,7 +9,7 @@ The PepperPy Core IO module provides an asynchronous interface for input and out
 Class for asynchronous file operations:
 
 ```python
-from pepperpy_core.io import AsyncFile
+from pepperpy.io import AsyncFile
 
 async with AsyncFile("data.txt", "r") as f:
     # Read content
@@ -24,7 +24,7 @@ async with AsyncFile("data.txt", "r") as f:
 Buffer for asynchronous operations:
 
 ```python
-from pepperpy_core.io import AsyncBuffer
+from pepperpy.io import AsyncBuffer
 
 buffer = AsyncBuffer()
 
@@ -41,7 +41,7 @@ data = await buffer.read()
 Stream for asynchronous operations:
 
 ```python
-from pepperpy_core.io import AsyncStream
+from pepperpy.io import AsyncStream
 
 async with AsyncStream() as stream:
     # Write data
@@ -58,7 +58,7 @@ async with AsyncStream() as stream:
 ### AsyncWriter
 
 ```python
-from pepperpy_core.io import AsyncWriter
+from pepperpy.io import AsyncWriter
 
 writer = AsyncWriter("output.txt")
 
@@ -75,7 +75,7 @@ await writer.flush()
 ### Compressed Buffer
 
 ```python
-from pepperpy_core.io import CompressedBuffer
+from pepperpy.io import CompressedBuffer
 
 buffer = CompressedBuffer()
 
@@ -92,7 +92,7 @@ original = await buffer.get_decompressed()
 ### Stream with Transformation
 
 ```python
-from pepperpy_core.io import TransformStream
+from pepperpy.io import TransformStream
 
 class UpperStream(TransformStream):
     async def transform(self, data: str) -> str:
@@ -140,7 +140,7 @@ result = await stream.read()  # "HELLO"
 ### File Processing
 
 ```python
-from pepperpy_core.io import AsyncFile, ChunkProcessor
+from pepperpy.io import AsyncFile, ChunkProcessor
 
 class FileProcessor:
     def __init__(self, chunk_size: int = 8192):
@@ -165,7 +165,7 @@ class FileProcessor:
 ### Stream Pipeline
 
 ```python
-from pepperpy_core.io import StreamPipeline
+from pepperpy.io import StreamPipeline
 
 class DataPipeline(StreamPipeline):
     async def process(self, data: bytes) -> bytes:
@@ -184,7 +184,7 @@ class DataPipeline(StreamPipeline):
 ### Buffered Writer
 
 ```python
-from pepperpy_core.io import BufferedWriter
+from pepperpy.io import BufferedWriter
 
 class LogWriter(BufferedWriter):
     def __init__(

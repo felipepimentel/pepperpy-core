@@ -4,7 +4,7 @@ from typing import AsyncGenerator
 
 import pytest
 
-from pepperpy_core.cache import Cache, CacheConfig
+from pepperpy.cache import Cache, CacheConfig
 
 
 @pytest.fixture

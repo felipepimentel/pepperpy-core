@@ -9,7 +9,7 @@ The PepperPy Core Module provides the base structure for module implementation, 
 Base class for module implementation:
 
 ```python
-from pepperpy_core.module import BaseModule
+from pepperpy.module import BaseModule
 
 class CustomModule(BaseModule):
     async def initialize(self):
@@ -30,7 +30,7 @@ await module.initialize()
 Base configuration for modules:
 
 ```python
-from pepperpy_core.module import ModuleConfig
+from pepperpy.module import ModuleConfig
 
 # Basic configuration
 config = ModuleConfig(
@@ -43,7 +43,7 @@ config = ModuleConfig(
 ### Basic Module
 
 ```python
-from pepperpy_core.module import Module
+from pepperpy.module import Module
 from dataclasses import dataclass
 
 @dataclass
@@ -73,7 +73,7 @@ class DatabaseModule(Module):
 ### Module with Resources
 
 ```python
-from pepperpy_core.module import ResourceModule
+from pepperpy.module import ResourceModule
 
 class CacheModule(ResourceModule):
     def __init__(self, size: int = 1000):
@@ -95,7 +95,7 @@ class CacheModule(ResourceModule):
 ### Module with Dependencies
 
 ```python
-from pepperpy_core.module import DependentModule
+from pepperpy.module import DependentModule
 
 class APIModule(DependentModule):
     def __init__(self, cache: CacheModule):
@@ -113,7 +113,7 @@ class APIModule(DependentModule):
 ### Module with State
 
 ```python
-from pepperpy_core.module import StateModule
+from pepperpy.module import StateModule
 from dataclasses import dataclass
 
 @dataclass
@@ -173,7 +173,7 @@ class ServiceModule(StateModule[ModuleState]):
 ### Module with Retry
 
 ```python
-from pepperpy_core.module import RetryModule
+from pepperpy.module import RetryModule
 
 class NetworkModule(RetryModule):
     def __init__(
@@ -201,7 +201,7 @@ class NetworkModule(RetryModule):
 ### Module with Cache
 
 ```python
-from pepperpy_core.module import CachedModule
+from pepperpy.module import CachedModule
 
 class DataModule(CachedModule):
     def __init__(self):
@@ -224,7 +224,7 @@ class DataModule(CachedModule):
 ### Module with Metrics
 
 ```python
-from pepperpy_core.module import MetricsModule
+from pepperpy.module import MetricsModule
 
 class ServiceModule(MetricsModule):
     async def initialize(self):

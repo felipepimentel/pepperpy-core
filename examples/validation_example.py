@@ -2,8 +2,8 @@
 
 from typing import Any
 
-from pepperpy_core.types import JsonDict
-from pepperpy_core.validation import ValidationResult, Validator
+from pepperpy.types import JsonDict
+from pepperpy.validation import ValidationResult, Validator
 
 
 class ValidatorConfig:

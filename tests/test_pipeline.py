@@ -3,8 +3,8 @@
 import pytest
 import pytest_asyncio
 
-from pepperpy_core.exceptions import PepperpyError
-from pepperpy_core.pipeline import (
+from pepperpy.exceptions import PepperpyError
+from pepperpy.pipeline import (
     Pipeline,
     PipelineConfig,
     PipelineError,

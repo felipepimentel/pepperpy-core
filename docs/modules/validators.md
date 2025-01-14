@@ -7,7 +7,7 @@ The PepperPy Core Validators module provides a robust set of classes for data va
 ### Base Validator
 
 ```python
-from pepperpy_core.validators import Validator
+from pepperpy.validators import Validator
 
 class CustomValidator(Validator):
     def validate(self, value: Any) -> bool:
@@ -20,7 +20,7 @@ class CustomValidator(Validator):
 ### Basic Validators
 
 ```python
-from pepperpy_core.validators import (
+from pepperpy.validators import (
     StringValidator,
     NumberValidator,
     BooleanValidator,
@@ -40,7 +40,7 @@ validator = DictValidator({
 Validators for specific formats:
 
 ```python
-from pepperpy_core.validators import (
+from pepperpy.validators import (
     EmailValidator,
     URLValidator,
     DateValidator,
@@ -58,7 +58,7 @@ phone = PhoneValidator()
 ### Basic Validation
 
 ```python
-from pepperpy_core.validators import StringValidator
+from pepperpy.validators import StringValidator
 
 validator = StringValidator(min_length=3, max_length=20)
 
@@ -71,7 +71,7 @@ except ValidationError as e:
 ### Composite Validation
 
 ```python
-from pepperpy_core.validators import (
+from pepperpy.validators import (
     DictValidator,
     StringValidator,
     EmailValidator
@@ -96,7 +96,7 @@ email_validator.validate(data["email"])
 ### List Validation
 
 ```python
-from pepperpy_core.validators import ListValidator, EmailValidator
+from pepperpy.validators import ListValidator, EmailValidator
 
 validator = ListValidator(EmailValidator())
 
@@ -114,7 +114,7 @@ except ValidationError as e:
 ### Custom Rules
 
 ```python
-from pepperpy_core.validators import Validator, ValidationError
+from pepperpy.validators import Validator, ValidationError
 import re
 
 class PasswordValidator(Validator):
@@ -135,7 +135,7 @@ class PasswordValidator(Validator):
 ### Async Validation
 
 ```python
-from pepperpy_core.validators import AsyncValidator
+from pepperpy.validators import AsyncValidator
 
 class DatabaseValidator(AsyncValidator):
     async def validate(self, value: str) -> bool:
@@ -181,7 +181,7 @@ class DatabaseValidator(AsyncValidator):
 ### Validation Chain
 
 ```python
-from pepperpy_core.validators import ValidationChain
+from pepperpy.validators import ValidationChain
 
 class UserValidation(ValidationChain):
     def __init__(self):
@@ -204,7 +204,7 @@ class UserValidation(ValidationChain):
 ### Validator with Transformation
 
 ```python
-from pepperpy_core.validators import TransformValidator
+from pepperpy.validators import TransformValidator
 
 class EmailNormalizer(TransformValidator):
     def transform(self, value: str) -> str:

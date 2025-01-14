@@ -25,7 +25,7 @@ def event_loop_policy() -> Generator[asyncio.AbstractEventLoopPolicy, None, None
 @pytest_asyncio.fixture
 async def test_module() -> AsyncGenerator[Any, None]:
     """Create a test module for testing."""
-    from pepperpy_core.module import BaseModule, ModuleConfig
+    from pepperpy.module import BaseModule, ModuleConfig
 
     class TestConfig(ModuleConfig):
         """Test configuration."""

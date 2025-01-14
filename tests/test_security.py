@@ -4,8 +4,8 @@ from typing import AsyncGenerator
 
 import pytest
 
-from pepperpy_core.exceptions import SecurityError
-from pepperpy_core.security import AuthInfo, SecurityManager
+from pepperpy.exceptions import SecurityError
+from pepperpy.security import AuthInfo, SecurityManager
 
 
 @pytest.fixture

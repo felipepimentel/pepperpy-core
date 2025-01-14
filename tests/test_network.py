@@ -7,7 +7,7 @@ from typing import AsyncGenerator
 import pytest
 from aiohttp import ClientSession, ClientTimeout, web
 
-from pepperpy_core.network import (
+from pepperpy.network import (
     HTTPClient,
     NetworkClient,
     NetworkConfig,

@@ -7,7 +7,7 @@ The PepperPy Core Cache module provides a generic in-memory cache implementation
 ### Cache Configuration
 
 ```python
-from pepperpy_core.cache import Cache, CacheConfig
+from pepperpy.cache import Cache, CacheConfig
 
 # Create cache
 cache = Cache()
@@ -27,7 +27,7 @@ cache.configure(config)
 ### Basic Cache
 
 ```python
-from pepperpy_core.cache import Cache
+from pepperpy.cache import Cache
 
 # Create cache
 cache = Cache()
@@ -46,7 +46,7 @@ print(f"User: {cached_user['name']}")
 ### Cache with Generic Types
 
 ```python
-from pepperpy_core.cache import Cache
+from pepperpy.cache import Cache
 from typing import TypeVar, Generic
 
 T = TypeVar("T")
@@ -64,7 +64,7 @@ class TypedCache(Cache, Generic[T]):
 ### Cache with Statistics
 
 ```python
-from pepperpy_core.cache import StatsCache
+from pepperpy.cache import StatsCache
 
 class MonitoredCache(StatsCache):
     def __init__(self):
@@ -136,7 +136,7 @@ class MonitoredCache(StatsCache):
 ### Cache with Expiration
 
 ```python
-from pepperpy_core.cache import ExpiringCache
+from pepperpy.cache import ExpiringCache
 
 class TimedCache(ExpiringCache):
     def __init__(self, ttl: int = 300):
@@ -159,7 +159,7 @@ class TimedCache(ExpiringCache):
 ### Cache with Fallback
 
 ```python
-from pepperpy_core.cache import Cache
+from pepperpy.cache import Cache
 
 class FallbackCache(Cache):
     def __init__(self, fallback: callable):
@@ -182,7 +182,7 @@ class FallbackCache(Cache):
 ### Cache with Validation
 
 ```python
-from pepperpy_core.cache import Cache
+from pepperpy.cache import Cache
 
 class ValidatedCache(Cache):
     def __init__(self, validator: callable):

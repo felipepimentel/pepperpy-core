@@ -1,6 +1,6 @@
 """Test exceptions module."""
 
-from pepperpy_core.exceptions import PepperpyError
+from pepperpy.exceptions import PepperpyError
 
 
 def test_pepperpy_error() -> None:

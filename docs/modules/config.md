@@ -9,7 +9,7 @@ The configuration module provides a flexible and robust system for managing appl
 ### ConfigManager
 
 ```python
-from pepperpy_core.config import ConfigManager
+from pepperpy.config import ConfigManager
 
 # Create manager
 manager = ConfigManager()
@@ -26,7 +26,7 @@ config = await manager.load()
 ### ConfigBuilder
 
 ```python
-from pepperpy_core.config import ConfigBuilder
+from pepperpy.config import ConfigBuilder
 
 # Build configuration
 builder = ConfigBuilder()
@@ -45,7 +45,7 @@ config = builder.build()
 ### ConfigValidator
 
 ```python
-from pepperpy_core.config import ConfigValidator
+from pepperpy.config import ConfigValidator
 
 validator = ConfigValidator({
     "app.name": str,
@@ -62,7 +62,7 @@ validator.validate(config)
 ### 1. Environment-based Configuration
 
 ```python
-from pepperpy_core.config import EnvConfig
+from pepperpy.config import EnvConfig
 
 class AppConfig(EnvConfig):
     def __init__(self):
@@ -87,7 +87,7 @@ class AppConfig(EnvConfig):
 ### 2. Dynamic Configuration
 
 ```python
-from pepperpy_core.config import DynamicConfig
+from pepperpy.config import DynamicConfig
 
 class ServiceConfig(DynamicConfig):
     def __init__(self):
@@ -109,7 +109,7 @@ class ServiceConfig(DynamicConfig):
 ### 3. Secure Configuration
 
 ```python
-from pepperpy_core.config import SecureConfig
+from pepperpy.config import SecureConfig
 
 class SecretsConfig(SecureConfig):
     def __init__(self):
@@ -154,7 +154,7 @@ class SecretsConfig(SecureConfig):
 ### 1. Complete Configuration System
 
 ```python
-from pepperpy_core.config import (
+from pepperpy.config import (
     ConfigManager,
     ConfigValidator,
     ConfigWatcher
@@ -213,7 +213,7 @@ class ApplicationConfig:
 ### 2. Service Configuration
 
 ```python
-from pepperpy_core.config import ServiceConfig
+from pepperpy.config import ServiceConfig
 
 class DatabaseConfig(ServiceConfig):
     def __init__(self):

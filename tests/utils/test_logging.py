@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from pepperpy_core.logging import (
+from pepperpy.logging import (
     LoggerMixin,
     get_logger,
     get_module_logger,
@@ -31,7 +31,7 @@ def test_get_package_logger() -> None:
     """Test get_package_logger utility."""
     logger = get_package_logger()
     assert isinstance(logger, logging.Logger)
-    assert logger.name == "pepperpy_core"
+    assert logger.name == "pepperpy"
 
 
 class TestLoggerMixin:
@@ -45,7 +45,7 @@ class TestLoggerMixin:
     @pytest.fixture
     def mixin(self, logger_mock: MagicMock) -> LoggerMixin:
         """Create a LoggerMixin instance with mocked logger."""
-        with patch("pepperpy_core.logging.get_logger", return_value=logger_mock):
+        with patch("pepperpy.logging.get_logger", return_value=logger_mock):
             mixin = LoggerMixin()
             return mixin
 

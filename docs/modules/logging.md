@@ -7,7 +7,7 @@ The PepperPy Core Logging module provides a flexible and extensible implementati
 ### Logger
 
 ```python
-from pepperpy_core.logging import Logger
+from pepperpy.logging import Logger
 
 # Create logger
 logger = Logger("app")
@@ -24,7 +24,7 @@ logger.error("Operation failed")
 Enumeration for log levels:
 
 ```python
-from pepperpy_core.logging import LogLevel
+from pepperpy.logging import LogLevel
 
 # Available levels
 level = LogLevel.DEBUG    # Detailed information
@@ -39,7 +39,7 @@ level = LogLevel.CRITICAL # Critical errors
 Logging system configuration:
 
 ```python
-from pepperpy_core.logging import LogConfig
+from pepperpy.logging import LogConfig
 
 # Basic configuration
 config = LogConfig(
@@ -52,7 +52,7 @@ config = LogConfig(
 ### Basic Logger
 
 ```python
-from pepperpy_core.logging import Logger
+from pepperpy.logging import Logger
 
 # Create logger
 logger = Logger("app")
@@ -76,7 +76,7 @@ logger.info(
 ### Handler Configuration
 
 ```python
-from pepperpy_core.logging import (
+from pepperpy.logging import (
     FileHandler,
     ConsoleHandler,
     NetworkHandler
@@ -98,7 +98,7 @@ logger = Logger("app", handlers=handlers)
 ### Custom Handler
 
 ```python
-from pepperpy_core.logging import Handler
+from pepperpy.logging import Handler
 
 class DatabaseHandler(Handler):
     def __init__(self, connection):
@@ -117,7 +117,7 @@ class DatabaseHandler(Handler):
 ### Advanced Formatting
 
 ```python
-from pepperpy_core.logging import Formatter
+from pepperpy.logging import Formatter
 
 class CustomFormatter(Formatter):
     def format(self, record: LogRecord) -> str:
@@ -166,7 +166,7 @@ class CustomFormatter(Formatter):
 ### Logger with Metrics
 
 ```python
-from pepperpy_core.logging import MetricsLogger
+from pepperpy.logging import MetricsLogger
 
 class MonitoredLogger(MetricsLogger):
     def __init__(self):
@@ -200,7 +200,7 @@ class MonitoredLogger(MetricsLogger):
 ### Logger with Aggregation
 
 ```python
-from pepperpy_core.logging import AggregateLogger
+from pepperpy.logging import AggregateLogger
 
 class BatchLogger(AggregateLogger):
     def __init__(

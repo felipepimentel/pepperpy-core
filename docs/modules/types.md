@@ -7,7 +7,7 @@ The PepperPy Core Types module provides type definitions and base classes for st
 ### Base Types
 
 ```python
-from pepperpy_core.types import (
+from pepperpy.types import (
     JsonDict,
     JsonList,
     PathLike,
@@ -22,7 +22,7 @@ Handler = Callable[[Event], Awaitable[None]]
 ### Generic Types
 
 ```python
-from pepperpy_core.types import (
+from pepperpy.types import (
     T,
     K,
     V,
@@ -48,7 +48,7 @@ class DataProcessor(Processor[T, V]):
 ### Protocols
 
 ```python
-from pepperpy_core.types import (
+from pepperpy.types import (
     Serializable,
     Validator,
     Handler
@@ -70,7 +70,7 @@ class JsonSerializable(Protocol):
 ### Type Guards
 
 ```python
-from pepperpy_core.types import TypeGuard
+from pepperpy.types import TypeGuard
 
 def is_user(data: Any) -> TypeGuard[User]:
     try:
@@ -86,7 +86,7 @@ def is_user(data: Any) -> TypeGuard[User]:
 ### Type Registry
 
 ```python
-from pepperpy_core.types import Registry
+from pepperpy.types import Registry
 
 registry = Registry[Type[T]]()
 
@@ -136,7 +136,7 @@ registry.register("validator", Validator)
 ### Type Factory
 
 ```python
-from pepperpy_core.types import TypeFactory
+from pepperpy.types import TypeFactory
 
 class Factory(TypeFactory[T]):
     def __init__(self):
@@ -161,7 +161,7 @@ class Factory(TypeFactory[T]):
 ### Type Converter
 
 ```python
-from pepperpy_core.types import TypeConverter
+from pepperpy.types import TypeConverter
 
 class Converter(TypeConverter):
     def __init__(self):
@@ -194,7 +194,7 @@ class Converter(TypeConverter):
 ### Type Cache
 
 ```python
-from pepperpy_core.types import TypeCache
+from pepperpy.types import TypeCache
 
 class Cache(TypeCache[T]):
     def __init__(self):

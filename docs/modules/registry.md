@@ -9,7 +9,7 @@ The registry module provides a centralized component registry system for managin
 ### Registry
 
 ```python
-from pepperpy_core.registry import (
+from pepperpy.registry import (
     Registry,
     RegistryConfig
 )
@@ -30,7 +30,7 @@ await registry.initialize()
 ### Component Registration
 
 ```python
-from pepperpy_core.registry import (
+from pepperpy.registry import (
     Component,
     Dependency,
     Lifecycle
@@ -61,7 +61,7 @@ registry.register(
 ### Dependency Injection
 
 ```python
-from pepperpy_core.registry import (
+from pepperpy.registry import (
     inject,
     provides
 )
@@ -97,7 +97,7 @@ class UserService:
 ### 1. Component Management
 
 ```python
-from pepperpy_core.registry import (
+from pepperpy.registry import (
     ComponentManager,
     ManagerConfig
 )
@@ -175,7 +175,7 @@ class ApplicationComponents:
 ### 2. Dependency Resolution
 
 ```python
-from pepperpy_core.registry import (
+from pepperpy.registry import (
     DependencyResolver,
     ResolverConfig
 )
@@ -242,7 +242,7 @@ class ServiceDependencies:
 ### 3. Lifecycle Management
 
 ```python
-from pepperpy_core.registry import (
+from pepperpy.registry import (
     LifecycleManager,
     LifecycleConfig
 )
@@ -312,7 +312,7 @@ class ComponentLifecycle:
 ### 1. Component Configuration
 
 ```python
-from pepperpy_core.registry import (
+from pepperpy.registry import (
     ComponentConfig,
     LifecycleConfig
 )
@@ -350,7 +350,7 @@ class ComponentSetup:
 ### 2. Dependency Configuration
 
 ```python
-from pepperpy_core.registry import (
+from pepperpy.registry import (
     DependencyConfig,
     InjectionConfig
 )
@@ -383,7 +383,7 @@ class DependencySetup:
 ### 3. Registry Configuration
 
 ```python
-from pepperpy_core.registry import (
+from pepperpy.registry import (
     RegistryConfig,
     StorageConfig
 )
@@ -430,7 +430,7 @@ class RegistrySetup:
 ### 1. Application Registry
 
 ```python
-from pepperpy_core.registry import (
+from pepperpy.registry import (
     Registry,
     Component,
     inject
@@ -512,7 +512,7 @@ class Application:
 ### 2. Service Registry
 
 ```python
-from pepperpy_core.registry import (
+from pepperpy.registry import (
     ServiceRegistry,
     Service,
     inject

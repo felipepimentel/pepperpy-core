@@ -3,8 +3,8 @@
 from dataclasses import dataclass, field
 from typing import Any
 
-from pepperpy_core.module import BaseModule, ModuleConfig
-from pepperpy_core.types import JsonDict
+from pepperpy.module import BaseModule, ModuleConfig
+from pepperpy.types import JsonDict
 
 
 @dataclass

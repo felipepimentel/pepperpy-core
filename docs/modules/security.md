@@ -9,7 +9,7 @@ The security module provides a comprehensive security framework for your applica
 ### SecurityManager
 
 ```python
-from pepperpy_core.security import (
+from pepperpy.security import (
     SecurityManager,
     SecurityConfig
 )
@@ -31,7 +31,7 @@ await manager.initialize()
 ### Authentication
 
 ```python
-from pepperpy_core.security import (
+from pepperpy.security import (
     AuthManager,
     AuthConfig,
     AuthProvider
@@ -62,7 +62,7 @@ token = await auth.authenticate(
 ### Authorization
 
 ```python
-from pepperpy_core.security import (
+from pepperpy.security import (
     AccessControl,
     Permission,
     Role
@@ -93,7 +93,7 @@ if await acl.has_permission(user, "users.read"):
 ### 1. Secure Data Handling
 
 ```python
-from pepperpy_core.security import (
+from pepperpy.security import (
     DataEncryption,
     EncryptionConfig
 )
@@ -145,7 +145,7 @@ class SecureData:
 ### 2. Secure Communication
 
 ```python
-from pepperpy_core.security import (
+from pepperpy.security import (
     SecureChannel,
     ChannelConfig
 )
@@ -194,7 +194,7 @@ class SecureCommunication:
 ### 3. Access Control
 
 ```python
-from pepperpy_core.security import (
+from pepperpy.security import (
     AccessControl,
     Policy,
     Resource
@@ -270,7 +270,7 @@ class SecurityControl:
 ### 1. Authentication
 
 ```python
-from pepperpy_core.security import (
+from pepperpy.security import (
     AuthManager,
     AuthConfig
 )
@@ -313,7 +313,7 @@ class SecureAuth:
 ### 2. Encryption
 
 ```python
-from pepperpy_core.security import (
+from pepperpy.security import (
     EncryptionManager,
     EncryptionConfig
 )
@@ -353,7 +353,7 @@ class SecureEncryption:
 ### 3. Access Control
 
 ```python
-from pepperpy_core.security import (
+from pepperpy.security import (
     AccessControl,
     AccessConfig
 )
@@ -402,7 +402,7 @@ class SecureAccess:
 ### 1. Secure API Client
 
 ```python
-from pepperpy_core.security import (
+from pepperpy.security import (
     SecureClient,
     ClientConfig,
     AuthProvider
@@ -470,7 +470,7 @@ class APIClient:
 ### 2. Secure Storage
 
 ```python
-from pepperpy_core.security import (
+from pepperpy.security import (
     SecureStorage,
     StorageConfig,
     Encryption

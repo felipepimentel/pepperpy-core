@@ -6,7 +6,7 @@ from typing import Generator
 
 import pytest
 
-from pepperpy_core.plugin import (
+from pepperpy.plugin import (
     PluginManager,
     ResourcePlugin,
     plugin,
@@ -108,7 +108,7 @@ async def test_plugin_manager_load_plugin(tmp_path: Path) -> None:
     with open(plugin_file, "w") as f:
         f.write(
             """
-from pepperpy_core.plugin import plugin
+from pepperpy.plugin import plugin
 
 @plugin("test")
 class TestPlugin:

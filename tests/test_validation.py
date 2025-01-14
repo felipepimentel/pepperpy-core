@@ -5,8 +5,8 @@ from typing import Any
 
 import pytest
 
-from pepperpy_core.exceptions import ValidationError
-from pepperpy_core.validators import (
+from pepperpy.exceptions import ValidationError
+from pepperpy.validators import (
     DictValidator,
     EmailValidator,
     IPAddressValidator,

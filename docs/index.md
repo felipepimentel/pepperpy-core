@@ -30,9 +30,9 @@ pip install pepperpy-core
 ### Basic Usage
 
 ```python
-from pepperpy_core import PepperPy
-from pepperpy_core.config import ConfigManager
-from pepperpy_core.logging import LogManager
+from pepperpy import PepperPy
+from pepperpy.config import ConfigManager
+from pepperpy.logging import LogManager
 
 async def main():
     # Initialize core
@@ -57,7 +57,7 @@ if __name__ == "__main__":
 ### 1. Async Operations
 
 ```python
-from pepperpy_core.task import TaskManager
+from pepperpy.task import TaskManager
 
 async def process_data():
     # Create task manager
@@ -83,8 +83,8 @@ async def process_data():
 ### 2. Type Safety
 
 ```python
-from pepperpy_core.types import DataModel
-from pepperpy_core.validation import validate_model
+from pepperpy.types import DataModel
+from pepperpy.validation import validate_model
 
 class UserModel(DataModel):
     id: int
@@ -106,7 +106,7 @@ async def create_user(data: dict):
 ### 3. Event System
 
 ```python
-from pepperpy_core.event import EventManager
+from pepperpy.event import EventManager
 
 async def setup_events():
     # Create event manager
@@ -131,8 +131,8 @@ async def setup_events():
 ### 4. Resource Management
 
 ```python
-from pepperpy_core.resources import ResourceManager
-from pepperpy_core.cache import CacheManager
+from pepperpy.resources import ResourceManager
+from pepperpy.cache import CacheManager
 
 async def setup_resources():
     # Create managers
@@ -202,8 +202,8 @@ async def setup_resources():
 ### 1. Configuration Management
 
 ```python
-from pepperpy_core.config import ConfigManager
-from pepperpy_core.validation import ConfigValidator
+from pepperpy.config import ConfigManager
+from pepperpy.validation import ConfigValidator
 
 async def setup_config():
     # Create manager
@@ -226,7 +226,7 @@ async def setup_config():
 ### 2. Error Handling
 
 ```python
-from pepperpy_core.exceptions import (
+from pepperpy.exceptions import (
     PepperpyError,
     ConfigError,
     ValidationError
@@ -256,8 +256,8 @@ async def safe_operation():
 ### 3. Testing
 
 ```python
-from pepperpy_core.testing import TestCase
-from pepperpy_core.mock import MockManager
+from pepperpy.testing import TestCase
+from pepperpy.mock import MockManager
 
 class UserTests(TestCase):
     async def setUp(self):

@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from pepperpy_core.config import (
+from pepperpy.config import (
     Config,
     ConfigLoader,
     JsonConfigLoader,

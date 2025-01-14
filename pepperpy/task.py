@@ -5,8 +5,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Awaitable, Callable, Generic, TypeVar
 
-from pepperpy_core.exceptions import TaskError
-from pepperpy_core.module import BaseModule, ModuleConfig
+from pepperpy.exceptions import TaskError
+from pepperpy.module import BaseModule, ModuleConfig
 
 
 class TaskState(str, Enum):

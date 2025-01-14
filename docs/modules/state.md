@@ -7,7 +7,7 @@ The PepperPy Core State module provides a robust system for application state ma
 ### State Manager
 
 ```python
-from pepperpy_core.state import StateManager
+from pepperpy.state import StateManager
 
 # Create manager
 manager = StateManager()
@@ -22,7 +22,7 @@ debug = await manager.get("config.debug")
 ### State Container
 
 ```python
-from pepperpy_core.state import Container
+from pepperpy.state import Container
 from dataclasses import dataclass
 
 @dataclass
@@ -45,7 +45,7 @@ await container.set(AppState(
 Change observer:
 
 ```python
-from pepperpy_core.state import Observer
+from pepperpy.state import Observer
 
 class ConfigObserver(Observer):
     async def on_change(
@@ -60,7 +60,7 @@ class ConfigObserver(Observer):
 ### State Persistence
 
 ```python
-from pepperpy_core.state import PersistentState
+from pepperpy.state import PersistentState
 
 class AppState(PersistentState):
     def __init__(self):
@@ -78,7 +78,7 @@ class AppState(PersistentState):
 ### State with History
 
 ```python
-from pepperpy_core.state import HistoryState
+from pepperpy.state import HistoryState
 
 class AppState(HistoryState):
     def __init__(self):
@@ -103,7 +103,7 @@ class AppState(HistoryState):
 ### State with Validation
 
 ```python
-from pepperpy_core.state import ValidatedState
+from pepperpy.state import ValidatedState
 
 class AppState(ValidatedState):
     def __init__(self):
@@ -162,7 +162,7 @@ class AppState(ValidatedState):
 ### State with Cache
 
 ```python
-from pepperpy_core.state import CachedState
+from pepperpy.state import CachedState
 
 class AppState(CachedState):
     def __init__(self):
@@ -185,7 +185,7 @@ class AppState(CachedState):
 ### State with Transactions
 
 ```python
-from pepperpy_core.state import TransactionalState
+from pepperpy.state import TransactionalState
 
 class AppState(TransactionalState):
     def __init__(self):

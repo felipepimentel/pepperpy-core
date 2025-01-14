@@ -9,7 +9,7 @@ The plugin module provides a flexible and extensible system for adding plugins t
 ### PluginManager
 
 ```python
-from pepperpy_core.plugin import (
+from pepperpy.plugin import (
     PluginManager,
     PluginConfig,
     Plugin
@@ -34,7 +34,7 @@ auth_plugin = await manager.get("auth")
 ### Plugin
 
 ```python
-from pepperpy_core.plugin import (
+from pepperpy.plugin import (
     Plugin,
     PluginMeta,
     hook
@@ -64,7 +64,7 @@ class AuthPlugin(Plugin):
 ### PluginLoader
 
 ```python
-from pepperpy_core.plugin import (
+from pepperpy.plugin import (
     PluginLoader,
     LoaderConfig
 )
@@ -86,7 +86,7 @@ plugins = await loader.load_plugins()
 ### 1. Plugin Development
 
 ```python
-from pepperpy_core.plugin import (
+from pepperpy.plugin import (
     Plugin,
     hook,
     inject
@@ -139,7 +139,7 @@ class DatabasePlugin(Plugin):
 ### 2. Plugin Management
 
 ```python
-from pepperpy_core.plugin import (
+from pepperpy.plugin import (
     PluginManager,
     PluginState
 )
@@ -206,7 +206,7 @@ class ApplicationPlugins:
 ### 3. Plugin Events
 
 ```python
-from pepperpy_core.plugin import (
+from pepperpy.plugin import (
     PluginEvents,
     EventContext
 )
@@ -267,7 +267,7 @@ class ApplicationEvents:
 ### 1. Plugin Structure
 
 ```python
-from pepperpy_core.plugin import (
+from pepperpy.plugin import (
     Plugin,
     PluginConfig
 )
@@ -337,7 +337,7 @@ class PluginStructure:
 ### 2. Plugin Loading
 
 ```python
-from pepperpy_core.plugin import (
+from pepperpy.plugin import (
     PluginLoader,
     LoaderConfig
 )
@@ -394,7 +394,7 @@ class PluginLoading:
 ### 3. Plugin Hooks
 
 ```python
-from pepperpy_core.plugin import (
+from pepperpy.plugin import (
     PluginHooks,
     HookConfig
 )
@@ -481,7 +481,7 @@ class PluginHooks:
 ### 1. Authentication Plugin
 
 ```python
-from pepperpy_core.plugin import (
+from pepperpy.plugin import (
     Plugin,
     hook,
     inject
@@ -621,7 +621,7 @@ class AuthPlugin(Plugin):
 ### 2. Database Plugin
 
 ```python
-from pepperpy_core.plugin import (
+from pepperpy.plugin import (
     Plugin,
     hook,
     inject
@@ -711,7 +711,7 @@ class DatabasePlugin(Plugin):
 ### Resource Plugin
 
 ```python
-from pepperpy_core.plugin import ResourcePlugin, ResourcePluginConfig
+from pepperpy.plugin import ResourcePlugin, ResourcePluginConfig
 
 # Create plugin with custom config
 plugin = ResourcePlugin(

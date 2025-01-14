@@ -9,7 +9,7 @@ The task module provides a robust system for managing and executing asynchronous
 ### TaskManager
 
 ```python
-from pepperpy_core.task import TaskManager
+from pepperpy.task import TaskManager
 
 # Create manager with advanced configuration
 manager = TaskManager(
@@ -41,7 +41,7 @@ scheduled = await manager.schedule(
 ### TaskQueue
 
 ```python
-from pepperpy_core.task import TaskQueue
+from pepperpy.task import TaskQueue
 
 # Wait for completion
 async with TaskQueue() as queue:
@@ -57,7 +57,7 @@ async with TaskQueue() as queue:
 ### PriorityQueue
 
 ```python
-from pepperpy_core.task import PriorityQueue
+from pepperpy.task import PriorityQueue
 
 # Create queue with policy
 queue = PriorityQueue(
@@ -80,7 +80,7 @@ while not queue.empty():
 ### 1. Task Pipeline
 
 ```python
-from pepperpy_core.task import Pipeline
+from pepperpy.task import Pipeline
 
 class DataPipeline(Pipeline):
     async def process(self, data: dict):
@@ -99,7 +99,7 @@ class DataPipeline(Pipeline):
 ### 2. Task Groups
 
 ```python
-from pepperpy_core.task import TaskGroup
+from pepperpy.task import TaskGroup
 
 async with TaskGroup() as group:
     # Add tasks
@@ -113,7 +113,7 @@ async with TaskGroup() as group:
 ### 3. Periodic Tasks
 
 ```python
-from pepperpy_core.task import PeriodicTask
+from pepperpy.task import PeriodicTask
 
 # Daily cleanup
 @manager.periodic(
@@ -127,7 +127,7 @@ async def cleanup():
 ### 4. Tasks with Dependencies
 
 ```python
-from pepperpy_core.task import TaskGraph
+from pepperpy.task import TaskGraph
 
 # Define dependencies
 graph = TaskGraph()
@@ -145,7 +145,7 @@ async with graph:
 ### 1. Progress Tracking
 
 ```python
-from pepperpy_core.task import Progress
+from pepperpy.task import Progress
 
 class ProcessTask(Task):
     async def execute(self):
@@ -166,7 +166,7 @@ class ProcessTask(Task):
 ### 2. Metrics
 
 ```python
-from pepperpy_core.task import Metrics
+from pepperpy.task import Metrics
 
 # Configure metrics
 metrics = Metrics(
@@ -211,7 +211,7 @@ async def process_data():
 ### 1. Retry Pattern
 
 ```python
-from pepperpy_core.task import RetryTask
+from pepperpy.task import RetryTask
 
 class APITask(RetryTask):
     def __init__(self):
@@ -232,7 +232,7 @@ class APITask(RetryTask):
 ### 2. Batch Processing
 
 ```python
-from pepperpy_core.task import BatchTask
+from pepperpy.task import BatchTask
 
 class DataBatch(BatchTask):
     def __init__(self, batch_size: int = 100):
@@ -249,7 +249,7 @@ class DataBatch(BatchTask):
 ### 3. Task Composition
 
 ```python
-from pepperpy_core.task import CompositeTask
+from pepperpy.task import CompositeTask
 
 class ProcessingTask(CompositeTask):
     async def execute(self):

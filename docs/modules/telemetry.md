@@ -9,7 +9,7 @@ The telemetry module provides comprehensive monitoring, metrics collection, and 
 ### TelemetryManager
 
 ```python
-from pepperpy_core.telemetry import (
+from pepperpy.telemetry import (
     TelemetryManager,
     TelemetryConfig
 )
@@ -31,7 +31,7 @@ await manager.initialize()
 ### Metrics
 
 ```python
-from pepperpy_core.telemetry import (
+from pepperpy.telemetry import (
     Metrics,
     Counter,
     Gauge,
@@ -65,7 +65,7 @@ memory = metrics.gauge(
 ### Tracing
 
 ```python
-from pepperpy_core.telemetry import (
+from pepperpy.telemetry import (
     Tracer,
     TracerConfig,
     SpanContext
@@ -94,7 +94,7 @@ async with tracer.start_span("process_request") as span:
 ### 1. Metric Collection
 
 ```python
-from pepperpy_core.telemetry import (
+from pepperpy.telemetry import (
     MetricCollector,
     CollectorConfig
 )
@@ -170,7 +170,7 @@ class APIMetrics:
 ### 2. Performance Monitoring
 
 ```python
-from pepperpy_core.telemetry import (
+from pepperpy.telemetry import (
     PerformanceMonitor,
     MonitorConfig
 )
@@ -251,7 +251,7 @@ class AppPerformance:
 ### 3. Distributed Tracing
 
 ```python
-from pepperpy_core.telemetry import (
+from pepperpy.telemetry import (
     DistributedTracer,
     TracerConfig
 )
@@ -318,7 +318,7 @@ class ServiceTracing:
 ### 1. Metric Configuration
 
 ```python
-from pepperpy_core.telemetry import (
+from pepperpy.telemetry import (
     MetricConfig,
     CollectorConfig
 )
@@ -391,7 +391,7 @@ class MetricSetup:
 ### 2. Tracing Configuration
 
 ```python
-from pepperpy_core.telemetry import (
+from pepperpy.telemetry import (
     TracingConfig,
     SamplerConfig
 )
@@ -437,7 +437,7 @@ class TracingSetup:
 ### 3. Monitoring Configuration
 
 ```python
-from pepperpy_core.telemetry import (
+from pepperpy.telemetry import (
     MonitoringConfig,
     AlertConfig
 )
@@ -498,7 +498,7 @@ class MonitoringSetup:
 ### 1. API Monitoring
 
 ```python
-from pepperpy_core.telemetry import (
+from pepperpy.telemetry import (
     APIMonitor,
     MonitorConfig,
     MetricCollector
@@ -655,7 +655,7 @@ class APITelemetry:
 ### 2. Performance Monitoring
 
 ```python
-from pepperpy_core.telemetry import (
+from pepperpy.telemetry import (
     PerformanceMonitor,
     MonitorConfig,
     MetricCollector

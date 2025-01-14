@@ -7,7 +7,7 @@ The PepperPy Core Utils module provides a collection of utility functions and cl
 ### Error Utilities
 
 ```python
-from pepperpy_core.utils.error import (
+from pepperpy.utils.error import (
     format_exception,
     format_error_context,
     get_error_type
@@ -60,7 +60,7 @@ The error utilities provide:
 ### Logging Utilities
 
 ```python
-from pepperpy_core.utils.logging import (
+from pepperpy.utils.logging import (
     get_logger,
     get_module_logger,
     get_package_logger,
@@ -97,7 +97,7 @@ The logging utilities provide:
 
 3. `get_package_logger() -> logging.Logger`
    - Gets the package logger
-   - Uses "pepperpy_core" as name
+   - Uses "pepperpy" as name
    - Central package logging
 
 4. `LoggerMixin`
@@ -108,13 +108,13 @@ The logging utilities provide:
 ### Package Utilities
 
 ```python
-from pepperpy_core.utils.package import (
+from pepperpy.utils.package import (
     get_package_name,
     get_package_version
 )
 
 # Get package info
-name = get_package_name()  # "pepperpy_core"
+name = get_package_name()  # "pepperpy"
 version = get_package_version()  # e.g. "1.0.0"
 ```
 
@@ -122,7 +122,7 @@ The package utilities provide:
 
 1. `get_package_name() -> str`
    - Gets the package name
-   - Returns "pepperpy_core"
+   - Returns "pepperpy"
    - Consistent package naming
 
 2. `get_package_version() -> str`
@@ -133,7 +133,7 @@ The package utilities provide:
 ### String Utilities
 
 ```python
-from pepperpy_core.utils import strings
+from pepperpy.utils import strings
 
 # String manipulation
 text = strings.normalize("Hello World!")
@@ -144,7 +144,7 @@ uuid = strings.generate_uuid()
 ### Date Utilities
 
 ```python
-from pepperpy_core.utils import dates
+from pepperpy.utils import dates
 
 # Date operations
 now = dates.now()
@@ -155,7 +155,7 @@ formatted = dates.format(now, "YYYY-MM-DD")
 ### File Utilities
 
 ```python
-from pepperpy_core.utils import files
+from pepperpy.utils import files
 
 # File operations
 exists = files.exists("data.txt")
@@ -166,7 +166,7 @@ mime = files.get_mime_type("image.png")
 ### Collection Utilities
 
 ```python
-from pepperpy_core.utils import collections
+from pepperpy.utils import collections
 
 # Collection operations
 chunks = collections.chunk(data, size=100)
@@ -179,7 +179,7 @@ grouped = collections.group_by(items, key="type")
 ### Path Utilities
 
 ```python
-from pepperpy_core.utils import paths
+from pepperpy.utils import paths
 
 # Path operations
 normalized = paths.normalize("/path/to/file")
@@ -190,7 +190,7 @@ absolute = paths.make_absolute(path)
 ### Hash Utilities
 
 ```python
-from pepperpy_core.utils import hashing
+from pepperpy.utils import hashing
 
 # Hash operations
 md5 = hashing.md5("data")
@@ -201,7 +201,7 @@ hash = hashing.hash_file("file.txt")
 ### Validation Utilities
 
 ```python
-from pepperpy_core.utils import validation
+from pepperpy.utils import validation
 
 # Validation operations
 is_email = validation.is_email("user@example.com")
@@ -258,7 +258,7 @@ is_ip = validation.is_ip("192.168.1.1")
 ### String Processing
 
 ```python
-from pepperpy_core.utils import strings
+from pepperpy.utils import strings
 
 class TextProcessor:
     def __init__(self):
@@ -277,7 +277,7 @@ class TextProcessor:
 ### File Processing
 
 ```python
-from pepperpy_core.utils import files
+from pepperpy.utils import files
 
 class FileProcessor:
     def __init__(self, chunk_size: int = 8192):
@@ -299,7 +299,7 @@ class FileProcessor:
 ### Data Validation
 
 ```python
-from pepperpy_core.utils import validation
+from pepperpy.utils import validation
 
 class DataValidator:
     def __init__(self):

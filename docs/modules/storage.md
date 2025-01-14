@@ -5,7 +5,7 @@ The PepperPy Core Storage module provides a unified interface for storage operat
 ## Basic Usage
 
 ```python
-from pepperpy_core.storage import Storage
+from pepperpy.storage import Storage
 
 # Create storage instance
 storage = Storage()
@@ -25,7 +25,7 @@ await storage.delete("key")
 ### File System Storage
 
 ```python
-from pepperpy_core.storage import FileStorage
+from pepperpy.storage import FileStorage
 
 storage = FileStorage(base_path="/data")
 
@@ -39,7 +39,7 @@ content = await storage.get("config.json")
 ### Memory Storage
 
 ```python
-from pepperpy_core.storage import MemoryStorage
+from pepperpy.storage import MemoryStorage
 
 storage = MemoryStorage()
 
@@ -59,7 +59,7 @@ print(f"Content: {content}")
 ### Memory Cache
 
 ```python
-from pepperpy_core.storage import CachedStorage
+from pepperpy.storage import CachedStorage
 
 # Create cached storage
 storage = CachedStorage(
@@ -80,7 +80,7 @@ print(f"User: {user['name']}")
 ### Compressed Storage
 
 ```python
-from pepperpy_core.storage import CompressedStorage
+from pepperpy.storage import CompressedStorage
 
 # Create compressed storage
 storage = CompressedStorage(
@@ -101,7 +101,7 @@ content = await storage.get("data.txt")
 ### Encrypted Storage
 
 ```python
-from pepperpy_core.storage import EncryptedStorage
+from pepperpy.storage import EncryptedStorage
 
 # Create encrypted storage
 storage = EncryptedStorage(
@@ -151,7 +151,7 @@ data = await storage.get("sensitive.dat")
 ### Retry Pattern
 
 ```python
-from pepperpy_core.storage import RetryStorage
+from pepperpy.storage import RetryStorage
 
 storage = RetryStorage(
     backend=FileStorage("/data"),
@@ -170,7 +170,7 @@ except StorageError as e:
 ### Storage with Metrics
 
 ```python
-from pepperpy_core.storage import MetricsStorage
+from pepperpy.storage import MetricsStorage
 
 storage = MetricsStorage(
     backend=FileStorage("/data")
@@ -189,7 +189,7 @@ print(metrics.average_latency)
 ### Composite Storage
 
 ```python
-from pepperpy_core.storage import CompositeStorage
+from pepperpy.storage import CompositeStorage
 
 storage = CompositeStorage([
     MemoryStorage(),  # Fast cache
@@ -288,7 +288,7 @@ storage:
 ## Testing
 
 ```python
-from pepperpy_core.testing import MockStorage
+from pepperpy.testing import MockStorage
 
 # Create mock storage
 storage = MockStorage()

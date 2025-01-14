@@ -9,7 +9,7 @@ The PepperPy Core Testing module provides utilities and base classes for testing
 Base class for asynchronous tests:
 
 ```python
-from pepperpy_core.testing import AsyncTestCase
+from pepperpy.testing import AsyncTestCase
 
 class TestExample(AsyncTestCase):
     async def setUp(self):
@@ -29,7 +29,7 @@ class TestExample(AsyncTestCase):
 ### MockClient
 
 ```python
-from pepperpy_core.testing import MockClient
+from pepperpy.testing import MockClient
 
 class TestAPI(AsyncTestCase):
     def setUp(self):
@@ -50,7 +50,7 @@ class TestAPI(AsyncTestCase):
 ### MockServer
 
 ```python
-from pepperpy_core.testing import MockServer
+from pepperpy.testing import MockServer
 
 class TestServer(AsyncTestCase):
     async def setUp(self):
@@ -72,7 +72,7 @@ class TestServer(AsyncTestCase):
 ### MockDatabase
 
 ```python
-from pepperpy_core.testing import MockDatabase
+from pepperpy.testing import MockDatabase
 
 class TestDatabase(AsyncTestCase):
     async def setUp(self):
@@ -97,7 +97,7 @@ class TestDatabase(AsyncTestCase):
 ### Custom Assertions
 
 ```python
-from pepperpy_core.testing import TestCase
+from pepperpy.testing import TestCase
 
 class CustomTestCase(TestCase):
     def assertEventEmitted(self, event_name):
@@ -131,7 +131,7 @@ class CustomTestCase(TestCase):
 ### Test Fixtures
 
 ```python
-from pepperpy_core.testing import fixture
+from pepperpy.testing import fixture
 
 @fixture
 async def database():
@@ -185,7 +185,7 @@ async def client(database):
 ### Integration Tests
 
 ```python
-from pepperpy_core.testing import IntegrationTest
+from pepperpy.testing import IntegrationTest
 
 class TestUserFlow(IntegrationTest):
     async def setUp(self):
@@ -210,7 +210,7 @@ class TestUserFlow(IntegrationTest):
 ### Performance Tests
 
 ```python
-from pepperpy_core.testing import PerformanceTest
+from pepperpy.testing import PerformanceTest
 
 class TestAPIPerformance(PerformanceTest):
     async def setUp(self):
@@ -234,7 +234,7 @@ class TestAPIPerformance(PerformanceTest):
 ### Security Tests
 
 ```python
-from pepperpy_core.testing import SecurityTest
+from pepperpy.testing import SecurityTest
 
 class TestAPISecurity(SecurityTest):
     async def setUp(self):

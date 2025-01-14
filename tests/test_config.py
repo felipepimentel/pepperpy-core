@@ -2,8 +2,8 @@
 
 import pytest
 
-from pepperpy_core.config import Config, ConfigItem, ConfigSection
-from pepperpy_core.exceptions import ConfigError
+from pepperpy.config import Config, ConfigItem, ConfigSection
+from pepperpy.exceptions import ConfigError
 
 
 def test_config_item_init() -> None:

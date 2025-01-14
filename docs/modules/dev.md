@@ -9,7 +9,7 @@ The PepperPy Core Dev module provides utilities for development, including tools
 Enumeration for log levels:
 
 ```python
-from pepperpy_core.dev import LogLevel
+from pepperpy.dev import LogLevel
 
 # Available levels
 class LogLevel(Enum):
@@ -25,7 +25,7 @@ class LogLevel(Enum):
 Context manager for time measurement:
 
 ```python
-from pepperpy_core.dev import Timer
+from pepperpy.dev import Timer
 
 async with Timer() as timer:
     # Operation to be measured
@@ -39,7 +39,7 @@ print(f"Duration: {timer.duration}ms")
 Base class for asynchronous tests:
 
 ```python
-from pepperpy_core.dev import AsyncTestCase
+from pepperpy.dev import AsyncTestCase
 
 class TestExample(AsyncTestCase):
     async def setUp(self):
@@ -56,7 +56,7 @@ class TestExample(AsyncTestCase):
 ### Decorators
 
 ```python
-from pepperpy_core.dev import debug, async_debug
+from pepperpy.dev import debug, async_debug
 
 # Decorator for sync function
 @debug
@@ -72,7 +72,7 @@ async def process_async(data: dict) -> dict:
 ### Protocol
 
 ```python
-from pepperpy_core.dev import Protocol
+from pepperpy.dev import Protocol
 
 class DataProcessor(Protocol):
     async def process(self, data: dict) -> dict:
@@ -87,7 +87,7 @@ class DataProcessor(Protocol):
 ### Profiler
 
 ```python
-from pepperpy_core.dev import Profiler
+from pepperpy.dev import Profiler
 
 async with Profiler() as profiler:
     # Timer will record start and end
@@ -99,7 +99,7 @@ async with Profiler() as profiler:
 ### Memory Profiler
 
 ```python
-from pepperpy_core.dev import MemoryProfiler
+from pepperpy.dev import MemoryProfiler
 
 profiler = MemoryProfiler()
 
@@ -117,7 +117,7 @@ print(f"Peak memory: {usage.peak_mb}MB")
 ### Debug Utilities
 
 ```python
-from pepperpy_core.dev import DebugContext
+from pepperpy.dev import DebugContext
 
 async with DebugContext() as ctx:
     # Configure context
@@ -169,7 +169,7 @@ async with DebugContext() as ctx:
 ### Timer with Metrics
 
 ```python
-from pepperpy_core.dev import Timer, Metrics
+from pepperpy.dev import Timer, Metrics
 
 class TimedOperation:
     def __init__(self):
@@ -200,7 +200,7 @@ class TimedOperation:
 ### Debug Protocol
 
 ```python
-from pepperpy_core.dev import DebugProtocol
+from pepperpy.dev import DebugProtocol
 
 class Debuggable(DebugProtocol):
     def __init__(self):

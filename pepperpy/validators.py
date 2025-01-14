@@ -4,7 +4,7 @@ import re
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Generic, List, TypeVar, cast
 
-from pepperpy_core.exceptions import ValidationError
+from pepperpy.exceptions import ValidationError
 
 T = TypeVar("T")
 

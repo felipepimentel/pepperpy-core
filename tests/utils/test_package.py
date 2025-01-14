@@ -3,12 +3,12 @@
 import importlib.metadata
 from unittest.mock import patch
 
-from pepperpy_core.package import get_package_name, get_package_version
+from pepperpy.package import get_package_name, get_package_version
 
 
 def test_get_package_name() -> None:
     """Test get_package_name utility."""
-    assert get_package_name() == "pepperpy_core"
+    assert get_package_name() == "pepperpy"
 
 
 def test_get_package_version_found() -> None:
@@ -21,6 +21,6 @@ def test_get_package_version_not_found() -> None:
     """Test get_package_version when package is not found."""
     with patch(
         "importlib.metadata.version",
-        side_effect=importlib.metadata.PackageNotFoundError("pepperpy_core"),
+        side_effect=importlib.metadata.PackageNotFoundError("pepperpy"),
     ):
         assert get_package_version() == "0.0.0"

@@ -9,7 +9,7 @@ def get_package_name() -> str:
     Returns:
         Package name
     """
-    return "pepperpy_core"
+    return "pepperpy"
 
 
 def get_package_version() -> str:
@@ -19,6 +19,6 @@ def get_package_version() -> str:
         Package version
     """
     try:
-        return importlib.metadata.version("pepperpy_core")
+        return importlib.metadata.version("pepperpy")
     except importlib.metadata.PackageNotFoundError:
         return "0.0.0"

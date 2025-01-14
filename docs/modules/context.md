@@ -9,7 +9,7 @@ The PepperPy Core Context module provides a flexible implementation for state an
 Base class for context management:
 
 ```python
-from pepperpy_core.context import Context
+from pepperpy.context import Context
 
 # Create context
 context = Context()
@@ -26,7 +26,7 @@ user = await context.get("user")
 State management with validation:
 
 ```python
-from pepperpy_core.context import State
+from pepperpy.context import State
 from dataclasses import dataclass
 
 @dataclass
@@ -49,7 +49,7 @@ await state.set(UserState(
 Session management:
 
 ```python
-from pepperpy_core.context import Session
+from pepperpy.context import Session
 
 # Create session
 session = Session()
@@ -67,7 +67,7 @@ await session.update({
 ### Basic Context
 
 ```python
-from pepperpy_core.context import Context
+from pepperpy.context import Context
 
 # Create context
 context = Context()
@@ -88,7 +88,7 @@ print(f"User: {state.value.username}")
 ### Validated Context
 
 ```python
-from pepperpy_core.context import ValidatedContext
+from pepperpy.context import ValidatedContext
 from pydantic import BaseModel
 
 class Config(BaseModel):
@@ -141,7 +141,7 @@ class AppContext(ValidatedContext):
 ### Context with Cache
 
 ```python
-from pepperpy_core.context import CachedContext
+from pepperpy.context import CachedContext
 
 class AppContext(CachedContext):
     def __init__(self):
@@ -164,7 +164,7 @@ class AppContext(CachedContext):
 ### Context with History
 
 ```python
-from pepperpy_core.context import HistoryContext
+from pepperpy.context import HistoryContext
 
 class AppContext(HistoryContext):
     def __init__(self):

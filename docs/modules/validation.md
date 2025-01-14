@@ -7,7 +7,7 @@ The PepperPy Core Validation module provides a flexible and extensible system fo
 ### Validator
 
 ```python
-from pepperpy_core.validation import Validator
+from pepperpy.validation import Validator
 
 # Create validator
 validator = Validator()
@@ -26,7 +26,7 @@ errors = validator.validate({
 ### ValidationRule
 
 ```python
-from pepperpy_core.validation import ValidationRule
+from pepperpy.validation import ValidationRule
 
 # Create rule
 rule = ValidationRule(
@@ -39,7 +39,7 @@ rule = ValidationRule(
 ### ValidationSchema
 
 ```python
-from pepperpy_core.validation import Schema
+from pepperpy.validation import Schema
 
 # Create schema
 schema = Schema({
@@ -66,7 +66,7 @@ schema = Schema({
 ### Basic Validation
 
 ```python
-from pepperpy_core.validation import Validator
+from pepperpy.validation import Validator
 
 # Create validator
 validator = Validator()
@@ -92,7 +92,7 @@ if errors:
 ### Custom Rules
 
 ```python
-from pepperpy_core.validation import Rule
+from pepperpy.validation import Rule
 
 class EmailRule(Rule):
     def __init__(self):
@@ -111,7 +111,7 @@ class EmailRule(Rule):
 ### Async Validation
 
 ```python
-from pepperpy_core.validation import AsyncValidator
+from pepperpy.validation import AsyncValidator
 
 class DatabaseValidator(AsyncValidator):
     def __init__(self, db):
@@ -128,7 +128,7 @@ class DatabaseValidator(AsyncValidator):
 ### Validation Chain
 
 ```python
-from pepperpy_core.validation import ValidationChain
+from pepperpy.validation import ValidationChain
 
 class UserValidation(ValidationChain):
     def __init__(self):
@@ -151,7 +151,7 @@ class UserValidation(ValidationChain):
 ### Validation with Transform
 
 ```python
-from pepperpy_core.validation import TransformValidator
+from pepperpy.validation import TransformValidator
 
 class EmailValidator(TransformValidator):
     def transform(self, value: str) -> str:
@@ -202,7 +202,7 @@ class EmailValidator(TransformValidator):
 ### Rule Factory
 
 ```python
-from pepperpy_core.validation import RuleFactory
+from pepperpy.validation import RuleFactory
 
 class Factory(RuleFactory):
     def __init__(self):
@@ -221,7 +221,7 @@ class Factory(RuleFactory):
 ### Rule Composition
 
 ```python
-from pepperpy_core.validation import CompositeRule
+from pepperpy.validation import CompositeRule
 
 class UserRule(CompositeRule):
     def __init__(self):
@@ -241,7 +241,7 @@ class UserRule(CompositeRule):
 ### Rule with Cache
 
 ```python
-from pepperpy_core.validation import CachedRule
+from pepperpy.validation import CachedRule
 
 class CachedValidator(CachedRule):
     def __init__(self):

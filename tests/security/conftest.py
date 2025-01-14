@@ -5,7 +5,7 @@ from typing import Any
 
 import pytest
 
-from pepperpy_core.security import SecurityConfig
+from pepperpy.security import SecurityConfig
 
 
 @dataclass

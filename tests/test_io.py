@@ -5,7 +5,7 @@ from typing import Any
 
 import pytest
 
-from pepperpy_core.io import FileReader, FileWriter
+from pepperpy.io import FileReader, FileWriter
 
 
 @pytest.fixture

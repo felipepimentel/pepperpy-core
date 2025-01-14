@@ -9,7 +9,7 @@ The resources module provides a robust system for managing application resources
 ### ResourceManager
 
 ```python
-from pepperpy_core.resources import (
+from pepperpy.resources import (
     ResourceManager,
     ResourceConfig
 )
@@ -30,7 +30,7 @@ await manager.initialize()
 ### Resource Loading
 
 ```python
-from pepperpy_core.resources import (
+from pepperpy.resources import (
     ResourceLoader,
     LoaderConfig
 )
@@ -52,7 +52,7 @@ config = await loader.load(
 ### Resource Validation
 
 ```python
-from pepperpy_core.resources import (
+from pepperpy.resources import (
     ResourceValidator,
     ValidationConfig
 )
@@ -77,7 +77,7 @@ valid = await validator.validate(
 ### 1. Configuration Management
 
 ```python
-from pepperpy_core.resources import (
+from pepperpy.resources import (
     ConfigManager,
     ConfigFormat
 )
@@ -140,7 +140,7 @@ class ApplicationConfig:
 ### 2. Template Management
 
 ```python
-from pepperpy_core.resources import (
+from pepperpy.resources import (
     TemplateManager,
     TemplateConfig
 )
@@ -215,7 +215,7 @@ class ApplicationTemplates:
 ### 3. Asset Management
 
 ```python
-from pepperpy_core.resources import (
+from pepperpy.resources import (
     AssetManager,
     AssetConfig
 )
@@ -284,7 +284,7 @@ class ApplicationAssets:
 ### 1. Resource Configuration
 
 ```python
-from pepperpy_core.resources import (
+from pepperpy.resources import (
     ResourceConfig,
     CacheConfig
 )
@@ -328,7 +328,7 @@ class ResourceSetup:
 ### 2. Loading Configuration
 
 ```python
-from pepperpy_core.resources import (
+from pepperpy.resources import (
     LoaderConfig,
     LoaderHooks
 )
@@ -365,7 +365,7 @@ class LoaderSetup:
 ### 3. Validation Configuration
 
 ```python
-from pepperpy_core.resources import (
+from pepperpy.resources import (
     ValidationConfig,
     SchemaConfig
 )
@@ -409,7 +409,7 @@ class ValidationSetup:
 ### 1. Configuration System
 
 ```python
-from pepperpy_core.resources import (
+from pepperpy.resources import (
     ConfigSystem,
     ConfigFormat,
     ConfigValidator
@@ -516,7 +516,7 @@ class ApplicationConfig:
 ### 2. Template System
 
 ```python
-from pepperpy_core.resources import (
+from pepperpy.resources import (
     TemplateSystem,
     TemplateLoader,
     TemplateCache

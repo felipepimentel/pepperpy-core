@@ -5,7 +5,7 @@ from typing import Any, TypeVar
 
 import pytest
 
-from pepperpy_core.serialization import JsonSerializer
+from pepperpy.serialization import JsonSerializer
 
 
 @dataclass

@@ -5,7 +5,7 @@ The PepperPy Core event system provides a robust and flexible implementation for
 ## Basic Usage
 
 ```python
-from pepperpy_core.event import EventManager
+from pepperpy.event import EventManager
 
 # Create event manager
 manager = EventManager()
@@ -32,7 +32,7 @@ await manager.emit("user.created", {
 ## Event Bus
 
 ```python
-from pepperpy_core.event import EventBus
+from pepperpy.event import EventBus
 
 # Create bus with topics
 bus = EventBus([
@@ -58,7 +58,7 @@ await bus.publish("users.login", {
 ### Event Sourcing
 
 ```python
-from pepperpy_core.event import EventStore
+from pepperpy.event import EventStore
 
 # Create store
 store = EventStore()
@@ -78,7 +78,7 @@ for event in events:
 ### Event Processing
 
 ```python
-from pepperpy_core.event import EventProcessor
+from pepperpy.event import EventProcessor
 
 # Create processor
 processor = EventProcessor()
@@ -99,7 +99,7 @@ async def process_user_events(event):
 ### Event Metrics
 
 ```python
-from pepperpy_core.event import MetricsCollector
+from pepperpy.event import MetricsCollector
 
 # Create collector
 collector = MetricsCollector()
@@ -146,7 +146,7 @@ print(f"Events/sec: {metrics.throughput}")
 ### 1. Notification System
 
 ```python
-from pepperpy_core.event import NotificationSystem
+from pepperpy.event import NotificationSystem
 
 # Create system
 notifications = NotificationSystem()
@@ -170,7 +170,7 @@ async def send_welcome(event):
 ### 2. Event Replay
 
 ```python
-from pepperpy_core.event import EventReplay
+from pepperpy.event import EventReplay
 
 # Create replay system
 replay = EventReplay(store)
@@ -191,7 +191,7 @@ await replay.replay_stream(
 ### 3. Event Validation
 
 ```python
-from pepperpy_core.event import EventValidator
+from pepperpy.event import EventValidator
 
 # Create validator
 validator = EventValidator()

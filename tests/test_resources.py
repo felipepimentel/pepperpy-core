@@ -6,7 +6,7 @@ from typing import Generator
 
 import pytest
 
-from pepperpy_core.resources import ResourceManager
+from pepperpy.resources import ResourceManager
 
 
 @pytest.fixture

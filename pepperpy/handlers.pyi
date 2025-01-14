@@ -2,7 +2,7 @@
 
 from typing import Protocol
 
-from pepperpy_core.event import Event
+from pepperpy.event import Event
 
 class EventHandler(Protocol):
     """Event handler protocol."""

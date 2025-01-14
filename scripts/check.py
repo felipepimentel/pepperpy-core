@@ -44,7 +44,7 @@ def main() -> int:
             "Running linting with ruff...",
         ),
         (
-            ["poetry", "run", "mypy", "pepperpy_core", "tests"],
+            ["poetry", "run", "mypy", "pepperpy", "tests"],
             "Running type checking with mypy...",
         ),
         (
@@ -52,7 +52,7 @@ def main() -> int:
                 "poetry",
                 "run",
                 "pytest",
-                "--cov=pepperpy_core",
+                "--cov=pepperpy",
                 "--cov-report=term-missing",
             ],
             "Running tests with pytest...",

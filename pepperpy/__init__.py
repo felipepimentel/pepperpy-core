@@ -1,17 +1,17 @@
 """PepperPy Core package."""
 
-from pepperpy_core.error import (
+from pepperpy.error import (
     format_error_context,
     format_exception,
     get_error_type,
 )
-from pepperpy_core.logging import (
+from pepperpy.logging import (
     LoggerMixin,
     get_logger,
     get_module_logger,
     get_package_logger,
 )
-from pepperpy_core.package import get_package_name, get_package_version
+from pepperpy.package import get_package_name, get_package_version
 
 __all__ = [
     # Error utilities

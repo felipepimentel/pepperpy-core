@@ -3,7 +3,7 @@
 import traceback
 from typing import Optional, Type
 
-from pepperpy_core import exceptions
+from pepperpy import exceptions
 
 
 def format_exception(error: Exception) -> str:

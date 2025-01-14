@@ -34,7 +34,7 @@ def get_package_logger() -> logging.Logger:
     Returns:
         Logger instance
     """
-    return get_logger("pepperpy_core")
+    return get_logger("pepperpy")
 
 
 class LoggerMixin:

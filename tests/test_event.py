@@ -6,8 +6,8 @@ from typing import Any, AsyncGenerator, List, Tuple
 
 import pytest
 
-from pepperpy_core.event import Event, EventBus, EventListener
-from pepperpy_core.exceptions import EventError
+from pepperpy.event import Event, EventBus, EventListener
+from pepperpy.exceptions import EventError
 
 
 @dataclass
