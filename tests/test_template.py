@@ -112,3 +112,63 @@ def test_template_render_error() -> None:
         template.render(context)
     assert "Missing required variables: name" in str(exc_info.value)
     assert exc_info.value.template_name == "test"
+
+
+def test_template_render_multiple_missing_vars() -> None:
+    """Test template rendering with multiple missing variables."""
+    template = Template(name="test", content="{{greeting}} {{name}}!")
+    context = TemplateContext(variables={})
+
+    with pytest.raises(TemplateError) as exc_info:
+        template.render(context)
+    assert "Missing required variables: greeting, name" in str(exc_info.value)
+    assert exc_info.value.template_name == "test"
+
+
+def test_template_render_empty_content() -> None:
+    """Test template rendering with empty content."""
+    template = Template(name="test", content="")
+    context = TemplateContext(variables={"name": "world"})
+    result = template.render(context)
+    assert result == ""
+
+
+def test_template_render_empty_values() -> None:
+    """Test template rendering with empty variable values."""
+    template = Template(name="test", content="Hello {{name}}!")
+    context = TemplateContext(variables={"name": ""})
+    result = template.render(context)
+    assert result == "Hello !"
+
+    context = TemplateContext(variables={"name": None})
+    result = template.render(context)
+    assert result == "Hello None!"
+
+
+def test_template_render_special_chars() -> None:
+    """Test template rendering with special characters."""
+    template = Template(
+        name="test",
+        content="Path: {{path}}, URL: {{url}}, HTML: {{html}}",
+    )
+    context = TemplateContext(
+        variables={
+            "path": "/home/user/file.txt",
+            "url": "https://example.com?q=test&p=1",
+            "html": "<script>alert('test')</script>",
+        }
+    )
+    result = template.render(context)
+    assert (
+        result == "Path: /home/user/file.txt, "
+        "URL: https://example.com?q=test&p=1, "
+        "HTML: <script>alert('test')</script>"
+    )
+
+
+def test_template_render_extra_vars() -> None:
+    """Test template rendering with extra variables in context."""
+    template = Template(name="test", content="Hello {{name}}!")
+    context = TemplateContext(variables={"name": "world", "extra": "unused"})
+    result = template.render(context)
+    assert result == "Hello world!"
