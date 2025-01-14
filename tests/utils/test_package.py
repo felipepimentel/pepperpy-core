@@ -3,7 +3,7 @@
 import importlib.metadata
 from unittest.mock import patch
 
-from pepperpy_core.utils.package import get_package_name, get_package_version
+from pepperpy_core.package import get_package_name, get_package_version
 
 
 def test_get_package_name() -> None:

@@ -1,105 +1,75 @@
 """Test logging module."""
 
+import logging
+from unittest.mock import MagicMock, patch
+
 import pytest
 
-from pepperpy_core.logging import (
-    BaseHandler,
-    HandlerConfig,
-    Logger,
-    LogLevel,
-    LogRecord,
-)
+from pepperpy_core.logging import LoggerMixin, get_logger
 
 
-@pytest.fixture
-def test_handler() -> "TestHandler":
-    """Create a test handler."""
-    return TestHandler(HandlerConfig(level=LogLevel.DEBUG))
+def test_get_logger() -> None:
+    """Test get_logger utility."""
+    logger = get_logger("test")
+    assert isinstance(logger, logging.Logger)
+    assert logger.name == "test"
 
 
-class TestHandler(BaseHandler):
-    """Test handler implementation."""
+class TestLoggerMixin:
+    """Test LoggerMixin class."""
 
-    def __init__(self, config: HandlerConfig) -> None:
-        """Initialize handler."""
-        super().__init__(config)
-        self.messages: list[str] = []
+    @pytest.fixture
+    def logger_mock(self) -> MagicMock:
+        """Create a mock logger."""
+        return MagicMock(spec=logging.Logger)
 
-    def handle(self, message: str) -> None:
-        """Handle message."""
-        self.messages.append(message)
+    @pytest.fixture
+    def mixin(self, logger_mock: MagicMock) -> LoggerMixin:
+        """Create a LoggerMixin instance with mocked logger."""
+        with patch("pepperpy_core.logging.get_logger", return_value=logger_mock):
+            mixin = LoggerMixin()
+            return mixin
 
-    def emit(self, record: "LogRecord") -> None:
-        """Emit log record."""
-        self.handle(record.message)
+    def test_logger_property(self, mixin: LoggerMixin, logger_mock: MagicMock) -> None:
+        """Test logger property."""
+        assert mixin.logger == logger_mock
 
+    def test_log(self, mixin: LoggerMixin, logger_mock: MagicMock) -> None:
+        """Test log method."""
+        mixin.log(logging.INFO, "test message", extra={"key": "value"})
+        logger_mock.log.assert_called_once_with(
+            logging.INFO, "test message", extra={"key": "value"}
+        )
 
-def test_logger_debug(test_handler: TestHandler) -> None:
-    """Test logger debug."""
-    logger = Logger("test_debug")
-    logger.add_handler(test_handler)
-    logger.debug("test")
-    assert test_handler.messages == ["test"]
+    def test_debug(self, mixin: LoggerMixin, logger_mock: MagicMock) -> None:
+        """Test debug method."""
+        mixin.debug("test message", extra={"key": "value"})
+        logger_mock.debug.assert_called_once_with(
+            "test message", extra={"key": "value"}
+        )
 
+    def test_info(self, mixin: LoggerMixin, logger_mock: MagicMock) -> None:
+        """Test info method."""
+        mixin.info("test message", extra={"key": "value"})
+        logger_mock.info.assert_called_once_with("test message", extra={"key": "value"})
 
-def test_logger_info(test_handler: TestHandler) -> None:
-    """Test logger info."""
-    logger = Logger("test_info")
-    logger.add_handler(test_handler)
-    logger.info("test")
-    assert test_handler.messages == ["test"]
+    def test_warning(self, mixin: LoggerMixin, logger_mock: MagicMock) -> None:
+        """Test warning method."""
+        mixin.warning("test message", extra={"key": "value"})
+        logger_mock.warning.assert_called_once_with(
+            "test message", extra={"key": "value"}
+        )
 
+    def test_error(self, mixin: LoggerMixin, logger_mock: MagicMock) -> None:
+        """Test error method."""
+        mixin.error("test message", extra={"key": "value"})
+        logger_mock.error.assert_called_once_with(
+            "test message", extra={"key": "value"}
+        )
 
-def test_logger_warning(test_handler: TestHandler) -> None:
-    """Test logger warning."""
-    logger = Logger("test_warning")
-    logger.add_handler(test_handler)
-    logger.warning("test")
-    assert test_handler.messages == ["test"]
-
-
-def test_logger_error(test_handler: TestHandler) -> None:
-    """Test logger error."""
-    logger = Logger("test_error")
-    logger.add_handler(test_handler)
-    logger.error("test")
-    assert test_handler.messages == ["test"]
-
-
-def test_logger_critical(test_handler: TestHandler) -> None:
-    """Test logger critical."""
-    logger = Logger("test_critical")
-    logger.add_handler(test_handler)
-    logger.critical("test")
-    assert test_handler.messages == ["test"]
-
-
-def test_logger_multiple_handlers(test_handler: TestHandler) -> None:
-    """Test logger multiple handlers."""
-    logger = Logger("test_multiple")
-    handler1 = test_handler
-    handler2 = TestHandler(HandlerConfig(level=LogLevel.DEBUG))
-    logger.add_handler(handler1)
-    logger.add_handler(handler2)
-    logger.debug("test")
-    assert handler1.messages == ["test"]
-    assert handler2.messages == ["test"]
-
-
-def test_logger_remove_handler(test_handler: TestHandler) -> None:
-    """Test logger remove handler."""
-    logger = Logger("test_remove")
-    logger.add_handler(test_handler)
-    logger.remove_handler(test_handler)
-    logger.debug("test")
-    assert test_handler.messages == []
-
-
-def test_logger_clear_handlers(test_handler: TestHandler) -> None:
-    """Test logger clear handlers."""
-    logger = Logger("test_clear")
-    logger.add_handler(test_handler)
-    for handler in logger._handlers:
-        logger.remove_handler(handler)
-    logger.debug("test")
-    assert test_handler.messages == []
+    def test_critical(self, mixin: LoggerMixin, logger_mock: MagicMock) -> None:
+        """Test critical method."""
+        mixin.critical("test message", extra={"key": "value"})
+        logger_mock.critical.assert_called_once_with(
+            "test message", extra={"key": "value"}
+        )

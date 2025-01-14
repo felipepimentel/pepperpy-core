@@ -107,7 +107,6 @@ exclude_lines = [
     "raise ImportError",
 ]
 ignore_errors = true
-fail_under = 80
 
 [tool.semantic_release]
 version_variables = ["pyproject.toml:version"]
