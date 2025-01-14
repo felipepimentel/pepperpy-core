@@ -1,6 +1,24 @@
 # CHANGELOG
 
 
+## v0.3.0 (2025-01-14)
+
+### Chores
+
+- Bump version to 0.2.1 in pyproject.toml
+  ([`55b1fbe`](https://github.com/felipepimentel/pepperpy-core/commit/55b1fbea55aafba175d5c66a695178b9e2bda061))
+
+### Documentation
+
+- Update package name references in documentation
+  ([`c4404f9`](https://github.com/felipepimentel/pepperpy-core/commit/c4404f91ffec77c443d93dc0a5865b1ac428ef15))
+
+### Features
+
+- **package**: Rename package from pepperpy_core to pepperpy
+  ([`ea92ec6`](https://github.com/felipepimentel/pepperpy-core/commit/ea92ec6efd5691cbb0e614dd7a56d3d3e6a0005e))
+
+
 ## v0.2.0 (2025-01-14)
 
 ### Build System
@@ -181,7 +199,7 @@ This commit enhances both the code quality and the documentation, making it easi
 
 - Added `aiofiles` and its typing stubs `types-aiofiles` to `pyproject.toml`. - Updated `mypy` to
   version 1.14.1 in `poetry.lock`. - Enhanced `pytest.ini` to filter specific warnings during tests.
-  - Refactored `pepperpy` modules for improved clarity and performance, including: - Simplified
+  - Refactored `pepperpy_core` modules for improved clarity and performance, including: - Simplified
   exception handling and logging configurations. - Updated event handling and task management logic.
   - Removed deprecated validation functionality. - Improved test coverage and organization across
   various modules. - Removed unused scripts for linting and formatting.
