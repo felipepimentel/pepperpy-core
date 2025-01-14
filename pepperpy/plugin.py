@@ -3,7 +3,7 @@
 import importlib.util
 import inspect
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Optional, TypeVar
 
@@ -36,10 +36,8 @@ class PluginError(PepperpyError):
 class PluginConfig(ModuleConfig):
     """Plugin manager configuration."""
 
-    name: str
     plugin_dir: str | Path = "plugins"
     enabled: bool = True
-    metadata: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         """Validate configuration after initialization.
@@ -249,40 +247,36 @@ class PluginManager(BaseModule[PluginConfig]):
 
         return {
             "name": self.config.name,
-            "enabled": self.config.enabled,
             "plugin_dir": str(self.config.plugin_dir),
+            "enabled": self.config.enabled,
             "total_plugins": len(self._plugins),
             "plugin_names": list(self._plugins.keys()),
         }
 
     def load_plugin(self, path: str | Path) -> None:
-        """Load plugin from file.
+        """Load plugin from path.
 
         Args:
-            path: Plugin file path
+            path: Plugin path
 
         Raises:
-            PluginError: If loading fails
+            PluginError: If plugin loading fails
         """
-        self._ensure_initialized()
-
         try:
-            # Load module
             spec = importlib.util.spec_from_file_location("plugin", path)
             if not spec or not spec.loader:
-                raise PluginError(f"Failed to load plugin spec from {path}")
+                raise PluginError(f"Failed to load plugin from {path}")
 
             module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(module)
 
-            # Find plugin classes
-            for _name, obj in inspect.getmembers(module):
-                if inspect.isclass(obj) and is_plugin(obj):
+            for _, obj in inspect.getmembers(module):
+                if is_plugin(obj):
                     plugin_name = obj.__plugin_name__
                     self._plugins[plugin_name] = obj()
 
         except Exception as e:
-            raise PluginError(f"Failed to load plugin from {path}: {e}") from e
+            raise PluginError(f"Failed to load plugin from {path}") from e
 
     def get_plugin(self, name: str) -> Any:
         """Get plugin by name.
@@ -294,11 +288,10 @@ class PluginManager(BaseModule[PluginConfig]):
             Plugin instance
 
         Raises:
-            KeyError: If plugin not found
+            PluginError: If plugin not found
         """
-        self._ensure_initialized()
         if name not in self._plugins:
-            raise KeyError(f"Plugin {name} not found")
+            raise PluginError(f"Plugin {name} not found")
         return self._plugins[name]
 
     def get_plugins(self) -> list[Any]:
@@ -307,5 +300,4 @@ class PluginManager(BaseModule[PluginConfig]):
         Returns:
             List of plugin instances
         """
-        self._ensure_initialized()
         return list(self._plugins.values())
