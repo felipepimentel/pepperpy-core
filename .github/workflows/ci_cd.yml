@@ -32,42 +32,10 @@ jobs:
   docs:
     needs: pipeline
     if: github.event_name == 'push' || github.event_name == 'release'
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-          
-      - name: Install Poetry
-        uses: snok/install-poetry@v1
-        with:
-          version: latest
-          virtualenvs-create: true
-          virtualenvs-in-project: true
-          
-      - name: Install dependencies
-        run: poetry install --with dev,docs
-          
-      - name: Build documentation
-        run: |
-          cd docs
-          poetry run make html
-          
-      - name: Setup Pages
-        uses: actions/configure-pages@v4
-          
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: docs/build/html
-          
-      - name: Deploy to GitHub Pages
-        id: deployment
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: actions/deploy-pages@v4
+    uses: felipepimentel/daggerverse/.github/workflows/reusable-docs.yml@main
+    with:
+      generator: sphinx
+      source_dir: docs
+      environment: github-pages
+    secrets:
+      token: ${{ secrets.GITHUB_TOKEN }}
