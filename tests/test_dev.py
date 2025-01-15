@@ -64,6 +64,44 @@ def test_log_level() -> None:
     assert LogLevel.CRITICAL.value == "critical"
 
 
+def test_logger_protocol_methods(test_logger: TestLogger) -> None:
+    """Test logger protocol methods."""
+    # Test debug
+    test_logger.debug("debug message", key="value")
+    assert len(test_logger.messages) == 1
+    assert test_logger.messages[0][0] == LogLevel.DEBUG
+    assert test_logger.messages[0][1] == "debug message"
+    assert test_logger.messages[0][2] == {"key": "value"}
+
+    # Test info
+    test_logger.info("info message", key="value")
+    assert len(test_logger.messages) == 2
+    assert test_logger.messages[1][0] == LogLevel.INFO
+    assert test_logger.messages[1][1] == "info message"
+    assert test_logger.messages[1][2] == {"key": "value"}
+
+    # Test warning
+    test_logger.warning("warning message", key="value")
+    assert len(test_logger.messages) == 3
+    assert test_logger.messages[2][0] == LogLevel.WARNING
+    assert test_logger.messages[2][1] == "warning message"
+    assert test_logger.messages[2][2] == {"key": "value"}
+
+    # Test error
+    test_logger.error("error message", key="value")
+    assert len(test_logger.messages) == 4
+    assert test_logger.messages[3][0] == LogLevel.ERROR
+    assert test_logger.messages[3][1] == "error message"
+    assert test_logger.messages[3][2] == {"key": "value"}
+
+    # Test critical
+    test_logger.critical("critical message", key="value")
+    assert len(test_logger.messages) == 5
+    assert test_logger.messages[4][0] == LogLevel.CRITICAL
+    assert test_logger.messages[4][1] == "critical message"
+    assert test_logger.messages[4][2] == {"key": "value"}
+
+
 def test_timer(test_logger: TestLogger) -> None:
     """Test timer context manager."""
     with Timer("test", test_logger):
@@ -82,6 +120,19 @@ def test_timer_without_logger() -> None:
     """Test timer context manager without logger."""
     with Timer("test"):
         pass
+
+
+def test_timer_with_exception(test_logger: TestLogger) -> None:
+    """Test timer context manager with exception."""
+    with pytest.raises(ValueError):
+        with Timer("test", test_logger):
+            raise ValueError("test error")
+
+    assert len(test_logger.messages) == 2
+    assert test_logger.messages[0][0] == LogLevel.INFO
+    assert test_logger.messages[0][1] == "Timer test started"
+    assert test_logger.messages[1][0] == LogLevel.INFO
+    assert "Timer test stopped after" in test_logger.messages[1][1]
 
 
 def test_debug_call(test_logger: TestLogger) -> None:
@@ -224,5 +275,24 @@ def test_async_test_case() -> None:
     try:
         result = test_case.run_async(test_case.test_coro())
         assert result == "test"
+    finally:
+        test_case.tearDown()
+
+
+def test_async_test_case_with_error() -> None:
+    """Test async test case with error."""
+
+    class TestCase(AsyncTestCase):
+        """Test case implementation."""
+
+        async def test_coro(self) -> None:
+            """Test coroutine."""
+            raise ValueError("test error")
+
+    test_case = TestCase()
+    test_case.setUp()
+    try:
+        with pytest.raises(ValueError):
+            test_case.run_async(test_case.test_coro())
     finally:
         test_case.tearDown()
