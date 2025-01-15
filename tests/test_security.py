@@ -32,6 +32,103 @@ class TestValidator(SecurityValidator):
         return SecurityResult(valid=True, context=context)
 
 
+def test_security_context_validation() -> None:
+    """Test security context validation."""
+    # Test valid context
+    context = SecurityContext(path="/test", metadata={"key": "value"})
+    assert context.path == "/test"
+    assert context.metadata == {"key": "value"}
+    assert context.parent is None
+    assert context._children == []
+
+    # Test invalid path type
+    with pytest.raises(SecurityError) as exc_info:
+        SecurityContext(path=42)  # type: ignore
+    assert "path must be a string" in str(exc_info.value)
+    assert "int" in str(exc_info.value)
+
+    # Test invalid metadata type
+    with pytest.raises(SecurityError) as exc_info:
+        SecurityContext(path="/test", metadata=[])  # type: ignore
+    assert "metadata must be a dictionary" in str(exc_info.value)
+    assert "list" in str(exc_info.value)
+
+
+def test_security_level_str() -> None:
+    """Test security level string representation."""
+    assert str(SecurityLevel.LOW) == "low"
+    assert str(SecurityLevel.MEDIUM) == "medium"
+    assert str(SecurityLevel.HIGH) == "high"
+    assert str(SecurityLevel.CRITICAL) == "critical"
+
+
+@pytest.mark.asyncio
+async def test_security_validator_disabled() -> None:
+    """Test disabled security validator."""
+    validator = TestValidator(enabled=False)
+    result = await validator.validate("test")
+    assert result.valid is True
+    assert result.level == SecurityLevel.LOW
+    assert result.message == "Validator is disabled"
+
+
+@pytest.mark.asyncio
+async def test_security_manager_disabled() -> None:
+    """Test disabled security manager."""
+    manager = SecurityManager()
+    await manager.initialize()
+    manager.config.enabled = False
+
+    validator = TestValidator()
+    await manager.add_validator(validator)
+
+    result = await manager.validate("")
+    assert result.valid is True
+    assert result.level == SecurityLevel.LOW
+    assert result.message == "Security is disabled"
+
+
+@pytest.mark.asyncio
+async def test_security_manager_authenticate_missing_username() -> None:
+    """Test authenticate with missing username."""
+    manager = SecurityManager()
+    await manager.initialize()
+    auth_info = AuthInfo(username="", password=["test"])
+
+    with pytest.raises(SecurityError) as exc_info:
+        await manager.authenticate(auth_info)
+    assert "Username is required" in str(exc_info.value)
+
+
+@pytest.mark.asyncio
+async def test_security_manager_authenticate_missing_password() -> None:
+    """Test authenticate with missing password."""
+    manager = SecurityManager()
+    await manager.initialize()
+    auth_info = AuthInfo(username="test", password=[])
+
+    with pytest.raises(SecurityError) as exc_info:
+        await manager.authenticate(auth_info)
+    assert "Password is required" in str(exc_info.value)
+
+
+@pytest.mark.asyncio
+async def test_security_manager_authenticate_invalid_password() -> None:
+    """Test authenticate with invalid password."""
+    manager = SecurityManager()
+    await manager.initialize()
+
+    # Add valid credentials
+    valid_auth = AuthInfo(username="test", password=["correct"])
+    manager.config.auth_info["test"] = valid_auth
+
+    # Try with invalid password
+    invalid_auth = AuthInfo(username="test", password=["wrong"])
+    with pytest.raises(SecurityError) as exc_info:
+        await manager.authenticate(invalid_auth)
+    assert "Invalid password" in str(exc_info.value)
+
+
 @pytest.mark.asyncio
 async def test_security_manager_init() -> None:
     """Test security manager initialization."""
