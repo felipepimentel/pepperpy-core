@@ -6,7 +6,7 @@ authors = ["Felipe Pimentel <fpimentel88@gmail.com>"]
 readme = "README.md"
 packages = [{ include = "pepperpy" }]
 repository = "https://github.com/felipepimentel/pepperpy-core"
-documentation = "https://pepperpy.readthedocs.io/"
+documentation = "https://felipepimentel.github.io/pepperpy-core/"
 classifiers = [
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3.12",
