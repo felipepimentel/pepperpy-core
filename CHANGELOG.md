@@ -1,6 +1,27 @@
 # CHANGELOG
 
 
+## v0.4.2 (2025-01-15)
+
+### Bug Fixes
+
+- Update template test to handle variable order in error message
+  ([`fb20df6`](https://github.com/felipepimentel/pepperpy-core/commit/fb20df684670e05c85afe9ee3fb2d5794440ad64))
+
+### Chores
+
+- Remove to_validate directory
+  ([`e69c1aa`](https://github.com/felipepimentel/pepperpy-core/commit/e69c1aa0e7c7797d8f06603d104c36244c8246b0))
+
+### Refactoring
+
+- Update core modules and tests
+  ([`90ebbfe`](https://github.com/felipepimentel/pepperpy-core/commit/90ebbfe0265de42e0275b681cf0f7a45bc1d75f8))
+
+- Update core modules and tests
+  ([`48b4746`](https://github.com/felipepimentel/pepperpy-core/commit/48b4746d32013522f5bb8441876d4760af8c55ed))
+
+
 ## v0.4.1 (2025-01-14)
 
 ### Bug Fixes
