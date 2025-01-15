@@ -1,6 +1,42 @@
 # CHANGELOG
 
 
+## v0.5.0 (2025-01-15)
+
+### Features
+
+- Add middleware support to event bus
+  ([`3cdbea1`](https://github.com/felipepimentel/pepperpy-core/commit/3cdbea123a2e18663fb40fbcf5dae61a3ad07d12))
+
+### Refactoring
+
+- Improve io module error handling
+  ([`721b4aa`](https://github.com/felipepimentel/pepperpy-core/commit/721b4aad50d975093c80716b82277157d647ebc0))
+
+### Testing
+
+- Improve dev module test coverage
+  ([`3100bff`](https://github.com/felipepimentel/pepperpy-core/commit/3100bff7231e3b8c91d8e92aca64ac20d31c4f2e))
+
+- Improve dev module test coverage
+  ([`de6eb80`](https://github.com/felipepimentel/pepperpy-core/commit/de6eb80aa84a3a40314011aecb59e94568c59883))
+
+- Improve plugin module test coverage
+  ([`c8392d9`](https://github.com/felipepimentel/pepperpy-core/commit/c8392d99c89ffe8a03091b332c75a1ab4ae3b8d5))
+
+- Improve registry module test coverage
+  ([`f561997`](https://github.com/felipepimentel/pepperpy-core/commit/f5619977f7b555518d4b709cbca877b72aec4219))
+
+- Improve resources module test coverage
+  ([`a5d2075`](https://github.com/felipepimentel/pepperpy-core/commit/a5d2075a3a9d78cf0c8e4791fb8bb8c78d7e00c2))
+
+- Improve serialization module test coverage
+  ([`b66d206`](https://github.com/felipepimentel/pepperpy-core/commit/b66d2066f2c4dfa7f686fc181863d2d4e205653f))
+
+- Improve task module test coverage
+  ([`3c2d818`](https://github.com/felipepimentel/pepperpy-core/commit/3c2d818f043a8c731d1bda33b82dbf995d709315))
+
+
 ## v0.4.2 (2025-01-15)
 
 ### Bug Fixes
