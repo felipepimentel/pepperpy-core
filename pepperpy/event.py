@@ -8,6 +8,8 @@ between different parts of the application. It provides:
 - Support for both function-based and class-based event handlers
 - Event statistics tracking
 - Configurable maximum listeners per event
+- Middleware support for event lifecycle hooks
+- Comprehensive error handling
 
 The event system is designed to be:
 - Asynchronous by default
@@ -169,6 +171,8 @@ class EventBus:
     - Managing event subscriptions with priority levels
     - Enforcing listener limits to prevent memory leaks
     - Tracking event statistics for monitoring
+    - Supporting middleware for event lifecycle hooks
+    - Comprehensive error handling
 
     The bus must be initialized before use and cleaned up when no longer needed.
     All operations are thread-safe and support async/await patterns.
@@ -185,6 +189,17 @@ class EventBus:
             print(f"User {user_id} logged in")
 
         bus.add_listener("user_login", handle_login)
+
+        # Add middleware
+        class LoggingMiddleware(EventMiddleware):
+            def before(self, event: Event) -> None:
+                print(f"Before event: {event.name}")
+            def after(self, event: Event) -> None:
+                print(f"After event: {event.name}")
+            def error(self, event: Event, error: Exception) -> None:
+                print(f"Error in event {event.name}: {error}")
+
+        bus.add_middleware(LoggingMiddleware())
 
         # Emit an event
         event = Event("user_login", {"user_id": "123"})
@@ -206,6 +221,7 @@ class EventBus:
         self._max_listeners = max_listeners
         self._stats: Dict[str, int] = {}
         self._initialized = False
+        self._middleware: List[EventMiddleware] = []
 
     async def initialize(self) -> None:
         """Initialize the event bus for use.
@@ -223,7 +239,7 @@ class EventBus:
         """Clean up resources used by the event bus.
 
         This method should be called when the event bus is no longer needed.
-        It removes all listeners and clears statistics.
+        It removes all listeners, middleware, and clears statistics.
 
         Raises:
             EventError: If cleanup fails
@@ -245,6 +261,7 @@ class EventBus:
         """
         self._listeners.clear()
         self._stats.clear()
+        self._middleware.clear()
 
     def add_listener(
         self,
@@ -326,18 +343,45 @@ class EventBus:
 
         return self._listeners.get(event_name, [])
 
+    def add_middleware(self, middleware: EventMiddleware) -> None:
+        """Add middleware to the event bus.
+
+        Args:
+            middleware: The middleware instance to add
+
+        Raises:
+            EventError: If event bus is not initialized
+        """
+        if not self._initialized:
+            raise EventError("Event bus not initialized")
+        self._middleware.append(middleware)
+
+    def remove_middleware(self, middleware: EventMiddleware) -> None:
+        """Remove middleware from the event bus.
+
+        Args:
+            middleware: The middleware instance to remove
+
+        Raises:
+            EventError: If event bus is not initialized
+        """
+        if not self._initialized:
+            raise EventError("Event bus not initialized")
+        if middleware in self._middleware:
+            self._middleware.remove(middleware)
+
     async def emit(self, event: Event) -> None:
         """Emit an event to all registered listeners.
 
         This method notifies all registered handlers of the event, executing them
         in priority order. Both synchronous and asynchronous handlers are supported.
+        Middleware hooks are called before and after event handling, and on errors.
 
         Args:
             event: The event to emit
 
         Raises:
-            EventError: If event bus is not initialized
-            Exception: Any exception raised by event handlers
+            EventError: If event bus is not initialized or if event handling fails
         """
         if not self._initialized:
             raise EventError("Event bus not initialized")
@@ -346,14 +390,50 @@ class EventBus:
             self._stats[event.name] = 0
         self._stats[event.name] += 1
 
-        for listener in self.get_listeners(event.name):
-            handler = listener.handler
-            if isinstance(handler, EventHandler):
-                await handler.handle(event)
-            else:
-                result = handler(event)
-                if inspect.isawaitable(result):
-                    await result
+        # Call before middleware hooks
+        for middleware in self._middleware:
+            try:
+                middleware.before(event)
+            except Exception as e:
+                raise EventError(
+                    "Middleware before hook failed", cause=e, event_type=event.name
+                ) from e
+
+        try:
+            # Handle the event
+            for listener in self.get_listeners(event.name):
+                try:
+                    handler = listener.handler
+                    if isinstance(handler, EventHandler):
+                        await handler.handle(event)
+                    else:
+                        result = handler(event)
+                        if inspect.isawaitable(result):
+                            await result
+                except Exception as e:
+                    # Call error middleware hooks
+                    for middleware in self._middleware:
+                        try:
+                            middleware.error(event, e)
+                        except Exception:
+                            pass  # Don't let middleware errors propagate
+                    raise EventError(
+                        "Event handler failed", cause=e, event_type=event.name
+                    ) from e
+
+            # Call after middleware hooks
+            for middleware in self._middleware:
+                try:
+                    middleware.after(event)
+                except Exception as e:
+                    raise EventError(
+                        "Middleware after hook failed", cause=e, event_type=event.name
+                    ) from e
+
+        except Exception as e:
+            if not isinstance(e, EventError):
+                e = EventError("Event handling failed", cause=e, event_type=event.name)
+            raise e
 
     def get_stats(self) -> Dict[str, int]:
         """Get event emission statistics.
