@@ -1,35 +1,16 @@
-"""IO module."""
+"""IO module for reading and writing files."""
 
 import json
 from pathlib import Path
-from typing import Optional, Protocol, runtime_checkable
+from typing import Protocol
 
 import aiofiles
 
-from .core import PepperpyError
+
+class IOError(Exception):
+    """IO error."""
 
 
-class IOError(PepperpyError):
-    """IO-related errors."""
-
-    def __init__(
-        self,
-        message: str,
-        cause: Optional[Exception] = None,
-        file_path: Optional[str] = None,
-    ) -> None:
-        """Initialize IO error.
-
-        Args:
-            message: Error message
-            cause: Optional cause of the error
-            file_path: Optional path of the file that caused the error
-        """
-        super().__init__(message, cause)
-        self.file_path = file_path
-
-
-@runtime_checkable
 class FileReader(Protocol):
     """File reader protocol."""
 
@@ -37,15 +18,17 @@ class FileReader(Protocol):
         """Read file.
 
         Args:
-            path: File path
+            path: Path to file.
 
         Returns:
-            File contents
+            File content.
+
+        Raises:
+            IOError: If file cannot be read.
         """
         ...
 
 
-@runtime_checkable
 class FileWriter(Protocol):
     """File writer protocol."""
 
@@ -53,74 +36,106 @@ class FileWriter(Protocol):
         """Write file.
 
         Args:
-            path: File path
-            content: File contents
+            path: Path to file.
+            content: File content.
+
+        Raises:
+            IOError: If file cannot be written.
         """
         ...
 
 
-class TextFileReader(FileReader):
-    """Text file reader implementation."""
+class TextFileReader:
+    """Text file reader."""
 
     async def read(self, path: Path) -> str:
         """Read text file.
 
         Args:
-            path: File path
+            path: Path to file.
 
         Returns:
-            File contents
+            File content.
+
+        Raises:
+            IOError: If file cannot be read.
         """
-        async with aiofiles.open(path, mode="r") as f:
-            return await f.read()
+        try:
+            async with aiofiles.open(path, mode="r") as f:
+                return await f.read()
+        except (FileNotFoundError, PermissionError) as e:
+            raise IOError(f"Failed to read file {path}: {e}") from e
 
 
-class TextFileWriter(FileWriter):
-    """Text file writer implementation."""
+class TextFileWriter:
+    """Text file writer."""
 
     async def write(self, path: Path, content: str) -> None:
         """Write text file.
 
         Args:
-            path: File path
-            content: File contents
+            path: Path to file.
+            content: File content.
+
+        Raises:
+            IOError: If file cannot be written.
         """
-        async with aiofiles.open(path, mode="w") as f:
-            await f.write(content)
+        try:
+            async with aiofiles.open(path, mode="w") as f:
+                await f.write(content)
+        except (FileNotFoundError, PermissionError) as e:
+            raise IOError(f"Failed to write file {path}: {e}") from e
 
 
-class JsonFileReader(FileReader):
-    """JSON file reader implementation."""
+class JsonFileReader:
+    """JSON file reader."""
 
     async def read(self, path: Path) -> str:
         """Read JSON file.
 
         Args:
-            path: File path
+            path: Path to file.
 
         Returns:
-            File contents as JSON string
+            File content.
+
+        Raises:
+            IOError: If file cannot be read or is not valid JSON.
         """
-        async with aiofiles.open(path, mode="r") as f:
-            content = await f.read()
-            return json.dumps(json.loads(content))
+        try:
+            async with aiofiles.open(path, mode="r") as f:
+                content = await f.read()
+                return json.dumps(json.loads(content))
+        except (FileNotFoundError, PermissionError) as e:
+            raise IOError(f"Failed to read file {path}: {e}") from e
+        except json.JSONDecodeError as e:
+            raise IOError(f"Failed to parse JSON file {path}: {e}") from e
 
 
-class JsonFileWriter(FileWriter):
-    """JSON file writer implementation."""
+class JsonFileWriter:
+    """JSON file writer."""
 
     async def write(self, path: Path, content: str) -> None:
         """Write JSON file.
 
         Args:
-            path: File path
-            content: File contents as JSON string
+            path: Path to file.
+            content: File content.
+
+        Raises:
+            IOError: If file cannot be written or content is not valid JSON.
         """
-        async with aiofiles.open(path, mode="w") as f:
-            await f.write(json.dumps(json.loads(content), indent=2))
+        try:
+            async with aiofiles.open(path, mode="w") as f:
+                await f.write(json.dumps(json.loads(content), indent=2))
+        except (FileNotFoundError, PermissionError) as e:
+            raise IOError(f"Failed to write file {path}: {e}") from e
+        except json.JSONDecodeError as e:
+            raise IOError(f"Failed to parse JSON content: {e}") from e
 
 
 __all__ = [
+    "IOError",
     "FileReader",
     "FileWriter",
     "TextFileReader",
