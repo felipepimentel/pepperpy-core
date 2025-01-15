@@ -1,6 +1,59 @@
 # CHANGELOG
 
 
+## v0.5.1 (2025-01-15)
+
+### Bug Fixes
+
+- **docs**: Correct github pages configuration
+  ([`7421c26`](https://github.com/felipepimentel/pepperpy-core/commit/7421c26156cda29104c3f65de743c50686c04467))
+
+- Update documentation URL in pyproject.toml\n- Add GitHub Pages environment configuration to CI/CD
+  workflow
+
+### Chores
+
+- Update dependencies and lock file version
+  ([`48186f1`](https://github.com/felipepimentel/pepperpy-core/commit/48186f1da8c7b8774fd3ea5525b8710381496878))
+
+- Updated Poetry version from 2.0.1 to 1.8.2 in poetry.lock - Updated various development
+  dependencies in pyproject.toml: - pytest from ^8.0.0 to ^8.3.4 - pytest-asyncio from ^0.23.3 to
+  ^0.25.2 - pytest-cov from ^4.1.0 to ^6.0.0 - pytest-mock from ^3.12.0 to ^3.14.0 - black from
+  ^24.1.0 to ^24.10.0 - ruff from ^0.1.14 to ^0.9.1 - mypy from ^1.8.0 to ^1.14.1 - bandit from
+  ^1.7.6 to ^1.8.2 - Updated lock file version to 2.0
+
+- Update GitHub Actions to use peaceiris/actions-gh-pages@v4 for documentation deployment
+  ([`0b46a75`](https://github.com/felipepimentel/pepperpy-core/commit/0b46a75b14e54bb4eb66b31b2dbdc0ecea0c0f40))
+
+### Continuous Integration
+
+- **workflows**: Unify documentation and ci/cd workflows
+  ([`135cb18`](https://github.com/felipepimentel/pepperpy-core/commit/135cb186e3717674eb5d3eef101220ef926a32cd))
+
+- Remove separate documentation workflow\n- Add documentation and GitHub Pages deployment to CI/CD
+  workflow\n- Add necessary permissions for GitHub Pages
+
+### Documentation
+
+- **sphinx**: Configure sphinx documentation and github pages deployment
+  ([`2d9e3e8`](https://github.com/felipepimentel/pepperpy-core/commit/2d9e3e87dab10f560178dc56ac9dfd1644a7d870))
+
+- Add Sphinx documentation setup with ReadTheDocs theme\n- Configure API documentation structure\n-
+  Add installation, quickstart, and contributing guides\n- Setup GitHub Actions for documentation
+  deployment\n- Add documentation dependencies to Poetry
+
+### Testing
+
+- Add comprehensive tests for generators module
+  ([`3c7ead1`](https://github.com/felipepimentel/pepperpy-core/commit/3c7ead1b97a807268127206394c18cbbc1dd28ce))
+
+- Improve security module test coverage
+  ([`05df9f3`](https://github.com/felipepimentel/pepperpy-core/commit/05df9f3ea15c93bfc4e100b902cd5dead46ee3ad))
+
+- Update coroutine test to use modern async/await syntax
+  ([`b411e42`](https://github.com/felipepimentel/pepperpy-core/commit/b411e4243fe5249baa5c7162cd1c90d2288f320d))
+
+
 ## v0.5.0 (2025-01-15)
 
 ### Features
