@@ -1,5 +1,5 @@
 PepperPy Core Documentation
-=========================
+===========================
 
 Welcome to PepperPy Core's documentation. PepperPy Core is a modern Python framework
 for building robust, scalable, and maintainable applications.

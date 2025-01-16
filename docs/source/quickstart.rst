@@ -44,7 +44,7 @@ The event system allows components to communicate through events:
     registry.register_handler("user.created", UserCreatedHandler())
 
 Plugin System
------------
+------------
 
 Extend functionality through plugins:
 
@@ -65,7 +65,7 @@ Extend functionality through plugins:
             pass
 
 Task Management
--------------
+--------------
 
 Handle background tasks efficiently:
 
@@ -87,7 +87,7 @@ Handle background tasks efficiently:
     await registry.start_task(task)
 
 Next Steps
----------
+----------
 
 - Explore the :doc:`api/index` for detailed documentation
 - Check out the examples in the repository

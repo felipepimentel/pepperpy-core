@@ -23,7 +23,7 @@ A flexible plugin architecture allows for easy extension of application function
 Plugins can be loaded dynamically and are managed through a centralized registry.
 
 Task Management
-~~~~~~~~~~~~~
+~~~~~~~~~~~~~~
 
 Robust task management capabilities for handling background jobs, scheduled tasks,
 and long-running processes with proper lifecycle management.
@@ -38,7 +38,7 @@ Architecture
 -----------
 
 Core Components
-~~~~~~~~~~~~~
+~~~~~~~~~~~~~~
 
 - Event System: Handles event dispatching and subscription
 - Plugin System: Manages plugin lifecycle and dependencies
@@ -52,7 +52,7 @@ Core Components
 - Validation: Input validation and sanitization
 
 Design Principles
----------------
+----------------
 
 1. Type Safety: Comprehensive type hints and static checking
 2. Modularity: Loosely coupled components with clear interfaces
@@ -64,7 +64,7 @@ Design Principles
 8. Standards: Follows Python best practices and PEPs
 
 Best Practices
-------------
+-------------
 
 1. Use type hints consistently
 2. Handle errors gracefully
@@ -76,7 +76,7 @@ Best Practices
 8. Maintain clean architecture
 
 Getting Started
--------------
+--------------
 
 1. Install the package:
    ```bash
