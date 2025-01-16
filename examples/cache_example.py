@@ -1,80 +1,40 @@
 """Cache example."""
 
-from typing import Any
+from datetime import datetime, timedelta
 
-from pepperpy.cache import Cache, CacheConfig
-
-
-class ExampleCache(Cache):
-    """Example cache implementation."""
-
-    def __init__(self) -> None:
-        """Initialize cache."""
-        config = CacheConfig(name="example-cache")
-        super().__init__(config)
-        self._data: dict[str, Any] = {}
-
-    async def _setup(self) -> None:
-        """Setup cache resources."""
-        # Simple example using in-memory dictionary
-        self._data = {}
-
-    async def _teardown(self) -> None:
-        """Teardown cache resources."""
-        self._data.clear()
-
-    async def get(self, key: str) -> Any:
-        """Get value from cache."""
-        return self._data.get(key)
-
-    async def set(self, key: str, value: Any) -> None:
-        """Set value in cache."""
-        self._data[key] = value
-
-    async def delete(self, key: str) -> None:
-        """Delete value from cache."""
-        self._data.pop(key, None)
-
-    async def clear(self) -> None:
-        """Clear all values from cache."""
-        self._data.clear()
+from pepperpy.cache import CacheConfig, JsonDict, MemoryCache
 
 
-async def main() -> None:
-    """Run example."""
-    # Create cache instance
-    cache = ExampleCache()
+def main() -> None:
+    """Run cache example."""
+    # Create cache with configuration
+    config = CacheConfig(ttl=60, max_size=100)
+    cache = MemoryCache(config)
 
-    # Initialize cache
-    await cache.initialize()
+    # Set value with expiration and metadata
+    expires_at = datetime.now() + timedelta(minutes=5)
+    metadata: JsonDict = {"source": "example"}
+    entry = cache.set("key1", "value1", expires_at=expires_at, metadata=metadata)
+    print(f"Set value: {entry}")
 
-    try:
-        # Set some values
-        await cache.set("key1", "value1")
-        await cache.set("key2", {"nested": "value2"})
+    # Get value
+    maybe_entry = cache.get("key1")
+    if maybe_entry:
+        print(f"Got value: {maybe_entry}")
+    else:
+        print("Value not found")
 
-        # Get values
-        value1 = await cache.get("key1")
-        value2 = await cache.get("key2")
+    # Delete value
+    maybe_entry = cache.delete("key1")
+    if maybe_entry:
+        print(f"Deleted value: {maybe_entry}")
+    else:
+        print("Value not found")
 
-        print(f"Value1: {value1}")
-        print(f"Value2: {value2}")
-
-        # Delete a value
-        await cache.delete("key1")
-        value1 = await cache.get("key1")
-        print(f"Value1 after delete: {value1}")
-
-        # Clear cache
-        await cache.clear()
-        value2 = await cache.get("key2")
-        print(f"Value2 after clear: {value2}")
-
-    finally:
-        await cache.cleanup()
+    # Clear cache
+    cache.clear()
+    print("Cache cleared")
 
 
 if __name__ == "__main__":
-    import asyncio
-
-    asyncio.run(main())
+    main()

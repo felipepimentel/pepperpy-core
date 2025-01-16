@@ -1,245 +1,122 @@
-"""Configuration module.
-
-This module provides a flexible configuration system for PepperPy applications.
-It includes:
-- Base configuration class for all config objects
-- Configuration items for storing values
-- Configuration sections for organizing items
-- Full configuration management with validation
-"""
+"""Configuration module."""
 
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Dict, Optional
 
-from .core import PepperpyError
+from pepperpy.core import PepperpyError
+from pepperpy.module import BaseModule, ModuleConfig
 
 
 class ConfigError(PepperpyError):
-    """Configuration-related errors."""
+    """Configuration error."""
 
     def __init__(
         self,
         message: str,
-        cause: Exception | None = None,
-        config_name: str | None = None,
+        details: Optional[Dict[str, Any]] = None,
+        cause: Optional[Exception] = None,
     ) -> None:
-        """Initialize configuration error.
-
-        Args:
-            message: Error message
-            cause: Original exception that caused this error
-            config_name: Name of the configuration that caused the error
-        """
-        super().__init__(message, cause)
-        self.config_name = config_name
-
-
-class BaseConfig:
-    """Base configuration class for PepperPy modules and components.
-
-    This class provides the foundation for all configuration objects in the system.
-    It enforces a consistent configuration pattern where each config must have a name
-    and can optionally include metadata. The metadata can be used to store additional
-    configuration parameters specific to each module.
-
-    Example:
-        ```python
-        config = BaseConfig("database", metadata={
-            "host": "localhost",
-            "port": 5432
-        })
-        ```
-
-    Raises:
-        ValueError: If name is empty or metadata is not a dictionary
-    """
-
-    def __init__(self, name: str, **kwargs: Any) -> None:
-        """Initialize base configuration.
-
-        Args:
-            name: Configuration name
-            kwargs: Additional arguments
-
-        Raises:
-            ValueError: If name is empty
-        """
-        if not name:
-            raise ValueError("name cannot be empty")
-
-        self.name = name
-        self.metadata = kwargs.get("metadata", {})
-
-        if not isinstance(self.metadata, dict):
-            raise ValueError("metadata must be a dictionary")
+        super().__init__(message, details, cause)
 
 
 @dataclass
-class ConfigItem:
-    """Configuration item."""
+class ConfigManagerConfig(ModuleConfig):
+    """Configuration manager configuration."""
 
-    name: str
-    value: Any
-    metadata: dict[str, Any] = field(default_factory=dict)
-
-    def __post_init__(self) -> None:
-        """Post initialization validation."""
-        self.validate()
-
-    def validate(self) -> None:
-        """Validate configuration item."""
-        if not self.name:
-            raise ValueError("name cannot be empty")
+    name: str = "config_manager"
+    metadata: Dict[str, Any] = field(default_factory=dict)
 
 
-@dataclass
-class ConfigSection(BaseConfig):
-    """Configuration section."""
+class ConfigManager(BaseModule[ConfigManagerConfig]):
+    """Configuration manager."""
 
-    name: str
-    items: dict[str, ConfigItem] = field(default_factory=dict)
-    metadata: dict[str, Any] = field(default_factory=dict)
-
-    def __post_init__(self) -> None:
-        """Post initialization validation."""
-        self.validate()
-
-    def validate(self) -> None:
-        """Validate configuration section."""
-        if not self.name:
-            raise ValueError("name cannot be empty")
-        for item in self.items.values():
-            item.validate()
-
-
-@dataclass
-class Config(BaseConfig):
-    """Configuration."""
-
-    name: str
-    sections: dict[str, ConfigSection] = field(default_factory=dict)
-    metadata: dict[str, Any] = field(default_factory=dict)
-
-    def __post_init__(self) -> None:
-        """Post initialization validation."""
-        self.validate()
-
-    def validate(self) -> None:
-        """Validate configuration."""
-        if not self.name:
-            raise ValueError("name cannot be empty")
-        for section in self.sections.values():
-            section.validate()
-
-    def get_section(self, name: str) -> ConfigSection:
-        """Get configuration section.
+    def __init__(self, config: Optional[ConfigManagerConfig] = None) -> None:
+        """Initialize configuration manager.
 
         Args:
-            name: Section name
+            config: Configuration manager configuration
+        """
+        super().__init__(config or ConfigManagerConfig())
+        self._config_store: Dict[str, Any] = {}
 
-        Returns:
-            Configuration section
+    def _ensure_initialized(self) -> None:
+        """Ensure manager is initialized.
 
         Raises:
-            ConfigError: If section not found
+            ConfigError: If manager is not initialized
         """
-        if name not in self.sections:
-            raise ConfigError(f"Section {name} not found")
-        return self.sections[name]
+        if not self.is_initialized:
+            raise ConfigError(
+                "Configuration manager is not initialized",
+                {"manager_name": self.config.name},
+            )
 
-    def get_item(self, section_name: str, item_name: str) -> ConfigItem:
-        """Get configuration item.
+    async def _setup(self) -> None:
+        """Set up configuration manager."""
+        self._config_store = {}
 
-        Args:
-            section_name: Section name
-            item_name: Item name
+    async def _teardown(self) -> None:
+        """Clean up configuration manager."""
+        self._config_store = {}
 
-        Returns:
-            Configuration item
-
-        Raises:
-            ConfigError: If section or item not found
-        """
-        section = self.get_section(section_name)
-        if item_name not in section.items:
-            raise ConfigError(f"Item {item_name} not found in section {section_name}")
-        return section.items[item_name]
-
-    def get_value(self, section_name: str, item_name: str) -> Any:
+    def get(self, key: str) -> Any:
         """Get configuration value.
 
         Args:
-            section_name: Section name
-            item_name: Item name
+            key: Configuration key
 
         Returns:
             Configuration value
 
         Raises:
-            ConfigError: If section or item not found
+            ConfigError: If value is not found
         """
-        return self.get_item(section_name, item_name).value
+        self._ensure_initialized()
+        if key not in self._config_store:
+            raise ConfigError(
+                "Configuration value not found",
+                {"key": key, "manager_name": self.config.name},
+            )
+        return self._config_store[key]
 
-    def set_value(self, section_name: str, item_name: str, value: Any) -> None:
+    def set(self, key: str, value: Any) -> None:
         """Set configuration value.
 
         Args:
-            section_name: Section name
-            item_name: Item name
+            key: Configuration key
             value: Configuration value
 
         Raises:
-            ConfigError: If section not found
+            ConfigError: If value cannot be set
         """
-        section = self.get_section(section_name)
-        section.items[item_name] = ConfigItem(name=item_name, value=value)
+        self._ensure_initialized()
+        self._config_store[key] = value
 
-    def add_section(self, name: str, metadata: dict[str, Any] | None = None) -> None:
-        """Add configuration section.
+    def delete(self, key: str) -> None:
+        """Delete configuration value.
 
         Args:
-            name: Section name
-            metadata: Section metadata
-        """
-        self.sections[name] = ConfigSection(
-            name=name,
-            metadata=metadata or {},
-        )
-
-    def remove_section(self, name: str) -> None:
-        """Remove configuration section.
-
-        Args:
-            name: Section name
+            key: Configuration key
 
         Raises:
-            ConfigError: If section not found
+            ConfigError: If value cannot be deleted
         """
-        if name not in self.sections:
-            raise ConfigError(f"Section {name} not found")
-        del self.sections[name]
+        self._ensure_initialized()
+        if key not in self._config_store:
+            raise ConfigError(
+                "Configuration value not found",
+                {"key": key, "manager_name": self.config.name},
+            )
+        del self._config_store[key]
 
     def clear(self) -> None:
-        """Clear configuration."""
-        self.sections.clear()
-        self.metadata.clear()
+        """Clear configuration store.
 
-    def get_stats(self) -> dict[str, Any]:
-        """Get configuration statistics.
-
-        Returns:
-            Configuration statistics
+        Raises:
+            ConfigError: If store cannot be cleared
         """
-        total_items = sum(len(section.items) for section in self.sections.values())
-        return {
-            "name": self.name,
-            "sections": len(self.sections),
-            "items": total_items,
-        }
+        self._ensure_initialized()
+        self._config_store = {}
 
 
-__all__ = [
-    "ConfigItem",
-    "ConfigSection",
-    "Config",
-]
+__all__ = ["ConfigError", "ConfigManager", "ConfigManagerConfig"]

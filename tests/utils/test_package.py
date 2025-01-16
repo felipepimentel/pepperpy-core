@@ -23,3 +23,9 @@ def test_package_version() -> None:
             expected = "0.0.0-dev"
 
     assert pepperpy.__version__ == expected
+
+
+def test_version() -> None:
+    """Test package version."""
+    assert isinstance(pepperpy.__version__, str)
+    assert pepperpy.__version__ == "0.0.0-dev"

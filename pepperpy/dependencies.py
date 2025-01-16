@@ -1,221 +1,127 @@
-"""Dependency management utilities for PepperPy.
+"""Dependencies module."""
 
-This module provides utilities for managing Python package dependencies, including:
-- Checking if dependencies are installed
-- Verifying required dependencies
-- Managing provider-specific dependencies
-- Managing feature-specific dependencies
-- Generating installation commands
-"""
+from dataclasses import dataclass, field
+from typing import Any, Dict, Optional
 
-import logging
-from importlib import util
-from typing import Optional
-
-from .core import PepperpyError
-
-logger = logging.getLogger(__name__)
+from pepperpy.core import PepperpyError
+from pepperpy.module import BaseModule, ModuleConfig
 
 
 class DependencyError(PepperpyError):
-    """Error raised when there are dependency-related issues.
-
-    Args:
-        message: Error message
-        cause: Optional cause of the error
-        package: Optional name of the package that caused the error
-    """
+    """Dependency error."""
 
     def __init__(
         self,
         message: str,
+        details: Optional[Dict[str, Any]] = None,
         cause: Optional[Exception] = None,
-        package: Optional[str] = None,
     ) -> None:
-        super().__init__(message, cause)
-        self.package = package
+        super().__init__(message, details, cause)
 
 
-def check_dependency(package: str) -> bool:
-    """Check if a Python package is installed.
+@dataclass
+class DependencyConfig(ModuleConfig):
+    """Dependency configuration."""
 
-    Args:
-        package: Package name to check
-
-    Returns:
-        True if package is installed, False otherwise
-    """
-    return bool(util.find_spec(package))
+    name: str = "dependency_manager"
+    metadata: Dict[str, Any] = field(default_factory=dict)
 
 
-def get_missing_dependencies(packages: list[str]) -> list[str]:
-    """Get list of missing dependencies.
+class DependencyManager(BaseModule[DependencyConfig]):
+    """Dependency manager."""
 
-    Args:
-        packages: List of package names to check
-
-    Returns:
-        List of missing package names
-    """
-    return [pkg for pkg in packages if not check_dependency(pkg)]
-
-
-def verify_dependencies(packages: list[str]) -> None:
-    """Verify that all required dependencies are installed.
-
-    Args:
-        packages: List of package names to verify
-
-    Raises:
-        DependencyError: If any dependencies are missing
-    """
-    missing = get_missing_dependencies(packages)
-    if missing:
-        # Raise error for first missing package
-        raise DependencyError(
-            f"Missing required dependencies: {', '.join(missing)}", package=missing[0]
-        )
-
-
-def get_installation_command(missing_deps: list[str], use_poetry: bool = True) -> str:
-    """Get command to install missing dependencies.
-
-    Args:
-        missing_deps: List of missing package names
-        use_poetry: Whether to use Poetry for installation
-
-    Returns:
-        Installation command string
-    """
-    deps_str = " ".join(missing_deps)
-    return f"poetry add {deps_str}" if use_poetry else f"pip install {deps_str}"
-
-
-class DependencyManager:
-    """Manager for handling package dependencies.
-
-    This class provides functionality for managing dependencies, including:
-    - Registering provider and feature dependencies
-    - Verifying dependencies are installed
-    - Checking availability of providers and features
-    - Getting installation commands
-    """
-
-    def __init__(self) -> None:
-        self._provider_deps: dict[str, list[str]] = {}
-        self._feature_deps: dict[str, list[str]] = {}
-
-    def register_provider(self, provider: str, dependencies: list[str]) -> None:
-        """Register dependencies for a provider.
+    def __init__(self, config: Optional[DependencyConfig] = None) -> None:
+        """Initialize dependency manager.
 
         Args:
-            provider: Provider name
-            dependencies: List of package dependencies
+            config: Dependency configuration
         """
-        self._provider_deps[provider] = dependencies
+        super().__init__(config or DependencyConfig())
+        self._dependencies: Dict[str, Any] = {}
 
-    def register_feature(self, feature: str, dependencies: list[str]) -> None:
-        """Register dependencies for a feature.
-
-        Args:
-            feature: Feature name
-            dependencies: List of package dependencies
-        """
-        self._feature_deps[feature] = dependencies
-
-    def verify_provider(self, provider: str) -> list[str] | None:
-        """Verify dependencies for a specific provider.
-
-        Args:
-            provider: Provider name
-
-        Returns:
-            List of missing dependencies if any, None if all dependencies are met
+    def _ensure_initialized(self) -> None:
+        """Ensure manager is initialized.
 
         Raises:
-            ValueError: If provider is not supported
+            DependencyError: If manager is not initialized
         """
-        if provider not in self._provider_deps:
-            raise ValueError(f"Provider {provider} is not supported")
+        if not self.is_initialized:
+            raise DependencyError(
+                "Dependency manager is not initialized",
+                {"manager_name": self.config.name},
+            )
 
-        missing = get_missing_dependencies(self._provider_deps[provider])
-        return missing if missing else None
+    async def _setup(self) -> None:
+        """Set up dependency manager."""
+        self._dependencies = {}
 
-    def verify_feature(self, feature: str) -> list[str] | None:
-        """Verify dependencies for a specific feature.
+    async def _teardown(self) -> None:
+        """Clean up dependency manager."""
+        self._dependencies = {}
+
+    def register(self, name: str, dependency: Any) -> None:
+        """Register dependency.
 
         Args:
-            feature: Feature name
-
-        Returns:
-            List of missing dependencies if any, None if all dependencies are met
+            name: Dependency name
+            dependency: Dependency instance
 
         Raises:
-            ValueError: If feature is not supported
+            DependencyError: If dependency cannot be registered
         """
-        if feature not in self._feature_deps:
-            raise ValueError(f"Feature {feature} is not supported")
+        self._ensure_initialized()
+        if name in self._dependencies:
+            raise DependencyError(
+                "Dependency already registered",
+                {"name": name, "manager_name": self.config.name},
+            )
+        self._dependencies[name] = dependency
 
-        missing = get_missing_dependencies(self._feature_deps[feature])
-        return missing if missing else None
-
-    def check_provider_availability(self, provider: str) -> bool:
-        """Check if a provider is available for use.
+    def get(self, name: str) -> Any:
+        """Get dependency.
 
         Args:
-            provider: Provider name
+            name: Dependency name
 
         Returns:
-            True if provider is available, False otherwise
-        """
-        try:
-            missing = self.verify_provider(provider)
-            return missing is None
-        except ValueError:
-            logger.warning(f"Provider {provider} is not supported")
-            return False
+            Dependency instance
 
-    def check_feature_availability(self, feature: str) -> bool:
-        """Check if a feature is available for use.
+        Raises:
+            DependencyError: If dependency is not found
+        """
+        self._ensure_initialized()
+        if name not in self._dependencies:
+            raise DependencyError(
+                "Dependency not found",
+                {"name": name, "manager_name": self.config.name},
+            )
+        return self._dependencies[name]
+
+    def unregister(self, name: str) -> None:
+        """Unregister dependency.
 
         Args:
-            feature: Feature name
+            name: Dependency name
 
-        Returns:
-            True if feature is available, False otherwise
+        Raises:
+            DependencyError: If dependency cannot be unregistered
         """
-        try:
-            missing = self.verify_feature(feature)
-            return missing is None
-        except ValueError:
-            logger.warning(f"Feature {feature} is not supported")
-            return False
-
-    def get_available_providers(self) -> set[str]:
-        """Get set of available providers.
-
-        Returns:
-            Set of provider names that are available for use
-        """
-        return {
-            provider
-            for provider in self._provider_deps
-            if self.check_provider_availability(provider)
-        }
-
-    def get_available_features(self) -> set[str]:
-        """Get set of available features.
-
-        Returns:
-            Set of feature names that are available for use
-        """
-        return {
-            feature
-            for feature in self._feature_deps
-            if self.check_feature_availability(feature)
-        }
+        self._ensure_initialized()
+        if name not in self._dependencies:
+            raise DependencyError(
+                "Dependency not found",
+                {"name": name, "manager_name": self.config.name},
+            )
+        del self._dependencies[name]
 
     def clear(self) -> None:
-        """Clear all registered dependencies."""
-        self._provider_deps.clear()
-        self._feature_deps.clear()
+        """Clear all dependencies.
+
+        Raises:
+            DependencyError: If dependencies cannot be cleared
+        """
+        self._ensure_initialized()
+        self._dependencies = {}
+
+
+__all__ = ["DependencyConfig", "DependencyError", "DependencyManager"]

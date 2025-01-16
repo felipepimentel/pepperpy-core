@@ -1,67 +1,88 @@
-"""Module example."""
+"""Module example module."""
 
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Dict, List, Optional
 
 from pepperpy.module import BaseModule, ModuleConfig
-from pepperpy.types import JsonDict
 
 
 @dataclass
 class ProcessorConfig(ModuleConfig):
     """Processor configuration."""
 
-    batch_size: int = 100
-    max_workers: int = 4
-    timeout: float = 30.0
-    metadata: JsonDict = field(default_factory=dict)
+    name: str = "processor"
+    enabled: bool = True
+    settings: Dict[str, Any] = field(default_factory=dict)
+    dependencies: List[str] = field(default_factory=list)
 
 
-class DataProcessor(BaseModule[ProcessorConfig]):
-    """Example data processor module."""
+class Processor(BaseModule[ProcessorConfig]):
+    """Example processor module."""
 
-    def __init__(self) -> None:
-        """Initialize processor."""
-        config = ProcessorConfig(name="processor")
-        super().__init__(config)
-        self._processed: int = 0
+    def __init__(self, config: Optional[ProcessorConfig] = None) -> None:
+        """Initialize processor.
+
+        Args:
+            config: Optional processor configuration
+        """
+        super().__init__(config or ProcessorConfig())
 
     async def _setup(self) -> None:
-        """Setup processor resources."""
-        pass
+        """Set up processor."""
+        if not self.config.enabled:
+            return
+        print(f"Initializing processor: {self.config.name}")
 
-    async def _teardown(self) -> None:
-        """Teardown processor resources."""
-        self._processed = 0
-
-    async def process(self, data: Any) -> Any:
+    async def process(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Process data.
 
         Args:
-            data: Data to process
+            data: Input data
 
         Returns:
             Processed data
         """
-        if not self.is_initialized:
-            await self.initialize()
-
         if not self.config.enabled:
             return data
 
-        # Simulate processing
-        self._processed += 1
-        return f"Processed: {data}"
+        print(f"Processing data with {self.config.name}")
+        data["processed"] = True
+        data["processor"] = self.config.name
+        return data
 
-    async def get_stats(self) -> dict[str, Any]:
-        """Get processor statistics."""
-        if not self.is_initialized:
-            await self.initialize()
+    async def _teardown(self) -> None:
+        """Clean up processor."""
+        if not self.config.enabled:
+            return
+        print(f"Cleaning up processor: {self.config.name}")
 
-        return {
-            "name": self.config.name,
-            "enabled": self.config.enabled,
-            "batch_size": self.config.batch_size,
-            "max_workers": self.config.max_workers,
-            "processed": self._processed,
-        }
+
+async def main() -> None:
+    """Run example."""
+    # Create processor with custom config
+    config = ProcessorConfig(
+        name="example_processor",
+        enabled=True,
+        settings={"key": "value"},
+        dependencies=["other_processor"],
+    )
+    processor = Processor(config)
+
+    # Initialize processor
+    await processor.initialize()
+
+    try:
+        # Process some data
+        data = {"input": "value"}
+        result = await processor.process(data)
+        print(f"Processed data: {result}")
+
+    finally:
+        # Clean up
+        await processor.teardown()
+
+
+if __name__ == "__main__":
+    import asyncio
+
+    asyncio.run(main())

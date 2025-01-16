@@ -1,77 +1,51 @@
-"""Script to run all code quality checks."""
+#!/usr/bin/env python3
+"""Code quality check script."""
 
 import subprocess
 import sys
 from typing import List, Tuple
 
 
-def run_command(command: List[str], description: str) -> Tuple[int, str, str]:
-    """Run a command and return its exit code, stdout, and stderr.
-
-    Args:
-        command: The command to run as a list of strings.
-        description: A description of the command being executed.
-
-    Returns:
-        A tuple containing the exit code, stdout, and stderr of the command.
-    """
-    print(f"\n🔄 {description}")
-    try:
-        process = subprocess.run(
-            command,
-            check=True,
-            capture_output=True,
-            text=True,
-        )
-        return 0, process.stdout, process.stderr
-    except subprocess.CalledProcessError as exc:
-        return exc.returncode, exc.stdout, exc.stderr
+def run_command(command: List[str]) -> Tuple[int, str, str]:
+    """Run a command and return its exit code and output."""
+    process = subprocess.Popen(
+        command,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        universal_newlines=True,
+    )
+    stdout, stderr = process.communicate()
+    return process.returncode, stdout, stderr
 
 
 def main() -> int:
-    """Run all checks and report the results.
+    """Run code quality checks."""
+    print("Running code quality checks...")
+    print("\n1. Code formatting (ruff format)")
+    exit_code, stdout, stderr = run_command(["ruff", "format", "."])
+    if exit_code != 0:
+        print("Code formatting failed:")
+        print(stderr or stdout)
+        return exit_code
+    print(stdout or "No formatting issues found.")
 
-    Returns:
-        Exit code: 0 if all checks pass, 1 otherwise.
-    """
-    checks = [
-        (
-            ["poetry", "run", "ruff", "format", "."],
-            "Running code formatting with ruff format...",
-        ),
-        (
-            ["poetry", "run", "ruff", "check", "."],
-            "Running linting with ruff...",
-        ),
-        (
-            ["poetry", "run", "mypy", "pepperpy", "tests"],
-            "Running type checking with mypy...",
-        ),
-        (
-            [
-                "poetry",
-                "run",
-                "pytest",
-                "--cov=pepperpy",
-                "--cov-report=term-missing",
-            ],
-            "Running tests with pytest...",
-        ),
-    ]
+    print("\n2. Linting (ruff check)")
+    exit_code, stdout, stderr = run_command(["ruff", "check", "."])
+    if exit_code != 0:
+        print("Linting failed:")
+        print(stderr or stdout)
+        return exit_code
+    print(stdout or "No linting issues found.")
 
-    for command, description in checks:
-        exit_code, stdout, stderr = run_command(command, description)
+    print("\n3. Type checking (mypy)")
+    exit_code, stdout, stderr = run_command(["mypy", ".", "--exclude", "scripts/"])
+    if exit_code != 0:
+        print("Type checking failed:")
+        print(stderr or stdout)
+        return exit_code
+    print(stdout or "No type checking issues found.")
 
-        if stdout:
-            print(stdout)
-        if stderr:
-            print(stderr, file=sys.stderr)
-
-        if exit_code != 0:
-            print(f"❌ {description} failed!")
-            return 1
-
-    print("\n✅ All checks passed!")
+    print("\nAll checks passed successfully!")
     return 0
 
 

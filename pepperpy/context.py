@@ -1,8 +1,15 @@
-"""Context and state management module."""
+"""Context management for PepperPy.
 
-from contextvars import ContextVar
+This module provides a robust context management system that supports:
+- Context chaining
+- Resource scoping
+- State management
+- Type-safe interfaces
+"""
+
+import asyncio
 from dataclasses import dataclass, field
-from typing import Any, Generic, Optional, TypeVar, cast
+from typing import Any, Dict, Generic, Optional, TypeVar
 
 from .core import PepperpyError
 
@@ -10,78 +17,149 @@ from .core import PepperpyError
 class ContextError(PepperpyError):
     """Context-related errors."""
 
-    def __init__(
-        self,
-        message: str,
-        cause: Optional[Exception] = None,
-        context_key: Optional[str] = None,
-    ) -> None:
-        """Initialize context error.
+    pass
 
-        Args:
-            message: Error message
-            cause: Optional cause of the error
-            context_key: Optional key that caused the error
-        """
-        super().__init__(message, cause)
-        self.context_key = context_key
+
+@dataclass
+class State:
+    """State information with metadata."""
+
+    value: Any
+    metadata: Dict[str, Any] = field(default_factory=dict)
 
 
 T = TypeVar("T")
 
 
-@dataclass
-class State(Generic[T]):
-    """State container."""
-
-    value: T
-    metadata: dict[str, Any] = field(default_factory=dict)
-
-
 class Context(Generic[T]):
-    """Context management class."""
+    """Context class for managing context values."""
 
-    def __init__(self) -> None:
-        """Initialize context."""
-        self._data: dict[str, Any] = {}
-        self._context: ContextVar[T | None] = ContextVar("context", default=None)
-        self._state: State[T] | None = None
+    def __init__(
+        self,
+        name: str = "default",
+        *,
+        timeout: Optional[float] = None,
+        parent: Optional["Context[T]"] = None,
+        data: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        """Initialize context.
 
-    def get(self, key: str, default: T | None = None) -> T | None:
-        """Get context value."""
-        value = self._data.get(key, default)
+        Args:
+            name: Context name
+            timeout: Optional timeout in seconds
+            parent: Optional parent context
+            data: Optional initial data
+        """
+        self.name = name
+        self.timeout = timeout
+        self.parent = parent
+        self.data = data or {}
+        self._context_value: Optional[T | "Context[T]"] = None
+        self._state: Optional[State] = None
+        self._cancel_event: asyncio.Event = asyncio.Event()
+
+    def _ensure_type(self, value: Any) -> Optional[T]:
+        """Ensure value is of type T.
+
+        Args:
+            value: Value to check
+
+        Returns:
+            Value as type T or None if not compatible
+        """
         if value is None:
             return None
-        return cast(T, value)
+        if isinstance(value, Context):
+            return value.get_context()
+        return value  # type: ignore[no-any-return]
+
+    def get_context(self) -> Optional[T]:
+        """Get the current context value.
+
+        Returns:
+            Optional[T]: The current context value, or None if not set.
+        """
+        return self._ensure_type(self._context_value)
+
+    def set_context(self, value: Optional[T]) -> None:
+        """Set the current context value.
+
+        Args:
+            value: The value to set
+        """
+        self._context_value = value
+
+    def get(self, key: str, default: Optional[T] = None) -> Optional[T]:
+        """Get value from context.
+
+        Args:
+            key: Data key
+            default: Default value if key not found
+
+        Returns:
+            Value or default if not found
+        """
+        value = self.data.get(key, default)
+        return self._ensure_type(value)
 
     def set(self, key: str, value: T) -> None:
-        """Set context value."""
-        self._data[key] = value
+        """Set value in context.
 
-    def update(self, data: dict[str, T]) -> None:
-        """Update context with dictionary."""
-        for key, value in data.items():
-            self.set(key, value)
+        Args:
+            key: Data key
+            value: Data value
+        """
+        self.data[key] = value
 
-    def get_context(self) -> T | None:
-        """Get current context value."""
-        return self._context.get()
+    def update(self, data: Dict[str, Any]) -> None:
+        """Update context with dictionary.
 
-    def set_context(self, value: T | None) -> None:
-        """Set current context value."""
-        self._context.set(value)
+        Args:
+            data: Dictionary of values to update
+        """
+        self.data.update(data)
 
-    def get_state(self) -> State[T] | None:
-        """Get current state."""
+    def get_state(self) -> Optional[State]:
+        """Get current state.
+
+        Returns:
+            Current state or None
+        """
         return self._state
 
-    def set_state(self, value: T, **metadata: Any) -> None:
-        """Set current state."""
+    def set_state(self, value: Any, **metadata: Any) -> None:
+        """Set current state.
+
+        Args:
+            value: State value
+            **metadata: Additional state metadata
+        """
         self._state = State(value=value, metadata=metadata)
 
+    def chain(self, name: str) -> "Context[T]":
+        """Create a new chained context.
 
-__all__ = [
-    "ContextError",
-    "State",
-    "Context",
-]
+        Args:
+            name: Child context name
+
+        Returns:
+            New context with this as parent
+        """
+        return Context[T](name=name, parent=self)
+
+    async def cancel(self) -> None:
+        """Cancel context operations."""
+        self._cancel_event.set()
+
+    @property
+    def cancelled(self) -> bool:
+        """Check if context is cancelled.
+
+        Returns:
+            True if context is cancelled
+        """
+        return self._cancel_event.is_set()
+
+    async def wait_for_cancel(self) -> None:
+        """Wait for context cancellation."""
+        await self._cancel_event.wait()

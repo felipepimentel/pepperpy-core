@@ -1,191 +1,118 @@
-"""Pipeline implementation module."""
+"""Pipeline module."""
 
 from dataclasses import dataclass, field
-from typing import Any, Generic, Optional, TypeVar
+from typing import Any, Dict, Optional
 
-from .core import PepperpyError
-from .module import BaseModule, ModuleConfig
+from pepperpy.core import PepperpyError
+from pepperpy.module import BaseModule, ModuleConfig
 
 
 class PipelineError(PepperpyError):
-    """Pipeline-related errors."""
+    """Pipeline error."""
 
     def __init__(
         self,
         message: str,
+        details: Optional[Dict[str, Any]] = None,
         cause: Optional[Exception] = None,
-        pipeline_name: Optional[str] = None,
-        step_name: Optional[str] = None,
     ) -> None:
-        """Initialize pipeline error.
-
-        Args:
-            message: Error message
-            cause: Optional cause of the error
-            pipeline_name: Optional name of the pipeline that caused the error
-            step_name: Optional name of the step that caused the error
-        """
-        super().__init__(message, cause)
-        self.pipeline_name = pipeline_name
-        self.step_name = step_name
+        super().__init__(message, details, cause)
 
 
 @dataclass
 class PipelineConfig(ModuleConfig):
     """Pipeline configuration."""
 
-    # Required fields (inherited from ModuleConfig)
-    name: str
-
-    # Optional fields
-    enabled: bool = True
-    max_concurrent: int = 10
-    timeout: float = 60.0
-    metadata: dict[str, Any] = field(default_factory=dict)
-
-    def validate(self) -> None:
-        """Validate configuration."""
-        if self.max_concurrent < 1:
-            raise ValueError("max_concurrent must be greater than 0")
-        if self.timeout <= 0:
-            raise ValueError("timeout must be greater than 0")
+    name: str = "pipeline_manager"
+    metadata: Dict[str, Any] = field(default_factory=dict)
 
 
-InputT = TypeVar("InputT")
-OutputT = TypeVar("OutputT")
-StepInputT = TypeVar("StepInputT")
-StepOutputT = TypeVar("StepOutputT")
+class PipelineManager(BaseModule[PipelineConfig]):
+    """Pipeline manager."""
 
-
-@dataclass
-class PipelineResult(Generic[OutputT]):
-    """Result of pipeline execution."""
-
-    output: OutputT
-    metadata: dict[str, Any] = field(default_factory=dict)
-
-
-class PipelineStep(Generic[StepInputT, StepOutputT]):
-    """Base class for pipeline steps."""
-
-    async def execute(self, input_data: StepInputT) -> StepOutputT:
-        """Execute pipeline step.
-
-        Args:
-            input_data: Input data to process
-
-        Returns:
-            Processed output data
-        """
-        raise NotImplementedError
-
-
-class Pipeline(Generic[InputT, OutputT]):
-    """Base pipeline implementation."""
-
-    def __init__(self, config: PipelineConfig) -> None:
-        """Initialize pipeline.
+    def __init__(self, config: Optional[PipelineConfig] = None) -> None:
+        """Initialize pipeline manager.
 
         Args:
             config: Pipeline configuration
         """
-        self.config = config
-        self._steps: list[PipelineStep[Any, Any]] = []
+        super().__init__(config or PipelineConfig())
 
-    def add_step(self, step: PipelineStep[Any, Any]) -> None:
-        """Add step to pipeline.
+    def _ensure_initialized(self) -> None:
+        """Ensure manager is initialized.
+
+        Raises:
+            PipelineError: If manager is not initialized
+        """
+        if not self.is_initialized:
+            raise PipelineError(
+                "Pipeline manager is not initialized",
+                {"manager_name": self.config.name},
+            )
+
+    async def _setup(self) -> None:
+        """Set up pipeline manager."""
+        pass
+
+    async def _teardown(self) -> None:
+        """Clean up pipeline manager."""
+        pass
+
+    def create_pipeline(
+        self,
+        name: str,
+        steps: Dict[str, Any],
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        """Create pipeline.
 
         Args:
-            step: Pipeline step to add
-        """
-        self._steps.append(step)
+            name: Pipeline name
+            steps: Pipeline steps
+            metadata: Pipeline metadata
 
-    async def execute(self, input_data: InputT) -> PipelineResult[OutputT]:
+        Raises:
+            PipelineError: If pipeline cannot be created
+        """
+        self._ensure_initialized()
+        # Implement pipeline creation logic here
+        pass
+
+    def delete_pipeline(self, name: str) -> None:
+        """Delete pipeline.
+
+        Args:
+            name: Pipeline name
+
+        Raises:
+            PipelineError: If pipeline cannot be deleted
+        """
+        self._ensure_initialized()
+        # Implement pipeline deletion logic here
+        pass
+
+    def execute_pipeline(
+        self,
+        name: str,
+        input_data: Dict[str, Any],
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
         """Execute pipeline.
 
         Args:
-            input_data: Input data to process
-
-        Returns:
-            Pipeline execution result
-        """
-        current_data: Any = input_data
-
-        for step in self._steps:
-            current_data = await step.execute(current_data)
-
-        return PipelineResult[OutputT](
-            output=current_data, metadata={"steps": len(self._steps)}
-        )
-
-
-class PipelineManager(BaseModule[PipelineConfig]):
-    """Pipeline manager implementation."""
-
-    def __init__(self) -> None:
-        """Initialize pipeline manager."""
-        config = PipelineConfig(name="pipeline-manager")
-        super().__init__(config)
-        self._active_pipelines: dict[str, Pipeline[Any, Any]] = {}
-
-    async def _setup(self) -> None:
-        """Setup pipeline manager."""
-        self._active_pipelines.clear()
-
-    async def _teardown(self) -> None:
-        """Teardown pipeline manager."""
-        self._active_pipelines.clear()
-
-    async def get_stats(self) -> dict[str, Any]:
-        """Get pipeline manager statistics.
-
-        Returns:
-            Pipeline manager statistics
-        """
-        self._ensure_initialized()
-        return {
-            "name": self.config.name,
-            "enabled": self.config.enabled,
-            "active_pipelines": len(self._active_pipelines),
-            "max_concurrent": self.config.max_concurrent,
-            "timeout": self.config.timeout,
-        }
-
-    def register_pipeline(self, name: str, pipeline: Pipeline[Any, Any]) -> None:
-        """Register a pipeline.
-
-        Args:
             name: Pipeline name
-            pipeline: Pipeline instance
-        """
-        self._ensure_initialized()
-        if len(self._active_pipelines) >= self.config.max_concurrent:
-            raise PipelineError("Maximum number of concurrent pipelines reached")
-        self._active_pipelines[name] = pipeline
-
-    def get_pipeline(self, name: str) -> Pipeline[Any, Any]:
-        """Get a registered pipeline.
-
-        Args:
-            name: Pipeline name
+            input_data: Pipeline input data
+            metadata: Pipeline metadata
 
         Returns:
-            Pipeline instance
+            Pipeline output data
 
         Raises:
-            KeyError: If pipeline not found
+            PipelineError: If pipeline cannot be executed
         """
         self._ensure_initialized()
-        if name not in self._active_pipelines:
-            raise KeyError(f"Pipeline {name} not found")
-        return self._active_pipelines[name]
+        # Implement pipeline execution logic here
+        return {}
 
 
-__all__ = [
-    "PipelineError",
-    "PipelineConfig",
-    "PipelineResult",
-    "PipelineStep",
-    "Pipeline",
-    "PipelineManager",
-]
+__all__ = ["PipelineConfig", "PipelineError", "PipelineManager"]

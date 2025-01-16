@@ -1,90 +1,85 @@
-"""Test module implementation."""
+"""Test module system."""
+
+from dataclasses import dataclass
 
 import pytest
 
-from pepperpy.module import BaseModule, ModuleConfig, ModuleError
+from pepperpy.module import BaseModule, ModuleConfig
 
 
-class TestModuleConfig(ModuleConfig):
-    """Test module configuration."""
+@dataclass
+class TestConfig(ModuleConfig):
+    """Test configuration."""
 
-    pass
+    value: str = "test"
 
 
-class TestModule(BaseModule[TestModuleConfig]):
-    """Test module implementation."""
+class TestModule(BaseModule[TestConfig]):
+    """Test module."""
 
     async def _setup(self) -> None:
-        """Setup module."""
+        """Set up module."""
         pass
 
     async def _teardown(self) -> None:
-        """Teardown module."""
+        """Clean up module."""
         pass
 
 
+@pytest.fixture
+def test_config() -> TestConfig:
+    """Create test configuration."""
+    return TestConfig(name="test-module")
+
+
+@pytest.fixture
+def test_module(test_config: TestConfig) -> TestModule:
+    """Create test module."""
+    return TestModule(test_config)
+
+
 @pytest.mark.asyncio
-async def test_module_init() -> None:
+async def test_module_init(test_config: TestConfig) -> None:
     """Test module initialization."""
-    config = TestModuleConfig(name="test")
-    module = TestModule(config)
-    assert module.config == config
+    module = TestModule(test_config)
+    assert module.config == test_config
     assert not module.is_initialized
-
-
-@pytest.mark.asyncio
-async def test_module_init_with_metadata() -> None:
-    """Test module initialization with metadata."""
-    config = TestModuleConfig(name="test", metadata={"key": "value"})
-    module = TestModule(config)
-    assert module.config == config
-    assert module.config.metadata == {"key": "value"}
 
 
 @pytest.mark.asyncio
 async def test_module_init_with_invalid_name() -> None:
     """Test module initialization with invalid name."""
     with pytest.raises(ValueError):
-        TestModuleConfig(name="")
+        TestModule(TestConfig(name=""))
 
 
 @pytest.mark.asyncio
-async def test_module_get_stats() -> None:
-    """Test get stats."""
-    config = TestModuleConfig(name="test")
-    module = TestModule(config)
-    await module.initialize()
-    assert module.is_initialized
+async def test_module_initialize(test_module: TestModule) -> None:
+    """Test module initialization."""
+    await test_module.initialize()
+    assert test_module.is_initialized
 
 
 @pytest.mark.asyncio
-async def test_module_clear() -> None:
-    """Test clear."""
-    config = TestModuleConfig(name="test")
-    module = TestModule(config)
-    await module.initialize()
-    await module.teardown()
-    assert not module.is_initialized
+async def test_module_initialize_twice(test_module: TestModule) -> None:
+    """Test module initialization twice."""
+    await test_module.initialize()
+    await test_module.initialize()
+    assert test_module.is_initialized
 
 
 @pytest.mark.asyncio
-async def test_module_initialize() -> None:
-    """Test initialize."""
-    config = TestModuleConfig(name="test")
-    module = TestModule(config)
-    await module.initialize()
-    assert module.is_initialized
-    with pytest.raises(ModuleError):
-        await module.initialize()
+async def test_module_teardown(test_module: TestModule) -> None:
+    """Test module teardown."""
+    await test_module.initialize()
+    await test_module.teardown()
+    assert not test_module.is_initialized
 
 
 @pytest.mark.asyncio
-async def test_module_cleanup() -> None:
-    """Test cleanup."""
-    config = TestModuleConfig(name="test")
-    module = TestModule(config)
-    await module.initialize()
-    await module.teardown()
-    assert not module.is_initialized
-    # Calling teardown on uninitialized module should not raise
-    await module.teardown()
+async def test_module_teardown_twice(test_module: TestModule) -> None:
+    """Test module teardown twice."""
+    await test_module.initialize()
+    await test_module.teardown()
+    await test_module.teardown()
+    assert not test_module.is_initialized

@@ -1,133 +1,145 @@
-"""Registry module.
+"""Registry module."""
 
-A generic registry for managing protocol implementations. This module provides a
-type-safe container for registering and retrieving implementations of specific
-protocols or interfaces.
+from abc import ABC, abstractmethod
+from dataclasses import dataclass, field
+from typing import Any, Dict, Generic, Optional, TypeVar
 
-The Registry pattern implemented here is independent of the module system and can
-be used to manage any type of protocol implementation. This separation of
-concerns allows for:
+from pepperpy.module import BaseModule, ModuleConfig
 
-1. Type-safe registration and retrieval
-2. Protocol-based implementation management
-3. Flexible implementation discovery
-4. Runtime protocol validation
-
-Example:
-    ```python
-    from typing import Protocol
-
-    class DataStore(Protocol):
-        def save(self, data: bytes) -> None: ...
-        def load(self) -> bytes: ...
-
-    # Create registry for DataStore implementations
-    registry = Registry[DataStore](DataStore)
-
-    # Register implementations
-    registry.register("memory", MemoryStore())
-    registry.register("file", FileStore)  # Classes are instantiated automatically
-
-    # Get implementation
-    store = registry.get("memory")
-    store.save(b"data")
-    ```
-"""
-
-from typing import Generic, List, Optional, TypeVar
-
-from .core import PepperpyError
+T = TypeVar("T", bound="RegistryProtocol")
 
 
-class RegistryError(PepperpyError):
-    """Registry-related errors."""
+class RegistryError(Exception):
+    """Registry error."""
 
-    def __init__(
-        self,
-        message: str,
-        cause: Optional[Exception] = None,
-        implementation_name: Optional[str] = None,
-        protocol_name: Optional[str] = None,
-    ) -> None:
-        """Initialize registry error.
+    def __init__(self, message: str, details: Optional[Dict[str, Any]] = None) -> None:
+        """Initialize error.
 
         Args:
-            message: Error message
-            cause: Optional cause of the error
-            implementation_name: Optional name of the implementation that caused
-                the error
-            protocol_name: Optional name of the protocol that caused the error
+            message: Error message.
+            details: Error details.
         """
-        super().__init__(message, cause)
-        self.implementation_name = implementation_name
-        self.protocol_name = protocol_name
+        super().__init__(message)
+        self.details = details or {}
 
 
-T = TypeVar("T")
+class RegistryProtocol(ABC):
+    """Registry protocol."""
 
-
-class Registry(Generic[T]):
-    """Registry for protocol implementations."""
-
-    def __init__(self, protocol: type[T]) -> None:
-        """Initialize registry.
-
-        Args:
-            protocol: Protocol to enforce
-        """
-        self._protocol = protocol
-        self._implementations: dict[str, T] = {}
-
-    def register(self, name: str, implementation: T | type[T]) -> None:
+    @abstractmethod
+    def register(self, name: str, implementation: Any) -> None:
         """Register implementation.
 
         Args:
-            name: Implementation name
-            implementation: Implementation instance or class
+            name: Implementation name.
+            implementation: Implementation instance.
+        """
+        ...
+
+    @abstractmethod
+    def get(self, name: str) -> Any:
+        """Get implementation.
+
+        Args:
+            name: Implementation name.
+
+        Returns:
+            Implementation instance.
+        """
+        ...
+
+    @abstractmethod
+    def list(self) -> Dict[str, Any]:
+        """List implementations.
+
+        Returns:
+            Dictionary of implementation names and instances.
+        """
+        ...
+
+
+@dataclass
+class RegistryConfig(ModuleConfig):
+    """Registry configuration."""
+
+    name: str = "registry"
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+
+class Registry(BaseModule[RegistryConfig], Generic[T]):
+    """Registry implementation."""
+
+    def __init__(self, config: Optional[RegistryConfig] = None) -> None:
+        """Initialize registry.
+
+        Args:
+            config: Registry configuration.
+        """
+        super().__init__(config or RegistryConfig())
+        self._implementations: Dict[str, T] = {}
+
+    def _ensure_initialized(self) -> None:
+        """Ensure registry is initialized."""
+        if not self.is_initialized:
+            raise RegistryError(
+                "Registry is not initialized",
+                {"registry_name": self.config.name},
+            )
+
+    async def _setup(self) -> None:
+        """Set up registry."""
+        pass
+
+    async def _teardown(self) -> None:
+        """Clean up registry."""
+        self._implementations = {}
+
+    def register(self, name: str, implementation: T) -> None:
+        """Register implementation.
+
+        Args:
+            name: Implementation name.
+            implementation: Implementation instance.
 
         Raises:
-            TypeError: If implementation does not implement protocol
-            ValueError: If implementation name is already registered
+            RegistryError: If implementation already exists.
         """
+        self._ensure_initialized()
         if name in self._implementations:
-            raise ValueError(f"Implementation {name} already registered")
-
-        # If we got a class, instantiate it
-        if isinstance(implementation, type):
-            impl = implementation()
-        else:
-            impl = implementation
-
-        # Check if implementation implements protocol
-        if not isinstance(impl, self._protocol):
-            raise TypeError(f"{impl.__class__.__name__} does not implement protocol")
-
-        self._implementations[name] = impl
+            raise RegistryError(
+                "Implementation already exists",
+                {"name": name, "registry_name": self.config.name},
+            )
+        self._implementations[name] = implementation
 
     def get(self, name: str) -> T:
         """Get implementation.
 
         Args:
-            name: Implementation name
+            name: Implementation name.
 
         Returns:
-            Implementation instance
+            Implementation instance.
 
         Raises:
-            KeyError: If implementation not found
+            RegistryError: If implementation does not exist.
         """
+        self._ensure_initialized()
         if name not in self._implementations:
-            raise KeyError(f"Implementation {name} not found")
+            raise RegistryError(
+                "Implementation not found",
+                {"name": name, "registry_name": self.config.name},
+            )
         return self._implementations[name]
 
-    def list_implementations(self) -> List[str]:
-        """List registered implementations.
+    def list(self) -> Dict[str, T]:
+        """List implementations.
 
         Returns:
-            List of implementation names.
+            Dictionary of implementation names and instances.
         """
-        return list(self._implementations.keys())
+        self._ensure_initialized()
+        return self._implementations.copy()
 
-    def clear(self) -> None:
-        """Clear all registered implementations."""
-        self._implementations.clear()
+
+__all__ = ["Registry", "RegistryConfig", "RegistryError", "RegistryProtocol"]

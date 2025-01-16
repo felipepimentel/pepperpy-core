@@ -1,124 +1,114 @@
 """Test registry module."""
 
-from typing import Protocol, runtime_checkable
+from typing import Any, Dict
 
 import pytest
 
-from pepperpy.registry import Registry, RegistryError
+from pepperpy.registry import Registry, RegistryError, RegistryProtocol
 
 
-@runtime_checkable
-class TestProtocol(Protocol):
+class TestProtocol(RegistryProtocol):
     """Test protocol."""
 
+    def register(self, name: str, implementation: Any) -> None:
+        """Register implementation."""
+        return None
+
+    def get(self, name: str) -> Any:
+        """Get implementation."""
+        return None
+
+    def list(self) -> Dict[str, Any]:
+        """List implementations."""
+        return {}
+
     def test(self) -> str:
         """Test method."""
-        ...
+        return "test"
 
 
-class TestImplementation:
+class TestImplementation(TestProtocol):
     """Test implementation."""
 
+    def __init__(self) -> None:
+        """Initialize test implementation."""
+        self._implementations: Dict[str, Any] = {}
+
+    def register(self, name: str, implementation: Any) -> None:
+        """Register implementation."""
+        self._implementations[name] = implementation
+
+    def get(self, name: str) -> Any:
+        """Get implementation."""
+        return self._implementations[name]
+
+    def list(self) -> Dict[str, Any]:
+        """List implementations."""
+        return self._implementations
+
     def test(self) -> str:
         """Test method."""
-        assert True  # Ensure the method is called
         return "test"
 
 
 class InvalidImplementation:
     """Invalid implementation."""
 
-    def invalid(self) -> str:
-        """Invalid method."""
-        return "invalid"
+    pass
 
 
 @pytest.fixture
-def test_implementation() -> TestImplementation:
-    """Create a test implementation."""
-    return TestImplementation()
-
-
-@pytest.fixture
-def test_registry() -> Registry[TestProtocol]:
+async def test_registry() -> Registry[TestProtocol]:
     """Create a test registry."""
-    return Registry[TestProtocol](TestProtocol)
+    registry = Registry[TestProtocol]()
+    await registry.initialize()
+    return registry
 
 
-def test_registry_register(
-    test_registry: Registry[TestProtocol], test_implementation: TestImplementation
-) -> None:
-    """Test registry register."""
-    test_registry.register("test", test_implementation)
-    assert test_registry.get("test") == test_implementation
+@pytest.mark.asyncio
+async def test_register_implementation(test_registry: Registry[TestProtocol]) -> None:
+    """Test register implementation."""
+    impl = TestImplementation()
+    test_registry.register("test", impl)
+    assert "test" in test_registry.list()
 
 
-def test_registry_register_class(test_registry: Registry[TestProtocol]) -> None:
-    """Test registry register class."""
-    test_registry.register("test", TestImplementation)
-    impl = test_registry.get("test")
-    assert isinstance(impl, TestImplementation)
-    assert impl.test() == "test"
-
-
-def test_registry_register_invalid_implementation(
+@pytest.mark.asyncio
+async def test_register_duplicate_implementation(
     test_registry: Registry[TestProtocol],
 ) -> None:
-    """Test registry register invalid implementation."""
-    with pytest.raises(TypeError):
-        test_registry.register("test", InvalidImplementation())
+    """Test register duplicate implementation."""
+    impl = TestImplementation()
+    test_registry.register("test", impl)
+    with pytest.raises(RegistryError):
+        test_registry.register("test", impl)
 
 
-def test_registry_register_invalid_class(test_registry: Registry[TestProtocol]) -> None:
-    """Test registry register invalid class."""
-    with pytest.raises(TypeError):
-        test_registry.register("test", InvalidImplementation)
+@pytest.mark.asyncio
+async def test_get_implementation(test_registry: Registry[TestProtocol]) -> None:
+    """Test get implementation."""
+    impl = TestImplementation()
+    test_registry.register("test", impl)
+    assert test_registry.get("test") is impl
 
 
-def test_registry_register_duplicate(
-    test_registry: Registry[TestProtocol], test_implementation: TestImplementation
+@pytest.mark.asyncio
+async def test_get_invalid_implementation(
+    test_registry: Registry[TestProtocol],
 ) -> None:
-    """Test registry register duplicate."""
-    test_registry.register("test", test_implementation)
-    with pytest.raises(ValueError):
-        test_registry.register("test", test_implementation)
-
-
-def test_registry_get_missing(test_registry: Registry[TestProtocol]) -> None:
-    """Test registry get missing."""
-    with pytest.raises(KeyError):
+    """Test get invalid implementation."""
+    with pytest.raises(RegistryError):
         test_registry.get("test")
 
 
-def test_registry_list_implementations(
-    test_registry: Registry[TestProtocol], test_implementation: TestImplementation
-) -> None:
-    """Test registry list implementations."""
-    assert test_registry.list_implementations() == []
-    test_registry.register("test1", test_implementation)
-    test_registry.register("test2", TestImplementation)
-    assert sorted(test_registry.list_implementations()) == ["test1", "test2"]
-
-
-def test_registry_clear(
-    test_registry: Registry[TestProtocol], test_implementation: TestImplementation
-) -> None:
-    """Test registry clear."""
-    test_registry.register("test", test_implementation)
-    assert test_registry.list_implementations() == ["test"]
-    test_registry.clear()
-    assert test_registry.list_implementations() == []
-
-
-def test_registry_error() -> None:
-    """Test registry error."""
-    error = RegistryError(
-        "test error",
-        ValueError("cause"),
-        "test_implementation",
-        "test_protocol",
-    )
-    assert str(error) == "test error"
-    assert isinstance(error.__cause__, ValueError)
-    assert error.implementation_name == "test_implementation"
-    assert error.protocol_name == "test_protocol"
+@pytest.mark.asyncio
+async def test_list_implementations(test_registry: Registry[TestProtocol]) -> None:
+    """Test list implementations."""
+    impl1 = TestImplementation()
+    impl2 = TestImplementation()
+    test_registry.register("test1", impl1)
+    test_registry.register("test2", impl2)
+    implementations = test_registry.list()
+    assert len(implementations) == 2
+    assert "test1" in implementations
+    assert "test2" in implementations

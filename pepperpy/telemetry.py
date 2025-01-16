@@ -1,185 +1,114 @@
 """Telemetry module."""
 
-import asyncio
 from dataclasses import dataclass, field
-from datetime import datetime
-from typing import Any, Optional
+from typing import Any, Dict, Optional
 
-from .core import PepperpyError
-from .module import BaseModule, ModuleConfig
+from pepperpy.core import PepperpyError
+from pepperpy.module import BaseModule, ModuleConfig
 
 
 class TelemetryError(PepperpyError):
-    """Telemetry-related errors."""
+    """Telemetry error."""
 
     def __init__(
         self,
         message: str,
+        details: Optional[Dict[str, Any]] = None,
         cause: Optional[Exception] = None,
-        metric_name: Optional[str] = None,
-        collector_name: Optional[str] = None,
     ) -> None:
-        """Initialize telemetry error.
-
-        Args:
-            message: Error message
-            cause: Optional cause of the error
-            metric_name: Optional name of the metric that caused the error
-            collector_name: Optional name of the collector that caused the error
-        """
-        super().__init__(message, cause)
-        self.metric_name = metric_name
-        self.collector_name = collector_name
+        super().__init__(message, details, cause)
 
 
 @dataclass
 class TelemetryConfig(ModuleConfig):
     """Telemetry configuration."""
 
-    name: str
-    enabled: bool = True
-    buffer_size: int = 1000
-    flush_interval: float = 60.0
-    metadata: dict[str, Any] = field(default_factory=dict)
-
-    def __post_init__(self) -> None:
-        """Post initialization validation."""
-        self.validate()
-
-    def validate(self) -> None:
-        """Validate configuration."""
-        if not self.name:
-            raise ValueError("name cannot be empty")
-        if self.buffer_size <= 0:
-            raise ValueError("Buffer size must be positive")
-        if self.flush_interval <= 0:
-            raise ValueError("Flush interval must be positive")
-
-
-@dataclass
-class Metric:
-    """Metric data."""
-
-    name: str
-    value: float
-    timestamp: datetime = field(default_factory=datetime.now)
-    tags: dict[str, str] = field(default_factory=dict)
-    metadata: dict[str, Any] = field(default_factory=dict)
+    name: str = "metrics_collector"
+    metadata: Dict[str, Any] = field(default_factory=dict)
 
 
 class MetricsCollector(BaseModule[TelemetryConfig]):
-    """Metrics collector implementation."""
+    """Metrics collector."""
 
-    def __init__(self) -> None:
-        """Initialize metrics collector."""
-        config = TelemetryConfig(name="metrics-collector")
-        super().__init__(config)
-        self._metrics: list[Metric] = []
-        self._flush_task: asyncio.Task[None] | None = None
+    def __init__(self, config: Optional[TelemetryConfig] = None) -> None:
+        """Initialize metrics collector.
+
+        Args:
+            config: Telemetry configuration
+        """
+        super().__init__(config or TelemetryConfig())
+        self._metrics: Dict[str, Any] = {}
+
+    def _ensure_initialized(self) -> None:
+        """Ensure collector is initialized.
+
+        Raises:
+            TelemetryError: If collector is not initialized
+        """
+        if not self.is_initialized:
+            raise TelemetryError(
+                "Metrics collector is not initialized",
+                {"collector_name": self.config.name},
+            )
 
     async def _setup(self) -> None:
-        """Setup metrics collector."""
+        """Set up metrics collector."""
         self._metrics.clear()
-        if self.config.enabled:
-            self._flush_task = asyncio.create_task(self._flush_loop())
 
     async def _teardown(self) -> None:
-        """Teardown metrics collector."""
-        if self._flush_task:
-            self._flush_task.cancel()
-            try:
-                await self._flush_task
-            except asyncio.CancelledError:
-                pass
-            self._flush_task = None
-        await self._flush_metrics()
+        """Clean up metrics collector."""
         self._metrics.clear()
-        self._is_initialized = False
 
-    async def _flush_loop(self) -> None:
-        """Flush metrics periodically."""
-        while True:
-            try:
-                await asyncio.sleep(self.config.flush_interval)
-                await self._flush_metrics()
-            except asyncio.CancelledError:
-                break
-            except Exception as e:
-                # Log error and continue
-                print(f"Error in flush loop: {e}")
-
-    async def _flush_metrics(self) -> None:
-        """Flush metrics to storage."""
-        if not self._metrics:
-            return
-
-        try:
-            # Implementation would send metrics to storage
-            # This is a placeholder implementation
-            await asyncio.sleep(0.1)
-            self._metrics.clear()
-        except Exception as e:
-            raise TelemetryError(f"Failed to flush metrics: {e}") from e
-
-    async def record(
+    def record_metric(
         self,
         name: str,
-        value: float,
-        tags: dict[str, str] | None = None,
-        metadata: dict[str, Any] | None = None,
+        value: Any,
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> None:
         """Record metric.
 
         Args:
             name: Metric name
             value: Metric value
-            tags: Metric tags
             metadata: Metric metadata
 
         Raises:
-            TelemetryError: If recording fails
+            TelemetryError: If metric recording fails
         """
         self._ensure_initialized()
-
-        if not self.config.enabled:
-            return
-
-        if tags is None:
-            tags = {}
-        if metadata is None:
-            metadata = {}
-
-        metric = Metric(
-            name=name,
-            value=value,
-            tags=tags,
-            metadata=metadata,
-        )
-
-        if len(self._metrics) >= self.config.buffer_size:
-            await self._flush_metrics()
-
-        self._metrics.append(metric)
-
-    async def get_stats(self) -> dict[str, Any]:
-        """Get metrics collector statistics.
-
-        Returns:
-            Metrics collector statistics
-        """
-        self._ensure_initialized()
-        return {
-            "name": self.config.name,
-            "enabled": self.config.enabled,
-            "buffer_size": self.config.buffer_size,
-            "flush_interval": self.config.flush_interval,
-            "metrics_count": len(self._metrics),
-            "is_flushing": self._flush_task is not None,
+        self._metrics[name] = {
+            "value": value,
+            "metadata": metadata or {},
         }
 
+    def get_metric(self, name: str) -> Any:
+        """Get metric value.
 
-__all__ = [
-    "TelemetryConfig",
-    "Metric",
-    "MetricsCollector",
-]
+        Args:
+            name: Metric name
+
+        Returns:
+            Metric value
+
+        Raises:
+            TelemetryError: If metric not found
+        """
+        self._ensure_initialized()
+        if name not in self._metrics:
+            raise TelemetryError(
+                "Metric not found",
+                {"metric_name": name, "collector_name": self.config.name},
+            )
+        return self._metrics[name]["value"]
+
+    def get_metrics(self) -> Dict[str, Any]:
+        """Get all metrics.
+
+        Returns:
+            Dictionary of metrics
+        """
+        self._ensure_initialized()
+        return {name: data["value"] for name, data in self._metrics.items()}
+
+
+__all__ = ["MetricsCollector", "TelemetryConfig", "TelemetryError"]

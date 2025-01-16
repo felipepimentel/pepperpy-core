@@ -1,150 +1,127 @@
-"""Resource management module."""
+"""Resources module."""
 
 from dataclasses import dataclass, field
-from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Dict, Optional
 
-from .core import PepperpyError
+from pepperpy.core import PepperpyError
+from pepperpy.module import BaseModule, ModuleConfig
 
 
 class ResourceError(PepperpyError):
-    """Resource-related errors."""
+    """Resource error."""
 
     def __init__(
         self,
         message: str,
+        details: Optional[Dict[str, Any]] = None,
         cause: Optional[Exception] = None,
-        resource_name: Optional[str] = None,
     ) -> None:
-        """Initialize resource error.
-
-        Args:
-            message: Error message
-            cause: Optional cause of the error
-            resource_name: Optional name of the resource that caused the error
-        """
-        super().__init__(message, cause)
-        self.resource_name = resource_name
+        super().__init__(message, details, cause)
 
 
 @dataclass
-class ResourceConfig:
+class ResourceConfig(ModuleConfig):
     """Resource configuration."""
 
-    name: str
-    path: str | Path
-    metadata: dict[str, Any] = field(default_factory=dict)
+    name: str = "resource_manager"
+    metadata: Dict[str, Any] = field(default_factory=dict)
 
 
-@dataclass
-class ResourceInfo:
-    """Resource information."""
+class ResourceManager(BaseModule[ResourceConfig]):
+    """Resource manager."""
 
-    name: str
-    path: Path
-    size: int
-    metadata: dict[str, Any] = field(default_factory=dict)
+    def __init__(self, config: Optional[ResourceConfig] = None) -> None:
+        """Initialize resource manager.
 
+        Args:
+            config: Resource configuration
+        """
+        super().__init__(config or ResourceConfig())
+        self._resources: Dict[str, Any] = {}
 
-class ResourceManager:
-    """Resource manager implementation."""
+    def _ensure_initialized(self) -> None:
+        """Ensure manager is initialized.
 
-    def __init__(self) -> None:
-        """Initialize resource manager."""
-        self._resources: dict[str, ResourceInfo] = {}
-        self._initialized: bool = False
+        Raises:
+            ResourceError: If manager is not initialized
+        """
+        if not self.is_initialized:
+            raise ResourceError(
+                "Resource manager is not initialized",
+                {"manager_name": self.config.name},
+            )
 
-    def initialize(self) -> None:
-        """Initialize resource manager."""
-        if self._initialized:
-            return
-        self._initialized = True
+    async def _setup(self) -> None:
+        """Set up resource manager."""
+        self._resources = {}
 
-    def cleanup(self) -> None:
-        """Cleanup resource manager."""
-        if not self._initialized:
-            return
-        self._resources.clear()
-        self._initialized = False
+    async def _teardown(self) -> None:
+        """Clean up resource manager."""
+        self._resources = {}
 
-    def get_resource(self, name: str) -> ResourceInfo | None:
-        """Get resource information.
+    def register(self, name: str, resource: Any) -> None:
+        """Register resource.
 
         Args:
             name: Resource name
-
-        Returns:
-            Resource information if found, None otherwise
+            resource: Resource instance
 
         Raises:
-            ResourceError: If resource manager not initialized
+            ResourceError: If resource cannot be registered
         """
-        if not self._initialized:
-            raise ResourceError("Resource manager not initialized")
-        return self._resources.get(name)
-
-    def add_resource(
-        self, name: str, path: str | Path, metadata: dict[str, Any] | None = None
-    ) -> ResourceInfo:
-        """Add resource.
-
-        Args:
-            name: Resource name
-            path: Resource path
-            metadata: Resource metadata
-
-        Returns:
-            Resource information
-
-        Raises:
-            ResourceError: If resource manager not initialized or
-                resource already exists
-        """
-        if not self._initialized:
-            raise ResourceError("Resource manager not initialized")
-
+        self._ensure_initialized()
         if name in self._resources:
-            raise ResourceError(f"Resource {name} already exists")
+            raise ResourceError(
+                "Resource already registered",
+                {"name": name, "manager_name": self.config.name},
+            )
+        self._resources[name] = resource
 
-        path_obj = Path(path)
-        if not path_obj.exists():
-            raise ResourceError(f"Resource path {path} does not exist")
+    def get(self, name: str) -> Any:
+        """Get resource.
 
-        info = ResourceInfo(
-            name=name,
-            path=path_obj,
-            size=path_obj.stat().st_size,
-            metadata=metadata or {},
-        )
-        self._resources[name] = info
-        return info
+        Args:
+            name: Resource name
 
-    def remove_resource(self, name: str) -> None:
-        """Remove resource.
+        Returns:
+            Resource instance
+
+        Raises:
+            ResourceError: If resource is not found
+        """
+        self._ensure_initialized()
+        if name not in self._resources:
+            raise ResourceError(
+                "Resource not found",
+                {"name": name, "manager_name": self.config.name},
+            )
+        return self._resources[name]
+
+    def unregister(self, name: str) -> None:
+        """Unregister resource.
 
         Args:
             name: Resource name
 
         Raises:
-            ResourceError: If resource manager not initialized or resource not found
+            ResourceError: If resource cannot be unregistered
         """
-        if not self._initialized:
-            raise ResourceError("Resource manager not initialized")
-
+        self._ensure_initialized()
         if name not in self._resources:
-            raise ResourceError(f"Resource {name} not found")
-
+            raise ResourceError(
+                "Resource not found",
+                {"name": name, "manager_name": self.config.name},
+            )
         del self._resources[name]
 
-    def list_resources(self) -> list[ResourceInfo]:
-        """List all resources.
-
-        Returns:
-            List of resource information
+    def clear(self) -> None:
+        """Clear all resources.
 
         Raises:
-            ResourceError: If resource manager not initialized
+            ResourceError: If resources cannot be cleared
         """
-        if not self._initialized:
-            raise ResourceError("Resource manager not initialized")
-        return list(self._resources.values())
+        self._ensure_initialized()
+        self._resources = {}
+
+
+__all__ = ["ResourceConfig", "ResourceError", "ResourceManager"]

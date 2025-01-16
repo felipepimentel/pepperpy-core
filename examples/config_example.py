@@ -1,38 +1,57 @@
-"""Configuration example."""
+"""Config example module."""
 
-from typing import Any
-
-from pepperpy.config import (
-    Config,
-    ConfigLoader,
-    JsonConfigLoader,
-    YamlConfigLoader,
-)
+from dataclasses import dataclass, field
+from typing import Any, Dict
 
 
+class Config:
+    """Base configuration class."""
+
+    async def get_stats(self) -> Dict[str, Any]:
+        """Get configuration stats.
+
+        Returns:
+            Configuration stats
+        """
+        raise NotImplementedError
+
+
+@dataclass
 class ExampleConfig(Config):
     """Example configuration."""
 
-    def __init__(self, name: str = "example") -> None:
-        """Initialize configuration."""
-        super().__init__(name=name)
-        self._loader: ConfigLoader | None = None
+    name: str = "example"
+    enabled: bool = True
+    settings: Dict[str, Any] = field(default_factory=dict)
 
-    async def load_from_json(self, path: str) -> None:
-        """Load configuration from JSON file."""
-        loader = JsonConfigLoader()
-        await self.load(loader, path)
+    async def get_stats(self) -> Dict[str, Any]:
+        """Get configuration stats.
 
-    async def load_from_yaml(self, path: str) -> None:
-        """Load configuration from YAML file."""
-        loader = YamlConfigLoader()
-        await self.load(loader, path)
-
-    async def get_stats(self) -> dict[str, Any]:
-        """Get configuration statistics."""
+        Returns:
+            Configuration stats
+        """
         return {
             "name": self.name,
             "enabled": self.enabled,
-            "metadata": self.metadata,
-            "loader": self._loader.__class__.__name__ if self._loader else None,
+            "settings": self.settings,
         }
+
+
+async def main() -> None:
+    """Run example."""
+    # Create config instance
+    config = ExampleConfig(
+        name="example",
+        enabled=True,
+        settings={"key": "value"},
+    )
+
+    # Get stats
+    stats = await config.get_stats()
+    print(f"Config stats: {stats}")
+
+
+if __name__ == "__main__":
+    import asyncio
+
+    asyncio.run(main())
