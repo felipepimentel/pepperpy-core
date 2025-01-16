@@ -1,100 +1,94 @@
 Quickstart Guide
-==============
+===============
 
 This guide will help you get started with PepperPy Core quickly.
 
 Basic Usage
 ----------
 
-Here's a simple example of using PepperPy Core:
+1. Install PepperPy Core:
 
-.. code-block:: python
+   .. code-block:: bash
 
-    from pepperpy import Core, Event, Plugin
+      pip install pepperpy-core
 
-    # Create a core instance
-    core = Core()
+2. Create a basic application:
 
-    # Define a plugin
-    class MyPlugin(Plugin):
-        async def on_start(self):
-            print("Plugin started!")
-            
-        async def on_event(self, event: Event):
-            if event.name == "greet":
-                print(f"Hello, {event.data['name']}!")
+   .. code-block:: python
 
-    # Register and start the plugin
-    core.register_plugin(MyPlugin())
-    
-    # Run the core
-    await core.start()
-    
-    # Emit an event
-    await core.emit_event(Event("greet", {"name": "World"}))
+      from pepperpy import Registry, Event
+
+      # Initialize registry
+      registry = Registry()
+      await registry.initialize()
+
+      # Create and emit events
+      event = Event("user.created", {"id": 1, "name": "John"})
+      await registry.emit(event)
 
 Event System
 -----------
 
-Events are the core communication mechanism:
+The event system allows components to communicate through events:
 
 .. code-block:: python
 
-    from pepperpy import Event
+    from pepperpy import Event, EventHandler
 
-    # Create an event
-    event = Event(
-        name="user_login",
-        data={"user_id": "123", "username": "john_doe"}
-    )
+    # Define an event handler
+    class UserCreatedHandler(EventHandler):
+        async def handle(self, event: Event) -> None:
+            print(f"User created: {event.data}")
 
-    # Emit the event
-    await core.emit_event(event)
+    # Register the handler
+    registry.register_handler("user.created", UserCreatedHandler())
 
 Plugin System
 -----------
 
-Plugins are the main way to extend functionality:
+Extend functionality through plugins:
 
 .. code-block:: python
 
-    from pepperpy import Plugin, Event
+    from pepperpy import Plugin, PluginConfig
 
-    class AuthPlugin(Plugin):
-        async def on_start(self):
+    class UserPlugin(Plugin):
+        def __init__(self):
+            super().__init__(PluginConfig(name="user_plugin"))
+
+        async def setup(self) -> None:
             # Plugin initialization
-            self.users = {}
+            pass
 
-        async def on_event(self, event: Event):
-            if event.name == "user_login":
-                await self.authenticate_user(event.data)
-
-        async def authenticate_user(self, data):
-            # Authentication logic here
+        async def cleanup(self) -> None:
+            # Plugin cleanup
             pass
 
 Task Management
 -------------
 
-PepperPy Core includes a task management system:
+Handle background tasks efficiently:
 
 .. code-block:: python
 
-    from pepperpy import Task
+    from pepperpy import Task, TaskConfig
 
     # Create a task
-    async def my_task():
-        while True:
-            print("Task running...")
-            await asyncio.sleep(1)
+    async def background_job():
+        # Task logic
+        pass
 
-    # Register the task
-    task = Task(my_task)
-    core.register_task(task)
+    task = Task(
+        TaskConfig(name="background_job"),
+        background_job
+    )
+
+    # Start the task
+    await registry.start_task(task)
 
 Next Steps
 ---------
 
-- Check out the :doc:`api/index` for detailed documentation
-- Read about :doc:`advanced topics <advanced>` for more features
-- Join our community for support and discussions 
+- Explore the :doc:`api/index` for detailed documentation
+- Check out the examples in the repository
+- Join our community for support 

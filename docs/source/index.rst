@@ -1,23 +1,16 @@
-.. PepperPy Core documentation master file, created by
-   sphinx-quickstart on Wed Jan 15 09:26:37 2025.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
+PepperPy Core Documentation
+=========================
 
-Welcome to PepperPy Core's documentation!
-=====================================
-
-PepperPy Core is a powerful Python library for building event-driven applications with a focus on modularity, extensibility, and type safety.
+Welcome to PepperPy Core's documentation. PepperPy Core is a modern Python framework
+for building robust, scalable, and maintainable applications.
 
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
 
    overview
-   installation
    quickstart
    api/index
-   contributing
-   changelog
 
 Features
 --------
@@ -26,17 +19,23 @@ Features
 - Plugin system
 - Task management
 - Type safety
-- Async/await support
-- Extensive testing
-- Comprehensive documentation
+- Modular design
+- Comprehensive testing utilities
+- Security features
+- Performance optimizations
 
 Getting Started
 --------------
 
-Check out our :doc:`quickstart` guide to begin using PepperPy Core.
+To get started with PepperPy Core, check out the :doc:`quickstart` guide.
 
-Indices and tables
-==================
+API Reference
+------------
+
+For detailed API documentation, see the :doc:`api/index`.
+
+Indices and Tables
+-----------------
 
 * :ref:`genindex`
 * :ref:`modindex`
